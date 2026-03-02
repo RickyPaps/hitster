@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:developer.spotify.com)",
+      "Bash(tail:*)",
+      "Bash(cd:*)",
+      "Bash(export PATH=\"/c/nvm-symlink:$PATH\" && cd /c/Users/ricky/Desktop/Work/Hitster && npx next build 2>&1)"
+    ]
+  }
+}
