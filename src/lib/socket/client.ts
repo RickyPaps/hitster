@@ -4,8 +4,9 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    const url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
-    socket = io(url, {
+    // Don't hardcode a URL — connect to whatever host served the page.
+    // This makes it work from localhost AND from phones on the LAN.
+    socket = io({
       autoConnect: false,
       transports: ['websocket', 'polling'],
     });
@@ -13,12 +14,27 @@ export function getSocket(): Socket {
   return socket;
 }
 
-export function connectSocket(): Socket {
-  const s = getSocket();
-  if (!s.connected) {
+export function connectSocket(): Promise<Socket> {
+  return new Promise((resolve, reject) => {
+    const s = getSocket();
+    if (s.connected) {
+      resolve(s);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      s.off('connect', onConnect);
+      reject(new Error('Connection timed out'));
+    }, 5000);
+
+    const onConnect = () => {
+      clearTimeout(timeout);
+      resolve(s);
+    };
+
+    s.once('connect', onConnect);
     s.connect();
-  }
-  return s;
+  });
 }
 
 export function disconnectSocket(): void {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GamePhase, WheelCategory, Track, BingoCell, GuessResult, LobbySettings, Player, DEFAULT_SETTINGS } from '@/types/game';
+import type { GamePhase, WheelCategory, Track, BingoCell, GuessResult, LobbySettings, Player } from '@/types/game';
 
 interface GameStore {
   // Connection
@@ -19,6 +19,8 @@ interface GameStore {
   timerSeconds: number;
   winner: Player | null;
   partyTarget: string | null;
+  currentSpinnerId: string | null;
+  currentSpinnerName: string | null;
 
   // Player-specific
   bingoCard: BingoCell[];
@@ -39,6 +41,7 @@ interface GameStore {
   setHasGuessedThisRound: (v: boolean) => void;
   setWinner: (player: Player | null) => void;
   setPartyTarget: (name: string | null) => void;
+  setCurrentSpinner: (id: string | null, name: string | null) => void;
   reset: () => void;
 }
 
@@ -66,6 +69,8 @@ const initialState = {
   hasGuessedThisRound: false,
   winner: null,
   partyTarget: null,
+  currentSpinnerId: null,
+  currentSpinnerName: null,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -93,5 +98,6 @@ export const useGameStore = create<GameStore>((set) => ({
   setHasGuessedThisRound: (hasGuessedThisRound) => set({ hasGuessedThisRound }),
   setWinner: (winner) => set({ winner }),
   setPartyTarget: (partyTarget) => set({ partyTarget }),
+  setCurrentSpinner: (currentSpinnerId, currentSpinnerName) => set({ currentSpinnerId, currentSpinnerName }),
   reset: () => set(initialState),
 }));

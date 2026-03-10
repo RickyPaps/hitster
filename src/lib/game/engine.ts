@@ -10,10 +10,9 @@ export interface GameEngine {
   doSpin: () => { category: WheelCategory; segmentIndex: number };
   startRound: () => import('@/types/game').Track | null;
   submitGuess: (playerId: string, guess: string) => GuessResult | null;
-  approveLyrics: (playerId: string, approved: boolean) => GuessResult | null;
   endRound: () => void;
   checkForWinner: () => import('@/types/game').Player | null;
-  getRandomPlayer: () => string | null;
+  getRandomPlayer: () => { id: string; name: string } | null;
 }
 
 export function createGameEngine(room: RoomState): GameEngine {
@@ -31,13 +30,7 @@ export function createGameEngine(room: RoomState): GameEngine {
     doSpin() {
       const { segment, index } = spinWheel();
       room.currentCategory = segment.category;
-
-      if (isPartyCategory(segment.category)) {
-        room.phase = 'DRINKING_SEGMENT';
-      } else {
-        room.phase = 'SPINNING'; // will transition to PLAYING after animation
-      }
-
+      // Phase stays SPINNING — client emits HOST_WHEEL_DONE after animation completes
       return { category: segment.category, segmentIndex: index };
     },
 
@@ -65,18 +58,6 @@ export function createGameEngine(room: RoomState): GameEngine {
       // Check if already guessed
       if (room.roundGuesses.some((g) => g.playerId === playerId)) return null;
 
-      // Lyrics are judged manually
-      if (room.currentCategory === 'lyrics') {
-        const result: GuessResult = {
-          playerId,
-          playerName: player.name,
-          guess,
-          correct: false, // pending host approval
-        };
-        room.roundGuesses.push(result);
-        return result;
-      }
-
       const { correct, similarity } = checkAnswer(
         room.currentCategory,
         guess,
@@ -92,40 +73,10 @@ export function createGameEngine(room: RoomState): GameEngine {
       };
       room.roundGuesses.push(result);
 
-      // If correct, mark the player's bingo card
-      if (correct) {
-        const cellIndex = player.bingoCard.findIndex(
-          (cell) => cell.category === room.currentCategory && !cell.marked
-        );
-        if (cellIndex !== -1) {
-          player.bingoCard[cellIndex].marked = true;
-          player.completedRows = countCompletedLines(player.bingoCard);
-        }
-      }
+      // Card marking is deferred to endRound/handleTimerEnd so players
+      // don't see updates until results are revealed.
 
       return result;
-    },
-
-    approveLyrics(playerId: string, approved: boolean) {
-      const guessEntry = room.roundGuesses.find((g) => g.playerId === playerId);
-      if (!guessEntry) return null;
-
-      guessEntry.correct = approved;
-
-      if (approved) {
-        const player = room.players.find((p) => p.id === playerId);
-        if (player) {
-          const cellIndex = player.bingoCard.findIndex(
-            (cell) => cell.category === 'lyrics' && !cell.marked
-          );
-          if (cellIndex !== -1) {
-            player.bingoCard[cellIndex].marked = true;
-            player.completedRows = countCompletedLines(player.bingoCard);
-          }
-        }
-      }
-
-      return guessEntry;
     },
 
     endRound() {
@@ -146,7 +97,8 @@ export function createGameEngine(room: RoomState): GameEngine {
     getRandomPlayer() {
       const connected = room.players.filter((p) => p.connected);
       if (connected.length === 0) return null;
-      return connected[Math.floor(Math.random() * connected.length)].name;
+      const player = connected[Math.floor(Math.random() * connected.length)];
+      return { id: player.id, name: player.name };
     },
   };
 }

@@ -5,7 +5,16 @@
       "WebFetch(domain:developer.spotify.com)",
       "Bash(tail:*)",
       "Bash(cd:*)",
-      "Bash(export PATH=\"/c/nvm-symlink:$PATH\" && cd /c/Users/ricky/Desktop/Work/Hitster && npx next build 2>&1)"
+      "Bash(export PATH=\"/c/nvm-symlink:$PATH\" && cd /c/Users/ricky/Desktop/Work/Hitster && npx next build 2>&1)",
+      "Bash(cd /c/Users/ricky/Desktop/Work/Hitster && export PATH=\"/c/nvm-symlink:$PATH\" && npx next build 2>&1)",
+      "Bash(cd /c/Users/ricky/Desktop/Work/Hitster && export PATH=\"/c/nvm-symlink:$PATH\" && npx next lint 2>&1)",
+      "Bash(node:*)",
+      "Bash(PATH=\"/c/nvm-symlink:$PATH\" && cd C:/Users/ricky/Desktop/Work/Hitster && npm ls gsap 2>&1)",
+      "Bash(cd /c/Users/ricky/Desktop/Work/Hitster && claude mcp add --help 2>&1)",
+      "mcp__stitch__get_screen",
+      "Bash(curl:*)",
+      "Bash(cd \"C:/Users/ricky/Desktop/Work/Hitster\" && export PATH=\"/c/nvm-symlink:$PATH\" && npx next build 2>&1)",
+      "Bash(cygpath:*)"
     ]
   }
 }

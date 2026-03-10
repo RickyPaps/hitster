@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { getSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
-import type { Player, LobbySettings, GamePhase, GuessResult, BingoCell } from '@/types/game';
+import type { Player, LobbySettings, GamePhase, BingoCell } from '@/types/game';
 
 export function useGameState() {
   const store = useGameStore();
@@ -23,6 +23,7 @@ export function useGameState() {
       if (state.winner) store.setWinner(state.winner);
       if (state.partyTarget) store.setPartyTarget(state.partyTarget);
       if (state.currentTrack) store.setCurrentTrack(state.currentTrack);
+      store.setCurrentSpinner(state.currentSpinnerId ?? null, state.currentSpinnerName ?? null);
 
       // Update own bingo card from server state
       if (store.playerId) {
@@ -56,16 +57,16 @@ export function useGameState() {
       store.setSettings(settings);
     });
 
-    socket.on(SOCKET_EVENTS.GUESS_RESULT, (result: GuessResult) => {
-      store.setHasGuessedThisRound(true);
-    });
-
     socket.on(SOCKET_EVENTS.CARD_UPDATE, (data: { bingoCard: BingoCell[] }) => {
       store.setBingoCard(data.bingoCard);
     });
 
     socket.on(SOCKET_EVENTS.GAME_WINNER, (winner: Player) => {
       store.setWinner(winner);
+    });
+
+    socket.on(SOCKET_EVENTS.GAME_SPINNER_SELECTED, (data: { playerId: string; playerName: string }) => {
+      store.setCurrentSpinner(data.playerId, data.playerName);
     });
 
     socket.on(SOCKET_EVENTS.GAME_WHEEL_RESULT, (data: { category: string; segmentIndex: number }) => {
@@ -77,6 +78,10 @@ export function useGameState() {
       store.setHasGuessedThisRound(false);
     });
 
+    // Request full state sync now that listeners are registered.
+    // This catches any events missed during page navigation.
+    socket.emit(SOCKET_EVENTS.REQUEST_SYNC);
+
     return () => {
       socket.off(SOCKET_EVENTS.GAME_STATE_SYNC);
       socket.off(SOCKET_EVENTS.GAME_PHASE_CHANGE);
@@ -84,9 +89,9 @@ export function useGameState() {
       socket.off(SOCKET_EVENTS.PLAYER_JOINED);
       socket.off(SOCKET_EVENTS.PLAYER_LEFT);
       socket.off(SOCKET_EVENTS.SETTINGS_UPDATED);
-      socket.off(SOCKET_EVENTS.GUESS_RESULT);
       socket.off(SOCKET_EVENTS.CARD_UPDATE);
       socket.off(SOCKET_EVENTS.GAME_WINNER);
+      socket.off(SOCKET_EVENTS.GAME_SPINNER_SELECTED);
       socket.off(SOCKET_EVENTS.GAME_WHEEL_RESULT);
       socket.off(SOCKET_EVENTS.GAME_ROUND_START);
     };

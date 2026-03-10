@@ -1,118 +1,64 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WHEEL_SEGMENTS } from '@/types/game';
+import { drawWheel } from '@/lib/wheel/draw-wheel';
+import { calculateSpinAnimation, easeOutQuintic } from '@/lib/wheel/animate-spin';
 import CategoryBadge from '@/components/shared/CategoryBadge';
 
 interface WheelSpinnerProps {
   onSpinComplete: () => void;
   isSpinning: boolean;
   resultIndex: number | null;
+  swipeVelocity?: number;
 }
 
-export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex }: WheelSpinnerProps) {
+export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, swipeVelocity }: WheelSpinnerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [rotation, setRotation] = useState(0);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const rotationRef = useRef(0);
+  const animationRef = useRef<number | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  const animationRef = useRef<number | null>(null);
 
-  const drawWheel = useCallback((ctx: CanvasRenderingContext2D, size: number, currentRotation: number) => {
-    const center = size / 2;
-    const radius = center - 10;
-    const segments = WHEEL_SEGMENTS;
-    const arc = (2 * Math.PI) / segments.length;
-
-    ctx.clearRect(0, 0, size, size);
-
-    segments.forEach((seg, i) => {
-      const startAngle = i * arc + currentRotation;
-      const endAngle = startAngle + arc;
-
-      // Draw segment
-      ctx.beginPath();
-      ctx.moveTo(center, center);
-      ctx.arc(center, center, radius, startAngle, endAngle);
-      ctx.closePath();
-      ctx.fillStyle = seg.color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Draw text
-      ctx.save();
-      ctx.translate(center, center);
-      ctx.rotate(startAngle + arc / 2);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.max(11, size / 28)}px system-ui`;
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 4;
-      ctx.fillText(seg.label, radius - 20, 5);
-      ctx.restore();
-    });
-
-    // Center circle
-    ctx.beginPath();
-    ctx.arc(center, center, 25, 0, 2 * Math.PI);
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fill();
-    ctx.strokeStyle = '#8b5cf6';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Pointer (top)
-    ctx.beginPath();
-    ctx.moveTo(center - 12, 5);
-    ctx.lineTo(center + 12, 5);
-    ctx.lineTo(center, 30);
-    ctx.closePath();
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }, []);
-
+  // Cache canvas context and draw initial wheel
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctxRef.current = ctx;
+    drawWheel(ctx, canvas.width, 0);
+  }, []);
 
-    const size = canvas.width;
-    drawWheel(ctx, size, rotation);
-  }, [rotation, drawWheel]);
-
+  // Spin animation — draws directly to canvas without React state updates
   useEffect(() => {
     if (!isSpinning || resultIndex === null) return;
+
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
 
     setSpinning(true);
     setShowResult(false);
 
-    const segments = WHEEL_SEGMENTS.length;
-    const arc = (2 * Math.PI) / segments;
-    // Target: pointer at top (= -PI/2), land on resultIndex center
-    // Final rotation = fullSpins * 2PI + offset to land on segment
-    const targetAngle = -(resultIndex * arc + arc / 2) - Math.PI / 2;
-    const fullSpins = 5 + Math.random() * 3;
-    const totalRotation = fullSpins * 2 * Math.PI + targetAngle - (rotation % (2 * Math.PI));
+    // Use provided swipeVelocity or random fallback for host-only spin
+    const velocity = swipeVelocity ?? (0.8 + Math.random() * 0.7);
+    const { totalRotation, duration } = calculateSpinAnimation(resultIndex, velocity);
+    const startTime = performance.now();
+    const size = canvas.width;
 
-    const startRotation = rotation;
-    const startTime = Date.now();
-    const duration = 3500; // ms
+    rotationRef.current = 0;
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutQuintic(progress);
+      const currentRotation = progress >= 1 ? totalRotation : totalRotation * eased;
 
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const currentRotation = startRotation + totalRotation * eased;
-
-      setRotation(currentRotation);
+      rotationRef.current = currentRotation;
+      drawWheel(ctx, size, currentRotation);
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate);
@@ -125,6 +71,8 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex }
       }
     };
 
+    // Draw initial frame at rotation 0
+    drawWheel(ctx, size, 0);
     animationRef.current = requestAnimationFrame(animate);
 
     return () => {
@@ -134,12 +82,27 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex }
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative">
+      <div className="relative max-w-[400px] w-full">
+        {/* Outer glow ring — matches Stitch neon purple border */}
+        <div
+          className="absolute -inset-3 rounded-full pointer-events-none"
+          style={{
+            border: '2px solid rgba(188, 19, 254, 0.6)',
+            boxShadow: '0 0 50px rgba(188, 19, 254, 0.4)',
+          }}
+        />
+        <div
+          className="absolute -inset-1 rounded-full pointer-events-none opacity-50"
+          style={{
+            border: '12px solid rgba(188, 19, 254, 0.15)',
+            filter: 'blur(6px)',
+          }}
+        />
         <canvas
           ref={canvasRef}
           width={400}
           height={400}
-          className="max-w-full"
+          className="max-w-full w-full h-auto relative"
           style={{ filter: spinning ? 'brightness(1.1)' : 'brightness(1)' }}
         />
       </div>

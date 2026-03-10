@@ -2,12 +2,11 @@ export type GamePhase =
   | 'LOBBY'
   | 'SPINNING'
   | 'PLAYING'
-  | 'JUDGING'
   | 'ROUND_RESULTS'
   | 'DRINKING_SEGMENT'
   | 'GAME_OVER';
 
-export type GuessCategory = 'year' | 'artist' | 'title' | 'lyrics' | 'album';
+export type GuessCategory = 'year' | 'artist' | 'title' | 'year-approx' | 'album';
 export type PartyCategory = 'everybody-drinks' | 'hot-take' | 'rock-off';
 export type WheelCategory = GuessCategory | PartyCategory;
 
@@ -15,17 +14,19 @@ export interface WheelSegment {
   category: WheelCategory;
   label: string;
   color: string;
+  baseColor: string;
+  accentColor: string;
 }
 
 export const WHEEL_SEGMENTS: WheelSegment[] = [
-  { category: 'year', label: 'Year', color: '#3B82F6' },        // Blue
-  { category: 'artist', label: 'Artist', color: '#EF4444' },     // Red
-  { category: 'title', label: 'Song Title', color: '#22C55E' },  // Green
-  { category: 'lyrics', label: 'Lyrics', color: '#A855F7' },     // Purple
-  { category: 'album', label: 'Album', color: '#F97316' },       // Orange
-  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#EAB308' }, // Yellow
-  { category: 'hot-take', label: 'Hot Take', color: '#EC4899' }, // Pink
-  { category: 'rock-off', label: 'Rock Off', color: '#14B8A6' }, // Teal
+  { category: 'year',             label: 'Year',              color: '#4d9fff', baseColor: '#0a1a3d', accentColor: '#4d9fff' },
+  { category: 'artist',           label: 'Artist',            color: '#ff3355', baseColor: '#3d0a0a', accentColor: '#ff3355' },
+  { category: 'title',            label: 'Song Title',        color: '#33ff77', baseColor: '#0a3d1a', accentColor: '#33ff77' },
+  { category: 'year-approx',      label: 'Year ±3',           color: '#bc4dff', baseColor: '#2a0a3d', accentColor: '#bc4dff' },
+  { category: 'album',            label: 'Album',             color: '#ff8833', baseColor: '#3d1a0a', accentColor: '#ff8833' },
+  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#ffcc00', baseColor: '#3d2e0a', accentColor: '#ffcc00' },
+  { category: 'hot-take',         label: 'Hot Take',          color: '#ff4da6', baseColor: '#3d0a2a', accentColor: '#ff4da6' },
+  { category: 'rock-off',         label: 'Rock Off',          color: '#00e6cc', baseColor: '#0a3d35', accentColor: '#00e6cc' },
 ];
 
 export interface Track {
@@ -50,6 +51,7 @@ export interface Player {
   score: number;
   connected: boolean;
   completedRows: number;
+  drinks: number;
 }
 
 export interface GuessResult {
@@ -84,13 +86,15 @@ export interface RoomState {
   timerSeconds: number;
   winner: Player | null;
   partyTarget?: string | null; // player name for hot-take
+  currentSpinnerId: string | null;
+  currentSpinnerName: string | null;
+  pendingSpinResult: { category: WheelCategory; segmentIndex: number } | null;
 }
 
-export const DEFAULT_SETTINGS: LobbySettings = {
-  timerDuration: 20,
-  winCondition: 1,
-  musicSource: 'curated',
-  playlistUrl: '',
-  drinkOnWrongGuess: true,
-  drinkOnRowComplete: true,
-};
+export interface TrackHistoryEntry {
+  track: Track;
+  category: WheelCategory;
+  roundNumber: number;
+  correctCount: number;
+  totalGuesses: number;
+}

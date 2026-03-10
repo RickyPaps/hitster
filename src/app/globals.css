@@ -11,6 +11,9 @@
   --success: #22c55e;
   --error: #ef4444;
   --warning: #eab308;
+  --neon-pink: #ff2d95;
+  --neon-cyan: #00f0ff;
+  --neon-purple: #b829ff;
 }
 
 * {
@@ -44,4 +47,298 @@ body {
 
 .glow-text {
   text-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* Chrome metallic text */
+.chrome-text {
+  background: linear-gradient(
+    180deg,
+    #fff 0%,
+    #d4d4d8 25%,
+    #a1a1aa 50%,
+    #d4d4d8 75%,
+    #fff 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 30px rgba(184, 41, 255, 0.5)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+}
+
+/* Neon input focus */
+.neon-input {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.neon-input:focus {
+  border-color: var(--neon-cyan) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3), 0 0 30px rgba(0, 240, 255, 0.1);
+  outline: none;
+}
+
+/* Disco lobby neon boxes */
+.neon-box-fuchsia {
+  box-shadow: 0 0 10px rgba(217, 70, 239, 0.5), inset 0 0 10px rgba(217, 70, 239, 0.15);
+  border: 1.5px solid rgba(217, 70, 239, 0.6);
+}
+.neon-box-teal {
+  box-shadow: 0 0 10px rgba(45, 212, 191, 0.5), inset 0 0 10px rgba(45, 212, 191, 0.15);
+  border: 1.5px solid rgba(45, 212, 191, 0.6);
+}
+.neon-box-rose {
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.5), inset 0 0 10px rgba(244, 63, 94, 0.15);
+  border: 1.5px solid rgba(244, 63, 94, 0.6);
+}
+.neon-text-fuchsia {
+  text-shadow: 0 0 5px #d946ef, 0 0 10px #d946ef, 0 0 20px #d946ef, 0 0 40px #d946ef;
+}
+.neon-text-teal {
+  text-shadow: 0 0 5px #2dd4bf, 0 0 10px #2dd4bf, 0 0 20px #2dd4bf;
+}
+
+/* Dance floor grid for lobby background */
+.dance-floor-grid {
+  background-image:
+    linear-gradient(rgba(217, 70, 239, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.15) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Pulsing glow animation for Start Game button */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.03); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Custom toggle switch */
+.disco-toggle {
+  position: relative;
+  width: 3.5rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: #374151;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.disco-toggle.active {
+  background: #d946ef;
+  box-shadow: 0 0 10px #d946ef;
+}
+.disco-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: white;
+  transition: transform 0.3s;
+}
+.disco-toggle.active::after {
+  transform: translateX(1.75rem);
+}
+
+/* ── Host Game Master Layout ── */
+.host-game-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px;
+  grid-template-rows: auto 1fr auto;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.host-top-nav {
+  grid-column: 1 / -1;
+  background: rgba(13, 2, 22, 0.8);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 0, 127, 0.2);
+}
+
+.host-bottom-bar {
+  grid-column: 1 / -1;
+}
+
+.sidebar-panel {
+  background: transparent;
+  overflow-y: auto;
+}
+
+.sidebar-panel-right {
+  background: transparent;
+  overflow-y: auto;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(188, 19, 254, 0.3);
+  border-radius: 2px;
+}
+
+/* Glass panels matching Stitch design */
+.glass-panel {
+  background: rgba(13, 2, 22, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.glass-panel-purple {
+  background: rgba(13, 2, 22, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(188, 19, 254, 0.3);
+  box-shadow: 0 0 20px rgba(188, 19, 254, 0.2);
+}
+
+.glass-panel-teal {
+  background: rgba(13, 2, 22, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+}
+
+/* Rank badges - square rounded style from Stitch */
+.rank-badge-1 {
+  background: #ff007f;
+  box-shadow: 0 4px 12px rgba(255, 0, 127, 0.3);
+}
+.rank-badge-2 {
+  background: #374151;
+}
+.rank-badge-3 {
+  background: #1f2937;
+}
+
+@keyframes bingo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.bingo-alert {
+  animation: bingo-pulse 1.5s ease-in-out infinite;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 0.5rem;
+}
+
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: live-blink 1.5s ease-in-out infinite;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+/* Phase pill — teal variant for challenge card */
+.phase-pill {
+  background: rgba(0, 242, 255, 0.2);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  border-radius: 9999px;
+  padding: 0.375rem 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: #00f2ff;
+}
+
+/* Glowing challenge card */
+.challenge-card {
+  background: rgba(75, 32, 56, 0.3);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  box-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
+}
+.challenge-card-glow {
+  background: linear-gradient(to right, rgba(0, 242, 255, 0.4), rgba(188, 19, 254, 0.4));
+  filter: blur(20px);
+  opacity: 0.4;
+}
+
+/* Now playing bottom bar */
+.now-playing-bar {
+  border-top: 1px solid rgba(255, 0, 127, 0.2);
+  background: rgba(13, 2, 22, 0.8);
+  backdrop-filter: blur(16px);
+}
+
+/* Neon timer ring */
+.timer-ring-pink {
+  background: rgba(255, 0, 127, 0.1);
+  border: 1px solid rgba(255, 0, 127, 0.3);
+}
+
+/* Gradient text utility */
+.gradient-text-teal {
+  background: linear-gradient(to right, #00f2ff, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Center content area */
+.host-center-content {
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Disco grid background for host game */
+.disco-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(188, 19, 254, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(188, 19, 254, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Nav tab active state */
+.nav-tab-active {
+  color: #ff007f;
+  border-bottom: 2px solid #ff007f;
+  padding-bottom: 2px;
+}
+
+/* Gradient marquee footer */
+.marquee-footer {
+  background: linear-gradient(to right, #ff007f, #bc13fe, #00f2ff);
+}
+
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-text {
+  animation: marquee-scroll 25s linear infinite;
+}
+
+/* Gradient spin button */
+.gradient-spin-btn {
+  background: linear-gradient(to right, #ff007f, #bc13fe);
+  box-shadow: 0 4px 15px rgba(255, 0, 127, 0.3);
+}
+.gradient-spin-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* Mobile collapse */
+@media (max-width: 1023px) {
+  .host-game-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .sidebar-panel,
+  .sidebar-panel-right {
+    display: none;
+  }
 }

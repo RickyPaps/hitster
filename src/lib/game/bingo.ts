@@ -1,13 +1,13 @@
 import type { BingoCell, GuessCategory } from '@/types/game';
 
-const GUESS_CATEGORIES: GuessCategory[] = ['year', 'artist', 'title', 'lyrics', 'album'];
+const GUESS_CATEGORIES: GuessCategory[] = ['year', 'artist', 'title', 'year-approx', 'album'];
 
 export function generateBingoCard(): BingoCell[] {
   // 3x3 grid = 9 cells
   // Rules: at least 1 of each category, max 3 of any category
   const cells: BingoCell[] = [];
   const counts: Record<GuessCategory, number> = {
-    year: 0, artist: 0, title: 0, lyrics: 0, album: 0,
+    year: 0, artist: 0, title: 0, 'year-approx': 0, album: 0,
   };
 
   // First, ensure at least 1 of each (5 cells)

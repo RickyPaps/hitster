@@ -6,7 +6,7 @@ export function spinWheel(): { segment: WheelSegment; index: number } {
 }
 
 export function isGuessCategory(category: string): boolean {
-  return ['year', 'artist', 'title', 'lyrics', 'album'].includes(category);
+  return ['year', 'artist', 'title', 'year-approx', 'album'].includes(category);
 }
 
 export function isPartyCategory(category: string): boolean {

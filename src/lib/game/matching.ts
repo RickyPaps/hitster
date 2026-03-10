@@ -1,6 +1,5 @@
 import { compareTwoStrings } from 'string-similarity';
 
-const YEAR_TOLERANCE = 2;
 const FUZZY_THRESHOLD = 0.4;
 
 export function checkAnswer(
@@ -14,8 +13,7 @@ export function checkAnswer(
     case 'year': {
       const guessedYear = parseInt(normalizedGuess, 10);
       if (isNaN(guessedYear)) return { correct: false };
-      const diff = Math.abs(guessedYear - track.year);
-      return { correct: diff <= YEAR_TOLERANCE, similarity: diff === 0 ? 1 : 1 - diff / 10 };
+      return { correct: guessedYear === track.year, similarity: guessedYear === track.year ? 1 : 0 };
     }
     case 'artist': {
       const similarity = compareTwoStrings(normalizedGuess, track.artist.toLowerCase());
@@ -29,9 +27,12 @@ export function checkAnswer(
       const similarity = compareTwoStrings(normalizedGuess, track.album.toLowerCase());
       return { correct: similarity >= FUZZY_THRESHOLD, similarity };
     }
-    case 'lyrics':
-      // Lyrics are judged by host manually
-      return { correct: false };
+    case 'year-approx': {
+      const guessedYearApprox = parseInt(normalizedGuess, 10);
+      if (isNaN(guessedYearApprox)) return { correct: false };
+      const diffApprox = Math.abs(guessedYearApprox - track.year);
+      return { correct: diffApprox <= 3, similarity: diffApprox === 0 ? 1 : 1 - diffApprox / 10 };
+    }
     default:
       return { correct: false };
   }

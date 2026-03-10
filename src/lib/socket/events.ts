@@ -5,10 +5,13 @@ export const SOCKET_EVENTS = {
   HOST_START_GAME: 'host:start-game',
   HOST_SPIN_WHEEL: 'host:spin-wheel',
   PLAYER_SUBMIT_GUESS: 'player:submit-guess',
-  HOST_APPROVE_LYRICS: 'host:approve-lyrics',
   HOST_NEXT_ROUND: 'host:next-round',
   HOST_UPDATE_SETTINGS: 'host:update-settings',
+  HOST_WHEEL_DONE: 'host:wheel-done',
   PLAYER_BUZZ_IN: 'player:buzz-in',
+  PLAYER_SPIN_WHEEL: 'player:spin-wheel',
+  HOST_KICK_PLAYER: 'host:kick-player',
+  REQUEST_SYNC: 'request:sync',
 
   // Server → Client
   ROOM_CREATED: 'room:created',
@@ -16,6 +19,8 @@ export const SOCKET_EVENTS = {
   PLAYER_LEFT: 'player:left',
   GAME_STATE_SYNC: 'game:state-sync',
   GAME_WHEEL_RESULT: 'game:wheel-result',
+  GAME_SPINNER_SELECTED: 'game:spinner-selected',
+  PLAYER_KICKED: 'player:kicked',
   GAME_ROUND_START: 'game:round-start',
   GAME_TIMER_TICK: 'game:timer-tick',
   GUESS_RESULT: 'guess:result',

@@ -2,16 +2,15 @@
 
 import { useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
-import { connectSocket, disconnectSocket } from '@/lib/socket/client';
+import { getSocket } from '@/lib/socket/client';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    socketRef.current = connectSocket();
-    return () => {
-      // Don't disconnect on unmount - we need the connection to persist across navigation
-    };
+    // getSocket() returns the existing socket instance.
+    // Connection is established by the page (via connectSocket) before navigating here.
+    socketRef.current = getSocket();
   }, []);
 
   return socketRef.current;
