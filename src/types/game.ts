@@ -44,11 +44,42 @@ export interface BingoCell {
   marked: boolean;
 }
 
+export type MilestoneType =
+  | 'shield250'
+  | 'drinks500'
+  | 'swap750'
+  | 'block1000'
+  | 'doublePts1500'
+  | 'steal2000'
+  | 'streak3FreeMark'
+  | 'streak5AllDrink';
+
+export type SurpriseEventType =
+  | 'spotlight'
+  | 'doubleRound'
+  | 'everybodyCheers'
+  | 'categoryCurse'
+  | 'luckyStar'
+  | 'hotSeat';
+
+export interface SurpriseModifiers {
+  doublePoints: boolean;
+  hotSeatPlayerId: string | null;
+}
+
 export interface PlayerMilestones {
+  shield250Earned: boolean;
+  shield250Active: boolean;
   drinks500Earned: boolean;
   drinks500Used: boolean;
+  swap750Earned: boolean;
+  swap750Used: boolean;
   block1000Earned: boolean;
   block1000Used: boolean;
+  doublePts1500Earned: boolean;
+  doublePts1500Active: boolean;
+  steal2000Earned: boolean;
+  steal2000Used: boolean;
 }
 
 export interface Player {
@@ -60,6 +91,7 @@ export interface Player {
   completedRows: number;
   drinks: number;
   milestones: PlayerMilestones;
+  streak: number;
 }
 
 export interface GuessResult {
@@ -98,6 +130,8 @@ export interface RoomState {
   currentSpinnerId: string | null;
   currentSpinnerName: string | null;
   pendingSpinResult: { category: WheelCategory; segmentIndex: number } | null;
+  lastActivityAt: number;
+  surpriseModifiers: SurpriseModifiers;
 }
 
 export interface TrackHistoryEntry {

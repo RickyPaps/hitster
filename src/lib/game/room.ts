@@ -42,6 +42,8 @@ export function createRoom(hostId: string, settings?: Partial<LobbySettings>): R
     currentSpinnerId: null,
     currentSpinnerName: null,
     pendingSpinResult: null,
+    lastActivityAt: Date.now(),
+    surpriseModifiers: { doublePoints: false, hotSeatPlayerId: null },
   };
   rooms.set(roomCode, room);
   return room;
@@ -49,6 +51,15 @@ export function createRoom(hostId: string, settings?: Partial<LobbySettings>): R
 
 export function getRoom(roomCode: string): RoomState | undefined {
   return rooms.get(roomCode);
+}
+
+export function touchRoom(roomCode: string): void {
+  const room = rooms.get(roomCode);
+  if (room) room.lastActivityAt = Date.now();
+}
+
+export function getAllRoomCodes(): string[] {
+  return Array.from(rooms.keys());
 }
 
 export function addPlayer(roomCode: string, playerId: string, playerName: string): Player | null {
@@ -63,6 +74,9 @@ export function addPlayer(roomCode: string, playerId: string, playerName: string
     return existing;
   }
 
+  // Max 8 players per room
+  if (room.players.length >= 8) return null;
+
   const player: Player = {
     id: playerId,
     name: playerName,
@@ -72,11 +86,20 @@ export function addPlayer(roomCode: string, playerId: string, playerName: string
     completedRows: 0,
     drinks: 0,
     milestones: {
+      shield250Earned: false,
+      shield250Active: false,
       drinks500Earned: false,
       drinks500Used: false,
+      swap750Earned: false,
+      swap750Used: false,
       block1000Earned: false,
       block1000Used: false,
+      doublePts1500Earned: false,
+      doublePts1500Active: false,
+      steal2000Earned: false,
+      steal2000Used: false,
     },
+    streak: 0,
   };
   room.players.push(player);
   return player;
@@ -102,6 +125,67 @@ export function kickPlayer(roomCode: string, playerId: string): boolean {
 
 export function deleteRoom(roomCode: string): void {
   rooms.delete(roomCode);
+}
+
+export function resetRoomToLobby(roomCode: string): RoomState | null {
+  const room = rooms.get(roomCode);
+  if (!room) return null;
+
+  room.phase = 'LOBBY';
+  room.currentTrack = null;
+  room.currentCategory = null;
+  room.roundNumber = 0;
+  room.roundGuesses = [];
+  room.tracks = [];
+  room.usedTrackIds = new Set();
+  room.timerSeconds = 0;
+  room.winner = null;
+  room.currentSpinnerId = null;
+  room.currentSpinnerName = null;
+  room.pendingSpinResult = null;
+  room.lastActivityAt = Date.now();
+  room.surpriseModifiers = { doublePoints: false, hotSeatPlayerId: null };
+
+  // Reset all players
+  for (const player of room.players) {
+    player.score = 0;
+    player.completedRows = 0;
+    player.drinks = 0;
+    player.streak = 0;
+    player.bingoCard = generateBingoCard();
+    player.milestones = {
+      shield250Earned: false,
+      shield250Active: false,
+      drinks500Earned: false,
+      drinks500Used: false,
+      swap750Earned: false,
+      swap750Used: false,
+      block1000Earned: false,
+      block1000Used: false,
+      doublePts1500Earned: false,
+      doublePts1500Active: false,
+      steal2000Earned: false,
+      steal2000Used: false,
+    };
+  }
+
+  return room;
+}
+
+export function cleanupAbandonedRooms(): string[] {
+  const now = Date.now();
+  const THIRTY_MINUTES = 30 * 60 * 1000;
+  const cleaned: string[] = [];
+
+  for (const [code, room] of rooms) {
+    const anyConnected = room.players.some((p) => p.connected);
+    if (!anyConnected && now - room.lastActivityAt > THIRTY_MINUTES) {
+      rooms.delete(code);
+      cleaned.push(code);
+    }
+  }
+
+  return cleaned;
 }
 
 export function getNextTrack(room: RoomState): Track | null {

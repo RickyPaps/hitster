@@ -55,17 +55,22 @@ export function calculateSpinFromMomentum(
   // Normalize current rotation to [0, 2PI)
   const normalizedCurrent = ((currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 
-  // How far we need to go from current position to land angle (in positive direction)
-  let delta = landAngle - normalizedCurrent;
-  if (delta < 0) delta += 2 * Math.PI;
+  // How far we need to go from current position to land angle (forward direction)
+  let forwardDelta = landAngle - normalizedCurrent;
+  if (forwardDelta < 0) forwardDelta += 2 * Math.PI;
 
-  // Determine spin direction from velocity (positive = counterclockwise in canvas)
+  // Determine spin direction from velocity (positive = clockwise in canvas)
   const direction = currentVelocity >= 0 ? 1 : -1;
+
+  // Use forward delta for forward spin, backward delta for backward spin
+  const effectiveDelta = direction >= 0
+    ? forwardDelta
+    : (2 * Math.PI - forwardDelta) % (2 * Math.PI);
 
   // Add minimum extra full spins to ensure visual satisfaction
   const absVelocity = Math.abs(currentVelocity);
   const extraSpins = Math.max(minExtraSpins, Math.floor(absVelocity * 800));
-  const totalDelta = direction * (extraSpins * 2 * Math.PI + delta);
+  const totalDelta = direction * (extraSpins * 2 * Math.PI + effectiveDelta);
 
   const targetRotation = currentRotation + totalDelta;
 

@@ -119,7 +119,23 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
     return near;
   }, [cells]);
 
-  if (cells.length === 0) return null;
+  if (cells.length === 0) {
+    // Loading skeleton — 3x3 grid of pulsing placeholders
+    return (
+      <div className={`grid grid-cols-3 gap-2 ${compact ? 'w-36' : 'w-full max-w-[340px]'}`}>
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div
+            key={i}
+            className="aspect-square rounded-2xl animate-pulse"
+            style={{
+              background: 'linear-gradient(145deg, rgba(26, 10, 48, 0.8), rgba(37, 13, 61, 0.8))',
+              border: '1.5px solid rgba(217, 70, 239, 0.15)',
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
 
   // ── Compact mode (small card in game-over, etc.) ──
   if (compact) {

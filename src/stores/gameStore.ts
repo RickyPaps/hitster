@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { GamePhase, WheelCategory, Track, BingoCell, GuessResult, LobbySettings, Player } from '@/types/game';
+import type { GamePhase, WheelCategory, Track, BingoCell, GuessResult, LobbySettings, Player, SurpriseEventType } from '@/types/game';
+
+type ConnectionStatus = 'connected' | 'disconnected' | 'reconnecting';
 
 interface GameStore {
   // Connection
@@ -7,6 +9,8 @@ interface GameStore {
   playerId: string | null;
   playerName: string | null;
   isHost: boolean;
+  connectionStatus: ConnectionStatus;
+  roomError: string | null;
 
   // Game state (synced from server)
   phase: GamePhase;
@@ -28,6 +32,7 @@ interface GameStore {
   // Animation state
   streak: number;
   prevCompletedRows: number;
+  surpriseEvent: { type: SurpriseEventType; targetName: string | null } | null;
 
   // Actions
   setConnection: (roomCode: string, playerId: string, playerName: string, isHost: boolean) => void;
@@ -44,23 +49,28 @@ interface GameStore {
   setHasGuessedThisRound: (v: boolean) => void;
   setWinner: (player: Player | null) => void;
   setCurrentSpinner: (id: string | null, name: string | null) => void;
+  setConnectionStatus: (status: ConnectionStatus) => void;
+  setRoomError: (error: string | null) => void;
   incrementStreak: () => void;
   resetStreak: () => void;
   setPrevCompletedRows: (n: number) => void;
+  setSurpriseEvent: (event: { type: SurpriseEventType; targetName: string | null } | null) => void;
   reset: () => void;
 }
 
 const initialState = {
-  roomCode: null,
-  playerId: null,
-  playerName: null,
+  roomCode: null as string | null,
+  playerId: null as string | null,
+  playerName: null as string | null,
   isHost: false,
+  connectionStatus: 'connected' as ConnectionStatus,
+  roomError: null as string | null,
   phase: 'LOBBY' as GamePhase,
-  players: [],
-  currentTrack: null,
-  currentCategory: null,
+  players: [] as Player[],
+  currentTrack: null as Track | null,
+  currentCategory: null as WheelCategory | null,
   roundNumber: 0,
-  roundGuesses: [],
+  roundGuesses: [] as GuessResult[],
   settings: {
     timerDuration: 20,
     winCondition: 1,
@@ -70,13 +80,14 @@ const initialState = {
     drinkOnRowComplete: true,
   } as LobbySettings,
   timerSeconds: 0,
-  bingoCard: [],
+  bingoCard: [] as BingoCell[],
   hasGuessedThisRound: false,
-  winner: null,
-  currentSpinnerId: null,
-  currentSpinnerName: null,
+  winner: null as Player | null,
+  currentSpinnerId: null as string | null,
+  currentSpinnerName: null as string | null,
   streak: 0,
   prevCompletedRows: 0,
+  surpriseEvent: null as { type: SurpriseEventType; targetName: string | null } | null,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -104,8 +115,11 @@ export const useGameStore = create<GameStore>((set) => ({
   setHasGuessedThisRound: (hasGuessedThisRound) => set({ hasGuessedThisRound }),
   setWinner: (winner) => set({ winner }),
   setCurrentSpinner: (currentSpinnerId, currentSpinnerName) => set({ currentSpinnerId, currentSpinnerName }),
+  setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
+  setRoomError: (roomError) => set({ roomError }),
   incrementStreak: () => set((state) => ({ streak: state.streak + 1 })),
   resetStreak: () => set({ streak: 0 }),
   setPrevCompletedRows: (prevCompletedRows) => set({ prevCompletedRows }),
+  setSurpriseEvent: (surpriseEvent) => set({ surpriseEvent }),
   reset: () => set(initialState),
 }));

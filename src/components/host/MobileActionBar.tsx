@@ -1,0 +1,110 @@
+'use client';
+
+import type { GamePhase } from '@/types/game';
+
+interface MobileActionBarProps {
+  phase: GamePhase;
+  currentSpinnerName: string | null;
+  wheelSpinning: boolean;
+  onSpin: () => void;
+  onNextRound: () => void;
+}
+
+const PHASE_DISPLAY: Partial<Record<GamePhase, string>> = {
+  SPINNING: 'Category Wheel',
+  PLAYING: 'Challenge Active',
+  ROUND_RESULTS: 'Round Results',
+  DRINKING_SEGMENT: 'Party Time',
+};
+
+export default function MobileActionBar({
+  phase, currentSpinnerName, wheelSpinning, onSpin, onNextRound,
+}: MobileActionBarProps) {
+  return (
+    <div className="lg:hidden w-full flex items-center gap-2 px-3 py-2 rounded-xl"
+      style={{
+        background: 'rgba(13, 2, 22, 0.6)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(188, 19, 254, 0.25)',
+      }}
+    >
+      {/* Phase pill */}
+      <span
+        className="shrink-0 text-[10px] font-black uppercase px-2.5 py-1 rounded-full"
+        style={{
+          background: 'rgba(0, 242, 255, 0.15)',
+          color: '#00f2ff',
+          border: '1px solid rgba(0, 242, 255, 0.3)',
+          letterSpacing: '0.1em',
+        }}
+      >
+        {PHASE_DISPLAY[phase] ?? phase}
+      </span>
+
+      {/* Spinner turn indicator */}
+      {phase === 'SPINNING' && currentSpinnerName && !wheelSpinning && (
+        <span
+          className="text-xs font-bold animate-pulse truncate"
+          style={{ color: '#ff007f' }}
+        >
+          {currentSpinnerName}&apos;s turn
+        </span>
+      )}
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Phase-specific primary action */}
+      {phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning && (
+        <button
+          onClick={onSpin}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
+        >
+          <span>&#8635;</span>
+          <span>Spin</span>
+        </button>
+      )}
+
+      {phase === 'PLAYING' && (
+        <button
+          onClick={onNextRound}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
+        >
+          <span>&#9989;</span>
+          <span>Reveal</span>
+        </button>
+      )}
+
+      {phase === 'ROUND_RESULTS' && (
+        <button
+          onClick={onNextRound}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
+        >
+          <span>&#9654;</span>
+          <span>Next</span>
+        </button>
+      )}
+
+      {phase === 'DRINKING_SEGMENT' && (
+        <button
+          onClick={onNextRound}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
+        >
+          <span>&#9654;</span>
+          <span>Continue</span>
+        </button>
+      )}
+
+      {/* Skip — secondary action */}
+      {(phase === 'SPINNING' || phase === 'PLAYING') && (
+        <button
+          onClick={onNextRound}
+          className="shrink-0 text-[10px] font-bold uppercase px-2 py-1.5 rounded-lg text-gray-400 cursor-pointer"
+          style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+        >
+          Skip
+        </button>
+      )}
+    </div>
+  );
+}

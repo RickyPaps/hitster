@@ -142,6 +142,50 @@ export function ArrowDown({ size = 14, color = '#ef4444', ...props }: IconProps)
   );
 }
 
+// ── Milestone & Surprise Icons ──
+
+export function ShieldIcon({ size = 24, color = '#4d9fff', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} {...props}>
+      <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12.99H5V8.26l7-3.89v8.62z" />
+    </svg>
+  );
+}
+
+export function SwapIcon({ size = 24, color = '#33ff77', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} {...props}>
+      <path d="M6 7h8l-3-3 1.5-1.5L17 7l-4.5 4.5L11 10l3-3H6v5H4V7h2zm12 10h-8l3 3-1.5 1.5L7 17l4.5-4.5L13 14l-3 3h8v-5h2v5h-2z" />
+    </svg>
+  );
+}
+
+export function DoublePtsIcon({ size = 24, color = '#ff8833', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <rect x="2" y="6" width="20" height="12" rx="3" fill={color} />
+      <text x="12" y="16" textAnchor="middle" fontFamily="sans-serif" fontWeight="900" fontSize="12" fill="white">x2</text>
+    </svg>
+  );
+}
+
+export function StealIcon({ size = 24, color = '#ef4444', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} {...props}>
+      <path d="M12 17a2 2 0 0 0 2-2v-1h-4v1a2 2 0 0 0 2 2zm6-6V8A6 6 0 0 0 6 8v3a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2zm-2 0H8V8a4 4 0 0 1 8 0v3z" />
+    </svg>
+  );
+}
+
+export function SurpriseIcon({ size = 24, color = '#bc4dff', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} {...props}>
+      <path d="M12 0l3 7.5L24 9l-6 5.5L19.5 24 12 19.5 4.5 24 6 14.5 0 9l9-1.5z" />
+      <text x="12" y="15" textAnchor="middle" fontFamily="sans-serif" fontWeight="900" fontSize="10" fill="white">!</text>
+    </svg>
+  );
+}
+
 // ── Bingo Card Category Icons ──
 
 export function BingoCalendar({ size = 32, color = '#d946ef', ...props }: IconProps) {

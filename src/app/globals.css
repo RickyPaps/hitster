@@ -355,11 +355,59 @@ body {
   .host-game-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto;
-    height: auto;
-    min-height: 100dvh;
+    height: 100dvh;
   }
   .sidebar-panel,
   .sidebar-panel-right {
     display: none;
   }
+  .host-center-content {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .host-center-content {
+    padding: 0.75rem;
+  }
+}
+
+/* Mobile leaderboard overlay — re-show the right sidebar */
+.mobile-leaderboard-panel .sidebar-panel-right {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Safe area padding for iPhone notch/home bar */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Surprise event animations */
+@keyframes surprise-flash {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.surprise-flash {
+  animation: surprise-flash 0.4s ease-out;
+}
+
+@keyframes hot-seat-glow {
+  0%, 100% { text-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+  50% { text-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+}
+.hot-seat-glow {
+  animation: hot-seat-glow 1s ease-in-out infinite;
+}
+
+@keyframes shield-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shield-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(77, 159, 255, 0.3) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shield-shimmer 2s linear infinite;
 }

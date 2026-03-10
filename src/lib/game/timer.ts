@@ -22,12 +22,17 @@ export function startRoundTimer(
   if (!room) return;
 
   const timer = setInterval(() => {
-    room.timerSeconds--;
-    io.to(roomCode).emit(SOCKET_EVENTS.GAME_TIMER_TICK, room.timerSeconds);
+    try {
+      room.timerSeconds--;
+      io.to(roomCode).emit(SOCKET_EVENTS.GAME_TIMER_TICK, room.timerSeconds);
 
-    if (room.timerSeconds <= 0) {
+      if (room.timerSeconds <= 0) {
+        clearRoomTimer(roomCode);
+        onTimerEnd(roomCode);
+      }
+    } catch (err) {
+      console.error(`[Timer] Error in room ${roomCode}:`, err);
       clearRoomTimer(roomCode);
-      onTimerEnd(roomCode);
     }
   }, 1000);
 

@@ -40,6 +40,7 @@ export default function GuessInput({ category, disabled, onGuessSubmitted }: Gue
     e.preventDefault();
     if (!guess.trim() || disabled) return;
 
+    navigator.vibrate?.(50);
     const socket = getSocket();
     socket.emit(SOCKET_EVENTS.PLAYER_SUBMIT_GUESS, { guess: guess.trim() });
     onGuessSubmitted();

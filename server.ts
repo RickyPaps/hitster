@@ -1,7 +1,7 @@
 import { createServer } from 'http';
 import next from 'next';
 import { Server } from 'socket.io';
-import { registerSocketHandlers } from './src/lib/socket/server-handlers';
+import { registerSocketHandlers, startRoomCleanupInterval } from './src/lib/socket/server-handlers';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
@@ -24,6 +24,7 @@ app.prepare().then(() => {
   });
 
   registerSocketHandlers(io);
+  startRoomCleanupInterval();
 
   httpServer.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);

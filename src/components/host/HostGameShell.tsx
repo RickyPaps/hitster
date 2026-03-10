@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry } from '@/types/game';
 import { WHEEL_SEGMENTS } from '@/types/game';
@@ -7,6 +8,7 @@ import HostTopNav from './HostTopNav';
 import HostBottomBar from './HostBottomBar';
 import HostLeftSidebar from './HostLeftSidebar';
 import Leaderboard from './Leaderboard';
+import MobileActionBar from './MobileActionBar';
 import WheelSpinner from './WheelSpinner';
 import RoundResults from './RoundResults';
 import DrinkingPrompt from './DrinkingPrompt';
@@ -48,6 +50,8 @@ export default function HostGameShell(props: HostGameShellProps) {
     onSpin, onSpinComplete, onNextRound, onEndSession, onVolumeChange, onMuteToggle,
   } = props;
 
+  const [showMobileLeaderboard, setShowMobileLeaderboard] = useState(false);
+
   return (
     <div className="host-game-grid">
       {/* Background atmosphere */}
@@ -76,6 +80,7 @@ export default function HostGameShell(props: HostGameShellProps) {
         roundNumber={roundNumber}
         playerCount={players.length}
         onEndSession={onEndSession}
+        onToggleLeaderboard={() => setShowMobileLeaderboard((v) => !v)}
       />
 
       {/* Left Sidebar — row 2, col 1 */}
@@ -90,24 +95,65 @@ export default function HostGameShell(props: HostGameShellProps) {
       />
 
       {/* Center Content — row 2, col 2 */}
-      <div className="host-center-content relative z-10 p-6">
-        <CenterContent
+      <div className="host-center-content relative z-10 p-6 flex-col">
+        {/* Mobile action bar — hidden on lg+ */}
+        <MobileActionBar
           phase={phase}
-          currentTrack={currentTrack}
-          currentCategory={currentCategory}
-          roundGuesses={roundGuesses}
-          players={players}
           currentSpinnerName={currentSpinnerName}
           wheelSpinning={wheelSpinning}
-          wheelResultIndex={wheelResultIndex}
-          swipeVelocity={swipeVelocity}
-          onSpinComplete={onSpinComplete}
+          onSpin={onSpin}
           onNextRound={onNextRound}
         />
+
+        <div className="flex-1 flex items-center justify-center w-full">
+          <CenterContent
+            phase={phase}
+            currentTrack={currentTrack}
+            currentCategory={currentCategory}
+            roundGuesses={roundGuesses}
+            players={players}
+            roundNumber={roundNumber}
+            currentSpinnerName={currentSpinnerName}
+            wheelSpinning={wheelSpinning}
+            wheelResultIndex={wheelResultIndex}
+            swipeVelocity={swipeVelocity}
+            onSpinComplete={onSpinComplete}
+            onNextRound={onNextRound}
+          />
+        </div>
       </div>
 
       {/* Right Sidebar — row 2, col 3 */}
       <Leaderboard players={players} winCondition={winCondition} />
+
+      {/* Mobile Leaderboard Overlay */}
+      {showMobileLeaderboard && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowMobileLeaderboard(false)}
+          />
+          {/* Panel */}
+          <div
+            className="absolute top-0 right-0 h-full w-80 max-w-[85vw] overflow-y-auto mobile-leaderboard-panel"
+            style={{ background: '#0d0216' }}
+          >
+            <div className="flex items-center justify-between p-3 border-b border-white/10">
+              <span className="text-sm font-bold text-white uppercase tracking-wide">Leaderboard</span>
+              <button
+                onClick={() => setShowMobileLeaderboard(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer"
+                style={{ background: 'rgba(255, 255, 255, 0.1)' }}
+              >
+                <span className="text-gray-300">&#10005;</span>
+              </button>
+            </div>
+            <Leaderboard players={players} winCondition={winCondition} />
+          </div>
+        </div>
+      )}
 
       {/* Bottom Bar — row 3, all columns */}
       <HostBottomBar
@@ -133,6 +179,7 @@ interface CenterContentProps {
   currentCategory: WheelCategory | null;
   roundGuesses: GuessResult[];
   players: Player[];
+  roundNumber: number;
   currentSpinnerName: string | null;
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
@@ -142,7 +189,7 @@ interface CenterContentProps {
 }
 
 function CenterContent({
-  phase, currentTrack, currentCategory, roundGuesses, players,
+  phase, currentTrack, currentCategory, roundGuesses, players, roundNumber,
   currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity,
   onSpinComplete, onNextRound,
 }: CenterContentProps) {
@@ -170,7 +217,7 @@ function CenterContent({
         {/* Call to action below wheel */}
         <div className="mt-6 text-center">
           <h1
-            className="text-4xl font-black text-white uppercase italic mb-2"
+            className="text-2xl sm:text-4xl font-black text-white uppercase italic mb-2"
             style={{
               letterSpacing: '-0.02em',
               textShadow: '0 0 10px rgba(255, 0, 127, 0.5)',
@@ -204,11 +251,11 @@ function CenterContent({
           <div className="absolute -inset-1 rounded-2xl challenge-card-glow transition-opacity duration-1000 group-hover:opacity-60" />
 
           {/* Card content */}
-          <div className="relative px-8 py-12 challenge-card rounded-2xl flex flex-col items-center text-center">
+          <div className="relative px-4 py-8 sm:px-8 sm:py-12 challenge-card rounded-2xl flex flex-col items-center text-center">
             <div className="phase-pill mb-6">Current Challenge</div>
 
             <h1
-              className="text-5xl md:text-6xl font-black uppercase italic leading-tight mb-4"
+              className="text-3xl sm:text-5xl md:text-6xl font-black uppercase italic leading-tight mb-4"
               style={{
                 color: '#00f2ff',
                 letterSpacing: '-0.02em',
@@ -258,6 +305,8 @@ function CenterContent({
         guesses={roundGuesses}
         track={currentTrack}
         category={currentCategory}
+        roundNumber={roundNumber}
+        players={players}
         onNextRound={onNextRound}
       />
     );

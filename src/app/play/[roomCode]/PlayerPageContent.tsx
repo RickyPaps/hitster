@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
@@ -22,6 +22,7 @@ import BingoLineCelebration from '@/components/animations/BingoLineCelebration';
 import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { TrophyIcon } from '@/components/animations/SVGIcons';
 import { useAudio } from '@/hooks/useAudio';
+import type { MilestoneType, SurpriseEventType } from '@/types/game';
 
 export default function PlayerPageContent() {
   const params = useParams();
@@ -39,6 +40,8 @@ export default function PlayerPageContent() {
 
   const streak = useGameStore((s) => s.streak);
   const prevCompletedRows = useGameStore((s) => s.prevCompletedRows);
+  const connectionStatus = useGameStore((s) => s.connectionStatus);
+  const roomError = useGameStore((s) => s.roomError);
   const setConnection = useGameStore((s) => s.setConnection);
   const setBingoCard = useGameStore((s) => s.setBingoCard);
   const setHasGuessedThisRound = useGameStore((s) => s.setHasGuessedThisRound);
@@ -58,13 +61,19 @@ export default function PlayerPageContent() {
   const [playerWheelResultIndex, setPlayerWheelResultIndex] = useState<number | null>(null);
   const [playerSwipeVelocity, setPlayerSwipeVelocity] = useState<number | undefined>(undefined);
 
-  // Milestone state
-  const [pendingMilestone, setPendingMilestone] = useState<{ type: 'drinks500' | 'block1000' } | null>(null);
+  // Milestone state (queue for sequential display)
+  const [milestoneQueue, setMilestoneQueue] = useState<{ type: MilestoneType }[]>([]);
   const [milestoneNotification, setMilestoneNotification] = useState<string | null>(null);
+
+  // Surprise event state
+  const [playerSurpriseEvent, setPlayerSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null } | null>(null);
 
   // Rock Off drink assignment state
   const [rockOffCanAssign, setRockOffCanAssign] = useState(false);
   const [rockOffDrinkAssigned, setRockOffDrinkAssigned] = useState<string | null>(null);
+
+  // Reconnect toast
+  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
 
   // Streak broken animation
   const [streakBroken, setStreakBroken] = useState(false);
@@ -116,8 +125,19 @@ export default function PlayerPageContent() {
   // Listen for milestone events
   useEffect(() => {
     const socket = getSocket();
-    const earnedHandler = (data: { type: 'drinks500' | 'block1000' }) => {
-      setPendingMilestone(data);
+    const earnedHandler = (data: { type: MilestoneType; playerName?: string }) => {
+      // streak5AllDrink is a room broadcast — show as notification, not queue
+      if (data.type === 'streak5AllDrink' && data.playerName) {
+        if (data.playerName !== playerName) {
+          setMilestoneNotification(`${data.playerName} hit a 5-streak! Everybody drinks!`);
+          setTimeout(() => setMilestoneNotification(null), 4000);
+        } else {
+          // The streaker sees it in the queue
+          setMilestoneQueue((prev) => [...prev, data]);
+        }
+        return;
+      }
+      setMilestoneQueue((prev) => [...prev, data]);
     };
     const drinksReceivedHandler = (data: { fromPlayer: string }) => {
       setMilestoneNotification(`${data.fromPlayer} assigned you a drink!`);
@@ -127,15 +147,39 @@ export default function PlayerPageContent() {
       setMilestoneNotification(`${data.fromPlayer} blocked one of your cells!`);
       setTimeout(() => setMilestoneNotification(null), 4000);
     };
+    const swapReceivedHandler = (data: { fromPlayer: string }) => {
+      setMilestoneNotification(`${data.fromPlayer} swapped one of your cells!`);
+      setTimeout(() => setMilestoneNotification(null), 4000);
+    };
+    const stealReceivedHandler = (data: { fromPlayer: string; amount: number }) => {
+      setMilestoneNotification(`${data.fromPlayer} stole ${data.amount} points from you!`);
+      setTimeout(() => setMilestoneNotification(null), 4000);
+    };
+    const shieldConsumedHandler = () => {
+      setMilestoneNotification('Shield activated! Drink penalty blocked!');
+      setTimeout(() => setMilestoneNotification(null), 4000);
+    };
+    const doubleConsumedHandler = () => {
+      setMilestoneNotification('Double points activated! 2x score this round!');
+      setTimeout(() => setMilestoneNotification(null), 4000);
+    };
     socket.on(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
     socket.on(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
     socket.on(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, blockReceivedHandler);
+    socket.on(SOCKET_EVENTS.MILESTONE_SWAP_RECEIVED, swapReceivedHandler);
+    socket.on(SOCKET_EVENTS.MILESTONE_STEAL_RECEIVED, stealReceivedHandler);
+    socket.on(SOCKET_EVENTS.MILESTONE_SHIELD_CONSUMED, shieldConsumedHandler);
+    socket.on(SOCKET_EVENTS.MILESTONE_DOUBLE_CONSUMED, doubleConsumedHandler);
     return () => {
       socket.off(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
       socket.off(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
       socket.off(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, blockReceivedHandler);
+      socket.off(SOCKET_EVENTS.MILESTONE_SWAP_RECEIVED, swapReceivedHandler);
+      socket.off(SOCKET_EVENTS.MILESTONE_STEAL_RECEIVED, stealReceivedHandler);
+      socket.off(SOCKET_EVENTS.MILESTONE_SHIELD_CONSUMED, shieldConsumedHandler);
+      socket.off(SOCKET_EVENTS.MILESTONE_DOUBLE_CONSUMED, doubleConsumedHandler);
     };
-  }, []);
+  }, [playerName]);
 
   // Handle being kicked by host
   useEffect(() => {
@@ -149,6 +193,20 @@ export default function PlayerPageContent() {
       socket.off(SOCKET_EVENTS.PLAYER_KICKED, handler);
     };
   }, [reset, router]);
+
+  // Listen for surprise events
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = (data: { type: SurpriseEventType; targetName: string | null }) => {
+      playSound('surprise');
+      setPlayerSurpriseEvent(data);
+      setTimeout(() => setPlayerSurpriseEvent(null), 4000);
+    };
+    socket.on(SOCKET_EVENTS.SURPRISE_EVENT, handler);
+    return () => {
+      socket.off(SOCKET_EVENTS.SURPRISE_EVENT, handler);
+    };
+  }, [playSound]);
 
   // Reset states on phase changes
   useEffect(() => {
@@ -201,6 +259,26 @@ export default function PlayerPageContent() {
     }
   }, [winner, playSound]);
 
+  // Show reconnected toast when connection recovers
+  const prevConnectionRef = useRef(connectionStatus);
+  useEffect(() => {
+    const wasDisconnected = prevConnectionRef.current === 'disconnected' || prevConnectionRef.current === 'reconnecting';
+    if (connectionStatus === 'connected' && wasDisconnected && playerId) {
+      setShowReconnectedToast(true);
+      const timer = setTimeout(() => setShowReconnectedToast(false), 3000);
+      prevConnectionRef.current = connectionStatus;
+      return () => clearTimeout(timer);
+    }
+    prevConnectionRef.current = connectionStatus;
+  }, [connectionStatus, playerId]);
+
+  // Reset store on navigation away
+  useEffect(() => {
+    return () => {
+      useGameStore.getState().reset();
+    };
+  }, []);
+
   const handleSwipe = (velocity: number) => {
     const socket = getSocket();
     socket.emit(SOCKET_EVENTS.PLAYER_SPIN_WHEEL, { velocity });
@@ -243,6 +321,27 @@ export default function PlayerPageContent() {
   // Timer display
   const timerPct = settings.timerDuration > 0 ? (timerSeconds / settings.timerDuration) * 100 : 0;
   const timerIsLow = timerSeconds <= 5;
+
+  // Room error state (room closed or not found)
+  if (roomError) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center">
+        <div className="text-5xl mb-4">&#x26A0;&#xFE0F;</div>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: '#ef4444' }}>Room Unavailable</h1>
+        <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>{roomError}</p>
+        <button
+          onClick={() => { reset(); router.push('/'); }}
+          className="py-3 px-8 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
+          style={{
+            background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
+            boxShadow: '0 0 15px rgba(217, 70, 239, 0.4)',
+          }}
+        >
+          Return Home
+        </button>
+      </div>
+    );
+  }
 
   // Guard: if store has no connection data, show inline join form
   if (!playerId) {
@@ -384,16 +483,86 @@ export default function PlayerPageContent() {
   }
 
   return (
-    <div className="min-h-svh flex flex-col relative overflow-y-auto overflow-x-hidden">
-      {/* Milestone reward overlay */}
-      {pendingMilestone && playerId && (
+    <div className="min-h-svh flex flex-col relative overflow-y-auto overflow-x-hidden pb-safe">
+      {/* Connection status banners */}
+      {connectionStatus === 'disconnected' && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 py-2 px-4 text-center text-sm font-bold"
+          style={{
+            background: 'rgba(239, 68, 68, 0.9)',
+            color: 'white',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          Connection lost — reconnecting...
+        </div>
+      )}
+      {connectionStatus === 'reconnecting' && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 py-2 px-4 text-center text-sm font-bold"
+          style={{
+            background: 'rgba(234, 179, 8, 0.9)',
+            color: 'white',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          Reconnecting...
+        </div>
+      )}
+      <AnimatePresence>
+        {showReconnectedToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
+            className="fixed top-0 left-0 right-0 z-50 py-2 px-4 text-center text-sm font-bold"
+            style={{
+              background: 'rgba(34, 197, 94, 0.9)',
+              color: 'white',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            Reconnected!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Milestone reward overlay (queue — shows first item) */}
+      {milestoneQueue.length > 0 && playerId && (
         <MilestoneReward
-          milestone={pendingMilestone}
+          milestone={milestoneQueue[0]}
           players={players}
           myPlayerId={playerId}
-          onDismiss={() => setPendingMilestone(null)}
+          myBingoCard={bingoCard}
+          onDismiss={() => setMilestoneQueue((prev) => prev.slice(1))}
         />
       )}
+
+      {/* Surprise event banner */}
+      <AnimatePresence>
+        {playerSurpriseEvent && (
+          <motion.div
+            initial={{ opacity: 0, y: -30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            className="fixed top-4 left-4 right-4 z-50 p-3 rounded-xl text-center"
+            style={{
+              background: 'rgba(188, 77, 255, 0.2)',
+              border: '1.5px solid rgba(188, 77, 255, 0.5)',
+              boxShadow: '0 0 20px rgba(188, 77, 255, 0.3)',
+            }}
+          >
+            <p className="text-sm font-black uppercase tracking-wider" style={{ color: '#bc4dff', textShadow: '0 0 8px rgba(188, 77, 255, 0.5)' }}>
+              {playerSurpriseEvent.type === 'spotlight' && `Spotlight! ${playerSurpriseEvent.targetName} drinks!`}
+              {playerSurpriseEvent.type === 'doubleRound' && 'Double Round! 2x scores next round!'}
+              {playerSurpriseEvent.type === 'everybodyCheers' && 'Everybody Cheers! All drink!'}
+              {playerSurpriseEvent.type === 'categoryCurse' && `Category Curse! ${playerSurpriseEvent.targetName} lost a cell!`}
+              {playerSurpriseEvent.type === 'luckyStar' && `Lucky Star! ${playerSurpriseEvent.targetName} gets a free cell!`}
+              {playerSurpriseEvent.type === 'hotSeat' && `Hot Seat! ${playerSurpriseEvent.targetName}: 2x drinks if wrong!`}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Milestone notification */}
       {milestoneNotification && (

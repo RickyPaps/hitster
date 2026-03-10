@@ -61,7 +61,7 @@ export default function DrinkingPrompt({ type, onContinue }: DrinkingPromptProps
         <motion.h2
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ repeat: Infinity, duration: 1.5 }}
-          className="text-4xl font-black"
+          className="text-2xl sm:text-4xl font-black"
           style={{ color: c.color, textShadow: `0 0 20px ${c.color}80` }}
         >
           {c.title}

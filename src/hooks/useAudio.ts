@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from 'react';
 
-type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand';
+type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand' | 'surprise';
 
 let audioCtx: AudioContext | null = null;
 
@@ -190,6 +190,30 @@ function playBingo() {
   });
 }
 
+function playSurprise() {
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+
+  // Dramatic 3-note descending stinger: E4 → C4 → A3
+  const freqs = [329.63, 261.63, 220.0];
+  freqs.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+
+    const gain = ctx.createGain();
+    const start = now + i * 0.2;
+    gain.gain.setValueAtTime(0.25, start);
+    gain.gain.setValueAtTime(0.25, start + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.4);
+  });
+}
+
 function playWheelLand() {
   const ctx = getCtx();
   const now = ctx.currentTime;
@@ -245,6 +269,7 @@ const players: Record<SoundName, () => void> = {
   streak: playStreak,
   bingo: playBingo,
   wheelLand: playWheelLand,
+  surprise: playSurprise,
 };
 
 export function useAudio() {

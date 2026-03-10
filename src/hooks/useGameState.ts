@@ -25,8 +25,9 @@ export function useGameState() {
       store.setCurrentSpinner(state.currentSpinnerId ?? null, state.currentSpinnerName ?? null);
 
       // Update own bingo card from server state
-      if (store.playerId) {
-        const me = state.players.find((p: Player) => p.id === store.playerId);
+      const { playerId } = useGameStore.getState();
+      if (playerId) {
+        const me = state.players.find((p: Player) => p.id === playerId);
         if (me) {
           store.setBingoCard(me.bingoCard);
         }
@@ -77,6 +78,37 @@ export function useGameState() {
       store.setHasGuessedThisRound(false);
     });
 
+    // Connection lifecycle events
+    socket.on('disconnect', () => {
+      store.setConnectionStatus('disconnected');
+    });
+
+    socket.io.on('reconnect_attempt', () => {
+      store.setConnectionStatus('reconnecting');
+    });
+
+    socket.on('connect', () => {
+      const { connectionStatus, roomCode, playerName, isHost } = useGameStore.getState();
+      store.setConnectionStatus('connected');
+
+      // Re-join room on reconnect
+      if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
+        if (roomCode && isHost) {
+          socket.emit(SOCKET_EVENTS.HOST_REJOIN_ROOM, { roomCode }, () => {});
+        } else if (roomCode && playerName) {
+          socket.emit(SOCKET_EVENTS.PLAYER_JOIN_ROOM, { roomCode, playerName }, () => {});
+        }
+        socket.emit(SOCKET_EVENTS.REQUEST_SYNC);
+      }
+    });
+
+    // Error handling for room-level errors
+    socket.on(SOCKET_EVENTS.ERROR, (data: { code?: string; message?: string }) => {
+      if (data.code === 'room_not_found' || data.code === 'room_closed') {
+        store.setRoomError(data.message || 'Room is no longer available');
+      }
+    });
+
     // Request full state sync now that listeners are registered.
     // This catches any events missed during page navigation.
     socket.emit(SOCKET_EVENTS.REQUEST_SYNC);
@@ -93,6 +125,10 @@ export function useGameState() {
       socket.off(SOCKET_EVENTS.GAME_SPINNER_SELECTED);
       socket.off(SOCKET_EVENTS.GAME_WHEEL_RESULT);
       socket.off(SOCKET_EVENTS.GAME_ROUND_START);
+      socket.off(SOCKET_EVENTS.ERROR);
+      socket.off('disconnect');
+      socket.off('connect');
+      socket.io.off('reconnect_attempt');
     };
   }, []);
 

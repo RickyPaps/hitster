@@ -28,39 +28,39 @@ export default function HostBottomBar({
   const timerDisplay = `${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="host-bottom-bar now-playing-bar px-6 py-4 flex items-center justify-between gap-6">
+    <div className="host-bottom-bar now-playing-bar px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-6">
       {/* Left: track info */}
-      <div className="flex items-center gap-4">
-        <div>
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="min-w-0">
           <p
             className="text-[10px] font-black uppercase mb-1"
             style={{ color: '#ff007f', letterSpacing: '0.4em' }}
           >
             Playing Now
           </p>
-          <h4 className="text-xl font-black italic gradient-text-teal" style={{ letterSpacing: '-0.02em' }}>
+          <h4 className="text-sm sm:text-xl font-black italic gradient-text-teal truncate" style={{ letterSpacing: '-0.02em' }}>
             {trackName} — {trackArtist}
           </h4>
         </div>
       </div>
 
       {/* Right: timer + volume */}
-      <div className="flex items-center gap-6 shrink-0">
+      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
         {/* Timer */}
         {showTimer ? (
           <div
-            className="flex items-center gap-3 px-5 py-2 rounded-full timer-ring-pink"
+            className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full timer-ring-pink"
           >
             <span style={{ color: '#ff007f', fontSize: '0.9rem' }}>&#9201;</span>
             <span
-              className="font-black text-2xl tabular-nums italic"
+              className="font-black text-lg sm:text-2xl tabular-nums italic"
               style={{ color: '#ff007f' }}
             >
               {timerDisplay}
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-3 px-5 py-2 rounded-full" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+          <div className="flex items-center gap-3 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
             <span className="text-xs font-bold text-gray-400 uppercase" style={{ letterSpacing: '0.1em' }}>
               Round {roundNumber}
             </span>
@@ -90,7 +90,7 @@ export default function HostBottomBar({
           max="100"
           value={muted ? 0 : volume}
           onChange={(e) => onVolumeChange(Number(e.target.value))}
-          className="w-20 h-1 accent-cyan-400 cursor-pointer"
+          className="hidden sm:block w-20 h-1 accent-cyan-400 cursor-pointer"
         />
       </div>
     </div>

@@ -90,9 +90,33 @@ IDLE → DRAGGING → MOMENTUM → SERVER_SPIN → COMPLETE
 
 3x3 grid, 5 guess categories (year/artist/title/lyrics/album). At least 1 of each, max 3 of any. Win conditions: 1 row, 2 rows, or full card. Lines = 3 rows + 3 columns + 2 diagonals.
 
+### Milestone System
+
+**Score-based milestones** (fire once per game, tracked via `PlayerMilestones` Earned/Used/Active booleans):
+- 250 pts: **Shield** — immune to next drink penalty (auto-applied, consumed on next penalty)
+- 500 pts: **Assign Drink** — pick a target player to drink
+- 750 pts: **Bingo Swap** — steal a marked cell from target, gain one on own card
+- 1000 pts: **Block Cell** — unmark a target's bingo cell
+- 1500 pts: **Double Points** — next correct answer = 2x points (auto-applied)
+- 2000 pts: **Steal** — steal 200 pts from any opponent
+
+**Streak rewards** (server-tracked via `Player.streak`, reset on wrong answer):
+- 3-streak: free cell mark on own card (player picks unmarked cell) — **repeatable** (fires every time streak hits 3)
+- 5-streak: all other players +1 drink, streak resets to 0
+
+Milestone thresholds checked in `handleTimerEnd` via `checkMilestoneThresholds()`. Shield blocks drink penalties via `applyDrinkPenalty()`. UI: `MilestoneReward` component (`src/components/player/MilestoneReward.tsx`) with `MILESTONE_CONFIG` record, step machine (announce → selectPlayer → selectCell → selectOwnCell), auto-dismiss for auto-applied milestones.
+
+### Surprise Events
+
+Per-room timer fires every 3–5 minutes (randomized). Only fires between rounds (`ROUND_RESULTS` or `SPINNING` phase). Timer starts on `HOST_START_GAME`, cleared on `GAME_OVER` / `PLAY_AGAIN` / room cleanup.
+
+6 event types (`SurpriseEventType`): `spotlight` (target drinks), `doubleRound` (2x scores), `everybodyCheers` (all drink), `categoryCurse` (target loses a marked cell), `luckyStar` (target gets a free cell), `hotSeat` (target gets 2x drink penalties if wrong).
+
+`SurpriseModifiers` on `RoomState`: `doublePoints` (boolean, cleared after round), `hotSeatPlayerId` (string | null, cleared after round). `SurpriseEventOverlay` (`src/components/host/SurpriseEventOverlay.tsx`) for host full-screen display; player gets banner notification in `PlayerPageContent`.
+
 ## Key Types (src/types/game.ts)
 
-`Track`, `Player`, `RoomState`, `LobbySettings`, `GamePhase`, `BingoCell`, `WheelSegment` (with `baseColor`/`accentColor`), `WHEEL_SEGMENTS` constant.
+`Track`, `Player` (with `streak`, `milestones: PlayerMilestones`), `RoomState` (with `surpriseModifiers: SurpriseModifiers`), `LobbySettings`, `GamePhase`, `BingoCell`, `WheelSegment` (with `baseColor`/`accentColor`), `WHEEL_SEGMENTS` constant, `MilestoneType`, `SurpriseEventType`, `SurpriseModifiers`, `PlayerMilestones`.
 
 ## Env Vars (.env.local)
 
@@ -145,7 +169,7 @@ The host lobby (`src/components/host/HostLobby.tsx`) matches the home page's dis
 
 Duolingo-style micro-interactions and celebration animations using Framer Motion + custom inline SVGs. All animations use GPU-only properties (`transform`, `opacity`).
 
-**SVG Icons** (`SVGIcons.tsx`) — 11 inline React SVG components, each accepts `size` and `color` props:
+**SVG Icons** (`SVGIcons.tsx`) — 16 inline React SVG components, each accepts `size` and `color` props:
 - `ConfettiStar`, `ConfettiDiamond`, `MusicalNote`, `MusicalNotes` — confetti particle shapes
 - `StreakFlame` — fire with inner/outer flame paths (streak counter)
 - `SparkleIcon` — 4-ray sparkle burst (cell mark, bonus indicators)
@@ -153,6 +177,11 @@ Duolingo-style micro-interactions and celebration animations using Framer Motion
 - `LightningBolt` — zigzag bolt (bonus points, Rock Off)
 - `CrownIcon` — 3-point crown (leaderboard 1st place)
 - `ArrowUp` / `ArrowDown` — rank change indicators
+- `ShieldIcon` — shield (250 pts milestone)
+- `SwapIcon` — swap arrows (750 pts milestone)
+- `DoublePtsIcon` — 2x badge (1500 pts milestone)
+- `StealIcon` — grab hand (2000 pts milestone)
+- `SurpriseIcon` — surprise star (surprise events)
 
 **Core Components:**
 - `ConfettiBurst` — reusable particle explosion (`active`, `particleCount`, `colors`, `duration`, `spread` props). Random shapes from SVG library + circles. Self-removes after animation.
@@ -160,6 +189,7 @@ Duolingo-style micro-interactions and celebration animations using Framer Motion
 - `ScreenShake` — wrapper that shakes children on trigger (`light`/`medium`/`heavy` intensity via x-axis keyframes).
 - `StreakCounter` — flame SVG + count, shown when streak >= 2. Pulse intensity scales with streak. "Broken" animation on reset.
 - `BingoLineCelebration` — full-screen overlay with gradient banner ("BINGO LINE!" / "DOUBLE LINE!"), confetti, auto-dismisses after 2s.
+- `SurpriseEventOverlay` (`src/components/host/SurpriseEventOverlay.tsx`) — full-screen host overlay with `EVENT_CONFIG` record, spring animation, confetti for positive events, auto-dismiss.
 
 **Store fields** (`gameStore.ts`): `streak` (consecutive correct answers), `prevCompletedRows` (for detecting new bingo line completions), with `incrementStreak()`, `resetStreak()`, `setPrevCompletedRows()` actions.
 
@@ -180,10 +210,13 @@ Duolingo-style micro-interactions and celebration animations using Framer Motion
 - `.confetti-container` — absolute positioned, pointer-events none, overflow hidden, z-50
 - `.streak-glow` — orange/red drop-shadow filter for flame icon
 - `.bingo-line-flash` — keyframe animation pulsing inset box-shadow 3 times (fuchsia glow)
+- `.surprise-flash` — flash animation for surprise event overlay
+- `.hot-seat-glow` — pulsing red glow for hot seat target
+- `.shield-shimmer` — shimmer animation for shield active indicator
 
 ### Synthesized Audio (src/hooks/useAudio.ts)
 
-All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo'`. The `useAudio()` hook returns `{ playSound }` with 100ms debounce per sound name.
+All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'surprise' | 'wheelLand'`. The `useAudio()` hook returns `{ playSound }` with 100ms debounce per sound name.
 
 ## Important Patterns
 
@@ -199,3 +232,5 @@ All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'d
 - Confetti/particle counts are capped (15-25 per-round, 80 max game-over) for performance
 - Streak tracking spans across rounds via Zustand store (not local state)
 - Bingo line detection compares current completed lines against `prevCompletedRows` in store
+- Streak rewards (3/5) are repeatable and event-driven — server emits them on the fly each time the threshold is hit; score milestones use Earned/Used/Active booleans in `PlayerMilestones` and fire once per game
+- Surprise event listeners live in Host/PlayerPageContent (local state + sound), NOT in `useGameState` hook

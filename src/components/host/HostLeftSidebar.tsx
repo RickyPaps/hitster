@@ -18,6 +18,7 @@ const PHASE_DISPLAY: Partial<Record<GamePhase, string>> = {
   PLAYING: 'Challenge Active',
   ROUND_RESULTS: 'Round Results',
   DRINKING_SEGMENT: 'Party Time',
+  GAME_OVER: 'Game Over',
 };
 
 export default function HostLeftSidebar({

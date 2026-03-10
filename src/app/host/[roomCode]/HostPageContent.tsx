@@ -11,8 +11,9 @@ import HostLobby from '@/components/host/HostLobby';
 import HostGameShell from '@/components/host/HostGameShell';
 import WinnerScreen from '@/components/host/WinnerScreen';
 import Scoreboard from '@/components/host/Scoreboard';
+import SurpriseEventOverlay from '@/components/host/SurpriseEventOverlay';
 import curatedTracks from '@/data/curated-tracks.json';
-import type { Track, TrackHistoryEntry } from '@/types/game';
+import type { Track, TrackHistoryEntry, SurpriseEventType } from '@/types/game';
 import { useAudio } from '@/hooks/useAudio';
 
 export default function HostPageContent() {
@@ -36,6 +37,7 @@ export default function HostPageContent() {
   const [trackHistory, setTrackHistory] = useState<TrackHistoryEntry[]>([]);
   const [volume, setVolume] = useState(70);
   const [muted, setMuted] = useState(false);
+  const [surpriseEvent, setSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null } | null>(null);
   const { playSound } = useAudio();
 
   // Track the previous phase to detect transitions into ROUND_RESULTS
@@ -48,6 +50,13 @@ export default function HostPageContent() {
       setConnection(roomCode, socket.id, 'Host', true);
     }
   }, [roomCode, setConnection]);
+
+  // Reset store on navigation away
+  useEffect(() => {
+    return () => {
+      useGameStore.getState().reset();
+    };
+  }, []);
 
   // Persistent listener for GAME_WHEEL_RESULT
   useEffect(() => {
@@ -62,6 +71,19 @@ export default function HostPageContent() {
       socket.off(SOCKET_EVENTS.GAME_WHEEL_RESULT, handler);
     };
   }, []);
+
+  // Listen for surprise events
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = (data: { type: SurpriseEventType; targetName: string | null }) => {
+      playSound('surprise');
+      setSurpriseEvent(data);
+    };
+    socket.on(SOCKET_EVENTS.SURPRISE_EVENT, handler);
+    return () => {
+      socket.off(SOCKET_EVENTS.SURPRISE_EVENT, handler);
+    };
+  }, [playSound]);
 
   // Accumulate track history when entering ROUND_RESULTS
   useEffect(() => {
@@ -181,31 +203,71 @@ export default function HostPageContent() {
     return <HostLobby onStartGame={handleStartGame} loading={loading} />;
   }
 
-  // ── GAME OVER: full-page view ──
+  const handlePlayAgain = () => {
+    const socket = getSocket();
+    socket.emit(SOCKET_EVENTS.HOST_PLAY_AGAIN);
+  };
+
+  const surpriseOverlay = (
+    <SurpriseEventOverlay
+      event={surpriseEvent}
+      onComplete={() => setSurpriseEvent(null)}
+    />
+  );
+
+  // ── GAME OVER: full-page view with disco atmosphere ──
   if (phase === 'GAME_OVER') {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-8">
-        {winner ? (
-          <WinnerScreen winner={winner} onPlayAgain={() => window.location.reload()} />
-        ) : (
-          <div className="text-center">
-            <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-              No more tracks!
-            </h2>
-            <p className="text-lg mb-6" style={{ color: 'var(--text-secondary)' }}>
-              All available songs have been played.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="py-3 px-8 rounded-xl font-bold text-white glow"
-              style={{ background: 'var(--accent)' }}
-            >
-              Play Again
-            </button>
+      <div className="min-h-dvh flex flex-col items-center justify-center p-8 relative overflow-hidden">
+        {surpriseOverlay}
+        {/* Disco background */}
+        <div className="fixed inset-0 z-0 pointer-events-none" style={{ background: '#0d0216' }}>
+          <div className="disco-grid-bg absolute inset-0 opacity-20" />
+          <div
+            className="absolute rounded-full"
+            style={{
+              top: '-10%', left: '-10%', width: '40%', height: '40%',
+              background: 'rgba(188, 19, 254, 0.2)', filter: 'blur(120px)',
+            }}
+          />
+          <div
+            className="absolute rounded-full"
+            style={{
+              bottom: '-10%', right: '-10%', width: '40%', height: '40%',
+              background: 'rgba(188, 19, 254, 0.1)', filter: 'blur(120px)',
+            }}
+          />
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center w-full max-w-lg">
+          {winner ? (
+            <WinnerScreen winner={winner} onPlayAgain={handlePlayAgain} />
+          ) : (
+            <div className="text-center glass-panel-purple rounded-2xl p-8 w-full">
+              <h2
+                className="text-3xl font-bold mb-2 uppercase tracking-widest"
+                style={{ fontFamily: 'var(--font-display)', color: 'white', textShadow: '0 0 15px rgba(217, 70, 239, 0.6)' }}
+              >
+                No More Tracks!
+              </h2>
+              <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
+                All available songs have been played.
+              </p>
+              <button
+                onClick={handlePlayAgain}
+                className="py-3 px-8 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
+                style={{
+                  background: 'linear-gradient(135deg, #ff007f, #bc13fe)',
+                  boxShadow: '0 0 20px rgba(255, 0, 127, 0.4)',
+                }}
+              >
+                Play Again
+              </button>
+            </div>
+          )}
+          <div className="mt-8 w-full">
+            <Scoreboard />
           </div>
-        )}
-        <div className="mt-8 w-full max-w-md">
-          <Scoreboard />
         </div>
       </div>
     );
@@ -213,6 +275,8 @@ export default function HostPageContent() {
 
   // ── IN-GAME: three-column master layout ──
   return (
+    <>
+    {surpriseOverlay}
     <HostGameShell
       roomCode={roomCode}
       phase={phase}
@@ -238,5 +302,6 @@ export default function HostPageContent() {
       onVolumeChange={handleVolumeChange}
       onMuteToggle={handleMuteToggle}
     />
+    </>
   );
 }

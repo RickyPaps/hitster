@@ -11,6 +11,8 @@ export const SOCKET_EVENTS = {
   PLAYER_BUZZ_IN: 'player:buzz-in',
   PLAYER_SPIN_WHEEL: 'player:spin-wheel',
   HOST_KICK_PLAYER: 'host:kick-player',
+  HOST_PLAY_AGAIN: 'host:play-again',
+  HOST_REJOIN_ROOM: 'host:rejoin-room',
   REQUEST_SYNC: 'request:sync',
 
   // Server → Client
@@ -41,8 +43,18 @@ export const SOCKET_EVENTS = {
   MILESTONE_EARNED: 'milestone:earned',
   MILESTONE_USE_DRINKS: 'milestone:use-drinks',
   MILESTONE_USE_BLOCK: 'milestone:use-block',
+  MILESTONE_USE_SWAP: 'milestone:use-swap',
+  MILESTONE_USE_STEAL: 'milestone:use-steal',
+  MILESTONE_USE_FREE_MARK: 'milestone:use-free-mark',
   MILESTONE_DRINKS_RECEIVED: 'milestone:drinks-received',
   MILESTONE_BLOCK_RECEIVED: 'milestone:block-received',
+  MILESTONE_SWAP_RECEIVED: 'milestone:swap-received',
+  MILESTONE_STEAL_RECEIVED: 'milestone:steal-received',
+  MILESTONE_SHIELD_CONSUMED: 'milestone:shield-consumed',
+  MILESTONE_DOUBLE_CONSUMED: 'milestone:double-consumed',
+
+  // Surprise events
+  SURPRISE_EVENT: 'surprise:event',
 
   // Errors
   ERROR: 'error',
