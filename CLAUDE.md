@@ -23,7 +23,7 @@ No test runner or linter is configured. TypeScript strict mode is the primary sa
 
 ### Custom Server (server.ts)
 
-A single HTTP server serves both Next.js pages and Socket.io WebSocket connections on port 3000. This is why Vercel cannot be used for deployment (no persistent WebSocket support).
+A single HTTP server serves both Next.js pages and Socket.io WebSocket connections on port 3000. Deployed on **Render** (free tier) at `https://hitster-v8pa.onrender.com`. Vercel/Netlify cannot be used (no persistent WebSocket support). `tsx` is in `dependencies` (not devDependencies) so it's available at runtime on Render.
 
 ```
 HTTP request → Next.js handler (pages, API routes)
@@ -104,7 +104,7 @@ IDLE → DRAGGING → MOMENTUM → SERVER_SPIN → COMPLETE
 - 3-streak: free cell mark on own card (player picks unmarked cell) — **repeatable** (fires every time streak hits 3)
 - 5-streak: all other players +1 drink, streak resets to 0
 
-Milestone thresholds checked in `handleTimerEnd` via `checkMilestoneThresholds()`. Shield blocks drink penalties via `applyDrinkPenalty()`. UI: `MilestoneReward` component (`src/components/player/MilestoneReward.tsx`) with `MILESTONE_CONFIG` record, step machine (announce → selectPlayer → selectCell → selectOwnCell), auto-dismiss for auto-applied milestones.
+Milestone thresholds checked in `handleTimerEnd` via `checkMilestoneThresholds()`. Shield blocks drink penalties via `applyDrinkPenalty()`. UI: `MilestoneReward` component (`src/components/player/MilestoneReward.tsx`) with `MILESTONE_CONFIG` record, step machine (announce → selectPlayer → selectCell → selectOwnCell). All milestones require manual dismiss (centered full-screen modal with dark backdrop blur, no auto-dismiss timer).
 
 ### Surprise Events
 

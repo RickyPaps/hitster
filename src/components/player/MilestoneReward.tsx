@@ -190,13 +190,14 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
     <AnimatePresence>
       <motion.div
         key={milestone.type}
-        initial={{ opacity: 0, y: -40 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -40 }}
-        className="fixed top-0 left-0 right-0 z-[60] p-4"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+        style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
       >
         <div
-          className="max-w-sm mx-auto rounded-2xl p-5"
+          className="max-w-sm w-full rounded-2xl p-5"
           style={{
             background: `linear-gradient(135deg, rgba(${config.colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
             border: `2px solid rgba(${config.colorRgb}, 0.6)`,
@@ -340,7 +341,6 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
 
 function AutoDismissAnnounce({
   config,
-  autoDismiss,
   onAction,
   onSkip,
 }: {
@@ -349,16 +349,9 @@ function AutoDismissAnnounce({
   onAction: () => void;
   onSkip: () => void;
 }) {
-  useEffect(() => {
-    if (autoDismiss) {
-      const t = setTimeout(onAction, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [autoDismiss, onAction]);
-
   return (
     <div className="text-center">
-      <div className="flex justify-center mb-2">{config.icon}</div>
+      <div className="flex justify-center mb-3">{config.icon}</div>
       <h3
         className="text-xl font-black uppercase mb-1"
         style={{
@@ -368,7 +361,7 @@ function AutoDismissAnnounce({
       >
         {config.title}
       </h3>
-      <p className="text-sm mb-4" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
+      <p className="text-sm mb-5" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
         {config.description}
       </p>
       <div className="flex gap-3 justify-center">
@@ -382,7 +375,7 @@ function AutoDismissAnnounce({
         >
           {config.buttonLabel}
         </button>
-        {!autoDismiss && (
+        {!config.autoApplied && (
           <button
             onClick={onSkip}
             className="py-2.5 px-4 rounded-xl font-semibold cursor-pointer"
