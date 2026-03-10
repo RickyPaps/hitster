@@ -114,6 +114,11 @@ export default function RoundResults({
             <p className="text-base text-gray-400 font-medium truncate">
               {track.artist}
             </p>
+            {track.album && (
+              <p className="text-sm text-gray-500 font-medium truncate italic">
+                {track.album}
+              </p>
+            )}
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
