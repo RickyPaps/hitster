@@ -71,6 +71,12 @@ export function addPlayer(roomCode: string, playerId: string, playerName: string
     connected: true,
     completedRows: 0,
     drinks: 0,
+    milestones: {
+      drinks500Earned: false,
+      drinks500Used: false,
+      block1000Earned: false,
+      block1000Used: false,
+    },
   };
   room.players.push(player);
   return player;

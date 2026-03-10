@@ -24,6 +24,8 @@ export async function getSpotifyToken(): Promise<string> {
   });
 
   if (!res.ok) {
+    const errorBody = await res.text();
+    console.error(`Spotify auth failed ${res.status}:`, errorBody);
     throw new Error(`Spotify auth failed: ${res.status}`);
   }
 
@@ -61,6 +63,8 @@ export async function fetchPlaylistTracks(playlistId: string, limit = 100): Prom
     });
 
     if (!res.ok) {
+      const errorBody = await res.text();
+      console.error(`Spotify API error ${res.status}:`, errorBody);
       throw new Error(`Spotify API error: ${res.status}`);
     }
 

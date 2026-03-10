@@ -1,20 +1,62 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Player } from '@/types/game';
 import { getNearBingoPlayers } from '@/lib/game/bingo-utils';
+import { CrownIcon, ArrowUp, ArrowDown } from '@/components/animations/SVGIcons';
 
 interface LeaderboardProps {
   players: Player[];
+  winCondition: 1 | 2 | 9;
 }
 
-export default function Leaderboard({ players }: LeaderboardProps) {
+export default function Leaderboard({ players, winCondition }: LeaderboardProps) {
   const sorted = [...players].sort(
     (a, b) => b.completedRows - a.completedRows || b.score - a.score
   );
-  const nearBingo = getNearBingoPlayers(players);
+  const nearBingo = getNearBingoPlayers(players, winCondition);
   const totalDrinks = players.reduce((sum, p) => sum + p.drinks, 0);
   const drinkSorted = [...players].sort((a, b) => b.drinks - a.drinks);
+
+  // Track previous scores and rankings for animations
+  const prevScoresRef = useRef<Record<string, number>>({});
+  const prevRankingsRef = useRef<string[]>([]);
+
+  const currentRankings = sorted.map(p => p.id);
+  const prevRankings = prevRankingsRef.current;
+
+  // Compute rank changes
+  const rankChanges: Record<string, 'up' | 'down' | null> = {};
+  if (prevRankings.length > 0) {
+    sorted.forEach((p, newIdx) => {
+      const oldIdx = prevRankings.indexOf(p.id);
+      if (oldIdx === -1) {
+        rankChanges[p.id] = null;
+      } else if (newIdx < oldIdx) {
+        rankChanges[p.id] = 'up';
+      } else if (newIdx > oldIdx) {
+        rankChanges[p.id] = 'down';
+      } else {
+        rankChanges[p.id] = null;
+      }
+    });
+  }
+
+  // Compute score changes
+  const scoreChanged: Record<string, boolean> = {};
+  sorted.forEach(p => {
+    const prev = prevScoresRef.current[p.id];
+    scoreChanged[p.id] = prev !== undefined && p.score > prev;
+  });
+
+  // Update refs after render
+  useEffect(() => {
+    const scores: Record<string, number> = {};
+    sorted.forEach(p => { scores[p.id] = p.score; });
+    prevScoresRef.current = scores;
+    prevRankingsRef.current = currentRankings;
+  });
 
   return (
     <section className="sidebar-panel-right sidebar-scroll p-4 flex flex-col gap-4">
@@ -76,9 +118,35 @@ export default function Leaderboard({ players }: LeaderboardProps) {
                   >
                     {i + 1}
                   </span>
+                  {i === 0 && (
+                    <motion.div
+                      animate={{ y: [0, -2, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                      <CrownIcon size={16} color="#EAB308" />
+                    </motion.div>
+                  )}
                   <span className={`font-bold text-sm ${!p.connected ? 'opacity-40' : ''} ${i === 0 ? 'text-white' : 'text-gray-200'}`}>
                     {p.name}
                   </span>
+                  {rankChanges[p.id] === 'up' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: [1, 1, 0], y: 0 }}
+                      transition={{ duration: 3 }}
+                    >
+                      <ArrowUp size={12} />
+                    </motion.div>
+                  )}
+                  {rankChanges[p.id] === 'down' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: [1, 1, 0], y: 0 }}
+                      transition={{ duration: 3 }}
+                    >
+                      <ArrowDown size={12} />
+                    </motion.div>
+                  )}
                 </div>
                 {/* Inline badges */}
                 {nearBingo.some((nb) => nb.id === p.id) && (
@@ -101,18 +169,41 @@ export default function Leaderboard({ players }: LeaderboardProps) {
                     </span>
                   </div>
                 )}
+                {p.milestones && (p.milestones.drinks500Earned && !p.milestones.drinks500Used) && (
+                  <div className="mt-1 ml-7">
+                    <span
+                      className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
+                      style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#EAB308' }}
+                    >
+                      &#127866; Drink Ready
+                    </span>
+                  </div>
+                )}
+                {p.milestones && (p.milestones.block1000Earned && !p.milestones.block1000Used) && (
+                  <div className="mt-1 ml-7">
+                    <span
+                      className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
+                      style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
+                    >
+                      &#128737; Block Ready
+                    </span>
+                  </div>
+                )}
                 {!p.connected && (
                   <div className="mt-1 ml-7">
                     <span className="text-[10px] text-gray-600">Disconnected</span>
                   </div>
                 )}
               </div>
-              <span
+              <motion.span
+                key={p.score}
+                animate={scoreChanged[p.id] ? { scale: [1, 1.3, 1] } : {}}
+                transition={{ duration: 0.5 }}
                 className={`font-black text-right ${i === 0 ? 'text-lg italic' : 'text-sm'}`}
                 style={{ color: i === 0 ? '#ff007f' : '#d1d5db' }}
               >
                 {p.score.toLocaleString()}
-              </span>
+              </motion.span>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -135,7 +226,11 @@ export default function Leaderboard({ players }: LeaderboardProps) {
               Alert: {nearBingo[0].name}
             </p>
             <p className="text-xs text-gray-200">
-              Only 1 cell away from Bingo!
+              {winCondition === 9
+                ? 'Only 1 cell away from Full Card!'
+                : winCondition === 2
+                  ? '1 cell from a 2nd line!'
+                  : 'Only 1 cell away from Bingo!'}
             </p>
           </div>
         </div>

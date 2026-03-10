@@ -21,13 +21,17 @@ export default function SongPlayer({ previewUrl, albumArt, autoPlay = true, show
 
     howlRef.current = new Howl({
       src: [previewUrl],
+      format: ['mp3'],
       html5: true,
       volume: 0.7,
       onload: () => setLoaded(true),
       onplay: () => setPlaying(true),
       onpause: () => setPlaying(false),
       onend: () => setPlaying(false),
-      onloaderror: (_id, err) => console.error('Audio load error:', err),
+      onloaderror: (_id, err) => {
+        console.warn('Audio load error (preview may be expired):', err);
+        setLoaded(true); // stop showing "Loading audio..."
+      },
     });
 
     if (autoPlay) {

@@ -21,7 +21,6 @@ export function useGameState() {
       store.setRoundGuesses(state.roundGuesses);
       store.setTimerSeconds(state.timerSeconds);
       if (state.winner) store.setWinner(state.winner);
-      if (state.partyTarget) store.setPartyTarget(state.partyTarget);
       if (state.currentTrack) store.setCurrentTrack(state.currentTrack);
       store.setCurrentSpinner(state.currentSpinnerId ?? null, state.currentSpinnerName ?? null);
 

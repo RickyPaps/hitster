@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       tracks: playable,
     });
   } catch (error: any) {
+    console.error('Playlist API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

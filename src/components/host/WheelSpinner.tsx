@@ -6,6 +6,7 @@ import { WHEEL_SEGMENTS } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinAnimation, easeOutQuintic } from '@/lib/wheel/animate-spin';
 import CategoryBadge from '@/components/shared/CategoryBadge';
+import { useAudio, playSpinTick } from '@/hooks/useAudio';
 
 interface WheelSpinnerProps {
   onSpinComplete: () => void;
@@ -19,8 +20,10 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const rotationRef = useRef(0);
   const animationRef = useRef<number | null>(null);
+  const prevSegmentRef = useRef(-1);
   const [spinning, setSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const { playSound } = useAudio();
 
   // Cache canvas context and draw initial wheel
   useEffect(() => {
@@ -42,12 +45,15 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
 
     setSpinning(true);
     setShowResult(false);
+    prevSegmentRef.current = -1;
 
     // Use provided swipeVelocity or random fallback for host-only spin
     const velocity = swipeVelocity ?? (0.8 + Math.random() * 0.7);
     const { totalRotation, duration } = calculateSpinAnimation(resultIndex, velocity);
     const startTime = performance.now();
     const size = canvas.width;
+    const segmentCount = WHEEL_SEGMENTS.length;
+    const arc = (2 * Math.PI) / segmentCount;
 
     rotationRef.current = 0;
 
@@ -60,9 +66,19 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
       rotationRef.current = currentRotation;
       drawWheel(ctx, size, currentRotation);
 
+      // Segment tick sound
+      const normalizedRotation = ((currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const pointerAngle = (normalizedRotation + Math.PI / 2) % (2 * Math.PI);
+      const currentSegment = Math.floor(pointerAngle / arc) % segmentCount;
+      if (currentSegment !== prevSegmentRef.current && progress < 0.98) {
+        playSpinTick();
+      }
+      prevSegmentRef.current = currentSegment;
+
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
+        playSound('wheelLand');
         setSpinning(false);
         setShowResult(true);
         setTimeout(() => {

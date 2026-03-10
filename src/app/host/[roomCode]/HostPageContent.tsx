@@ -13,6 +13,7 @@ import WinnerScreen from '@/components/host/WinnerScreen';
 import Scoreboard from '@/components/host/Scoreboard';
 import curatedTracks from '@/data/curated-tracks.json';
 import type { Track, TrackHistoryEntry } from '@/types/game';
+import { useAudio } from '@/hooks/useAudio';
 
 export default function HostPageContent() {
   const params = useParams();
@@ -24,7 +25,7 @@ export default function HostPageContent() {
   const {
     phase, players, currentTrack, currentCategory,
     roundNumber, roundGuesses, settings, timerSeconds,
-    winner, partyTarget, setConnection,
+    winner, setConnection,
     currentSpinnerName,
   } = useGameStore();
 
@@ -35,6 +36,7 @@ export default function HostPageContent() {
   const [trackHistory, setTrackHistory] = useState<TrackHistoryEntry[]>([]);
   const [volume, setVolume] = useState(70);
   const [muted, setMuted] = useState(false);
+  const { playSound } = useAudio();
 
   // Track the previous phase to detect transitions into ROUND_RESULTS
   const prevPhaseRef = useRef(phase);
@@ -148,6 +150,13 @@ export default function HostPageContent() {
     }
   }, [phase]);
 
+  // Play win fanfare when game ends with a winner
+  useEffect(() => {
+    if (winner) {
+      playSound('win');
+    }
+  }, [winner, playSound]);
+
   const handleNextRound = () => {
     const socket = getSocket();
     socket.emit(SOCKET_EVENTS.HOST_NEXT_ROUND);
@@ -214,8 +223,8 @@ export default function HostPageContent() {
       roundGuesses={roundGuesses}
       timerSeconds={timerSeconds}
       maxTimer={settings.timerDuration}
+      winCondition={settings.winCondition}
       currentSpinnerName={currentSpinnerName}
-      partyTarget={partyTarget}
       trackHistory={trackHistory}
       wheelSpinning={wheelSpinning}
       wheelResultIndex={wheelResultIndex}

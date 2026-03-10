@@ -29,28 +29,8 @@ export default function HostBottomBar({
 
   return (
     <div className="host-bottom-bar now-playing-bar px-6 py-4 flex items-center justify-between gap-6">
-      {/* Left: album art + track info */}
+      {/* Left: track info */}
       <div className="flex items-center gap-4">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden shrink-0"
-          style={{
-            border: '2px solid rgba(0, 242, 255, 0.5)',
-            boxShadow: '0 0 25px rgba(0, 242, 255, 0.4)',
-          }}
-        >
-          {currentTrack?.albumArt ? (
-            <img
-              src={currentTrack.albumArt}
-              alt=""
-              className="w-full h-full object-cover"
-              style={{ filter: showTrackInfo ? 'none' : 'blur(16px)' }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(188, 19, 254, 0.2)' }}>
-              <span className="text-2xl" style={{ color: '#00f2ff' }}>&#9835;</span>
-            </div>
-          )}
-        </div>
         <div>
           <p
             className="text-[10px] font-black uppercase mb-1"

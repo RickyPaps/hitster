@@ -77,10 +77,7 @@ function handleWheelAnimationComplete(io: Server, roomCode: string) {
 
   if (isPartyCategory(category)) {
     room.phase = 'DRINKING_SEGMENT';
-    if (category === 'hot-take') {
-      room.partyTarget = engine.getRandomPlayer()?.name ?? null;
-      io.to(roomCode).emit(SOCKET_EVENTS.PARTY_HOT_TAKE, { playerName: room.partyTarget });
-    } else if (category === 'everybody-drinks') {
+    if (category === 'everybody-drinks') {
       io.to(roomCode).emit(SOCKET_EVENTS.PARTY_EVERYBODY_DRINKS, {});
     } else if (category === 'rock-off') {
       io.to(roomCode).emit(SOCKET_EVENTS.PARTY_ROCK_OFF, {});
@@ -90,7 +87,6 @@ function handleWheelAnimationComplete(io: Server, roomCode: string) {
         room.currentTrack = track;
         io.to(roomCode).emit(SOCKET_EVENTS.GAME_ROUND_START, {
           previewUrl: track.previewUrl,
-          albumArt: track.albumArt,
           category: 'rock-off',
         });
       }
@@ -109,7 +105,6 @@ function handleWheelAnimationComplete(io: Server, roomCode: string) {
 
     io.to(roomCode).emit(SOCKET_EVENTS.GAME_ROUND_START, {
       previewUrl: track.previewUrl,
-      albumArt: track.albumArt,
       trackId: track.id,
       category,
     });
@@ -143,14 +138,13 @@ function serializeRoom(room: RoomState) {
     roundGuesses: room.roundGuesses,
     timerSeconds: room.timerSeconds,
     winner: room.winner,
-    partyTarget: room.partyTarget,
     currentSpinnerId: room.currentSpinnerId,
     currentSpinnerName: room.currentSpinnerName,
     // Don't send currentTrack details to players during PLAYING (they shouldn't see the answer)
     currentTrack: room.phase === 'ROUND_RESULTS' || room.phase === 'GAME_OVER'
       ? room.currentTrack
       : room.currentTrack
-        ? { id: room.currentTrack.id, previewUrl: room.currentTrack.previewUrl, albumArt: room.currentTrack.albumArt }
+        ? { id: room.currentTrack.id, previewUrl: room.currentTrack.previewUrl }
         : null,
   };
 }
@@ -182,30 +176,66 @@ function handleTimerEnd(io: Server, roomCode: string) {
     if (!player) continue;
 
     if (guess.correct) {
-      // Award points for correct answer
-      player.score += 100;
+      // Accuracy-based scoring: similarity * 100, rounded
+      const pointsAwarded = Math.round((guess.similarity ?? 0) * 100);
+      player.score += pointsAwarded;
+      guess.pointsAwarded = pointsAwarded;
 
-      // Mark bingo card cell
+      const prevScore = player.score - pointsAwarded;
+
+      // Mark bingo card cell(s)
       if (room.currentCategory) {
+        const prevRows = player.completedRows;
+
+        // Mark primary category cell
         const cellIndex = player.bingoCard.findIndex(
           (cell) => cell.category === room.currentCategory && !cell.marked
         );
         if (cellIndex !== -1) {
           player.bingoCard[cellIndex].marked = true;
-          const prevRows = player.completedRows;
-          player.completedRows = countCompletedLines(player.bingoCard);
+        }
 
-          // Bonus points for completing a row
-          if (player.completedRows > prevRows) {
-            player.score += 250 * (player.completedRows - prevRows);
-            // Drink on row complete (celebration drink)
-            if (room.settings.drinkOnRowComplete) {
-              player.drinks += (player.completedRows - prevRows);
+        // Mark bonus category cells (e.g. exact year → also marks year-approx)
+        if (guess.bonusCategories) {
+          for (const bonusCat of guess.bonusCategories) {
+            const bonusIndex = player.bingoCard.findIndex(
+              (cell) => cell.category === bonusCat && !cell.marked
+            );
+            if (bonusIndex !== -1) {
+              player.bingoCard[bonusIndex].marked = true;
             }
           }
         }
+
+        // Recalculate completed rows after all markings
+        player.completedRows = countCompletedLines(player.bingoCard);
+
+        // Bonus points for completing a row
+        if (player.completedRows > prevRows) {
+          player.score += 250 * (player.completedRows - prevRows);
+          if (room.settings.drinkOnRowComplete) {
+            player.drinks += (player.completedRows - prevRows);
+          }
+        }
+      }
+
+      // Check milestone thresholds
+      if (!player.milestones.drinks500Earned && player.score >= 500 && prevScore < 500) {
+        player.milestones.drinks500Earned = true;
+        const playerSocket = io.sockets.sockets.get(player.id);
+        if (playerSocket) {
+          playerSocket.emit(SOCKET_EVENTS.MILESTONE_EARNED, { type: 'drinks500' });
+        }
+      }
+      if (!player.milestones.block1000Earned && player.score >= 1000 && prevScore < 1000) {
+        player.milestones.block1000Earned = true;
+        const playerSocket = io.sockets.sockets.get(player.id);
+        if (playerSocket) {
+          playerSocket.emit(SOCKET_EVENTS.MILESTONE_EARNED, { type: 'block1000' });
+        }
       }
     } else {
+      guess.pointsAwarded = 0;
       // Wrong answer — drink penalty
       if (room.settings.drinkOnWrongGuess) {
         player.drinks += 1;
@@ -237,6 +267,8 @@ function handleTimerEnd(io: Server, roomCode: string) {
       playerSocket.emit(SOCKET_EVENTS.GUESS_RESULT, {
         correct: guess.correct,
         shouldDrink: !guess.correct && room.settings.drinkOnWrongGuess,
+        pointsAwarded: guess.pointsAwarded,
+        bonusCategories: guess.bonusCategories,
       });
       if (guess.correct) {
         const player = room.players.find((p) => p.id === guess.playerId);
@@ -486,6 +518,12 @@ export function registerSocketHandlers(io: Server) {
         };
         room.roundGuesses.push(result);
         callback?.({ success: true });
+
+        // Tell the winner they can assign a drink
+        if (correct && !room.roundGuesses.some((g) => g.correct && g.playerId !== socket.id)) {
+          socket.emit(SOCKET_EVENTS.GUESS_RESULT, { correct: true, rockOffWin: true });
+        }
+
         syncRoom(io, room);
         return;
       }
@@ -539,6 +577,100 @@ export function registerSocketHandlers(io: Server) {
       room.roundGuesses = [];
       io.to(currentRoom).emit(SOCKET_EVENTS.GAME_PHASE_CHANGE, 'SPINNING');
       selectSpinnerForRoom(io, room);
+      syncRoom(io, room);
+    });
+
+    // MILESTONE: Use Drinks (assign a drink to another player)
+    socket.on(SOCKET_EVENTS.MILESTONE_USE_DRINKS, (data: { targetPlayerId: string }) => {
+      if (!currentRoom) return;
+      const room = getRoom(currentRoom);
+      if (!room) return;
+
+      const player = room.players.find((p) => p.id === socket.id);
+      if (!player) return;
+
+      // Validate milestone availability
+      if (!player.milestones.drinks500Earned || player.milestones.drinks500Used) return;
+
+      const target = room.players.find((p) => p.id === data.targetPlayerId);
+      if (!target || target.id === player.id) return;
+
+      player.milestones.drinks500Used = true;
+      target.drinks += 1;
+
+      // Notify target
+      const targetSocket = io.sockets.sockets.get(target.id);
+      if (targetSocket) {
+        targetSocket.emit(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, {
+          fromPlayer: player.name,
+        });
+      }
+      syncRoom(io, room);
+    });
+
+    // ROCK OFF: Winner assigns a drink to another player
+    socket.on(SOCKET_EVENTS.ROCK_OFF_ASSIGN_DRINK, (data: { targetPlayerId: string }) => {
+      if (!currentRoom) return;
+      const room = getRoom(currentRoom);
+      if (!room) return;
+
+      // Must be in rock-off drinking segment
+      if (room.phase !== 'DRINKING_SEGMENT' || room.currentCategory !== 'rock-off') return;
+
+      const player = room.players.find((p) => p.id === socket.id);
+      if (!player) return;
+
+      // Sender must be the first correct guesser (the winner)
+      const winner = room.roundGuesses.find((g) => g.correct);
+      if (!winner || winner.playerId !== socket.id) return;
+
+      const target = room.players.find((p) => p.id === data.targetPlayerId);
+      if (!target || target.id === player.id) return;
+
+      target.drinks += 1;
+
+      // Notify target
+      const targetSocket = io.sockets.sockets.get(target.id);
+      if (targetSocket) {
+        targetSocket.emit(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, {
+          fromPlayer: player.name,
+        });
+      }
+      syncRoom(io, room);
+    });
+
+    // MILESTONE: Use Block (unmark a cell on another player's bingo card)
+    socket.on(SOCKET_EVENTS.MILESTONE_USE_BLOCK, (data: { targetPlayerId: string; cellIndex: number }) => {
+      if (!currentRoom) return;
+      const room = getRoom(currentRoom);
+      if (!room) return;
+
+      const player = room.players.find((p) => p.id === socket.id);
+      if (!player) return;
+
+      // Validate milestone availability
+      if (!player.milestones.block1000Earned || player.milestones.block1000Used) return;
+
+      const target = room.players.find((p) => p.id === data.targetPlayerId);
+      if (!target || target.id === player.id) return;
+
+      const cellIndex = data.cellIndex;
+      if (cellIndex < 0 || cellIndex >= 9) return;
+      if (!target.bingoCard[cellIndex]?.marked) return;
+
+      player.milestones.block1000Used = true;
+      target.bingoCard[cellIndex].marked = false;
+      target.completedRows = countCompletedLines(target.bingoCard);
+
+      // Notify target
+      const targetSocket = io.sockets.sockets.get(target.id);
+      if (targetSocket) {
+        targetSocket.emit(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, {
+          fromPlayer: player.name,
+          cellIndex,
+        });
+        targetSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: target.bingoCard });
+      }
       syncRoom(io, room);
     });
 

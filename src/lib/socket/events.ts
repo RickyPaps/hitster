@@ -33,9 +33,16 @@ export const SOCKET_EVENTS = {
 
   // Party events
   PARTY_EVERYBODY_DRINKS: 'party:everybody-drinks',
-  PARTY_HOT_TAKE: 'party:hot-take',
   PARTY_ROCK_OFF: 'party:rock-off',
   PARTY_BUZZ_RESULT: 'party:buzz-result',
+  ROCK_OFF_ASSIGN_DRINK: 'rockoff:assign-drink',
+
+  // Milestone events
+  MILESTONE_EARNED: 'milestone:earned',
+  MILESTONE_USE_DRINKS: 'milestone:use-drinks',
+  MILESTONE_USE_BLOCK: 'milestone:use-block',
+  MILESTONE_DRINKS_RECEIVED: 'milestone:drinks-received',
+  MILESTONE_BLOCK_RECEIVED: 'milestone:block-received',
 
   // Errors
   ERROR: 'error',

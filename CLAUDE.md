@@ -141,6 +141,50 @@ The host lobby (`src/components/host/HostLobby.tsx`) matches the home page's dis
   - `.animate-pulse-glow` — subtle pulsing scale animation
   - `.disco-toggle` / `.disco-toggle.active` — custom toggle switch with fuchsia neon glow
 
+### Animation System (src/components/animations/)
+
+Duolingo-style micro-interactions and celebration animations using Framer Motion + custom inline SVGs. All animations use GPU-only properties (`transform`, `opacity`).
+
+**SVG Icons** (`SVGIcons.tsx`) — 11 inline React SVG components, each accepts `size` and `color` props:
+- `ConfettiStar`, `ConfettiDiamond`, `MusicalNote`, `MusicalNotes` — confetti particle shapes
+- `StreakFlame` — fire with inner/outer flame paths (streak counter)
+- `SparkleIcon` — 4-ray sparkle burst (cell mark, bonus indicators)
+- `TrophyIcon` — trophy cup with handles + base + star decoration (winner screen)
+- `LightningBolt` — zigzag bolt (bonus points, Rock Off)
+- `CrownIcon` — 3-point crown (leaderboard 1st place)
+- `ArrowUp` / `ArrowDown` — rank change indicators
+
+**Core Components:**
+- `ConfettiBurst` — reusable particle explosion (`active`, `particleCount`, `colors`, `duration`, `spread` props). Random shapes from SVG library + circles. Self-removes after animation.
+- `FloatingScore` — "+100" text that floats upward and fades. Shows `LightningBolt` when points > 100.
+- `ScreenShake` — wrapper that shakes children on trigger (`light`/`medium`/`heavy` intensity via x-axis keyframes).
+- `StreakCounter` — flame SVG + count, shown when streak >= 2. Pulse intensity scales with streak. "Broken" animation on reset.
+- `BingoLineCelebration` — full-screen overlay with gradient banner ("BINGO LINE!" / "DOUBLE LINE!"), confetti, auto-dismisses after 2s.
+
+**Store fields** (`gameStore.ts`): `streak` (consecutive correct answers), `prevCompletedRows` (for detecting new bingo line completions), with `incrementStreak()`, `resetStreak()`, `setPrevCompletedRows()` actions.
+
+**Player view integrations:**
+- `RoundFeedback` — confetti burst on correct, floating score, screen shake on wrong, SVG draw-on checkmark (pathLength animation), sparkle on bonus categories
+- `BingoCard` — sparkle overlay on newly marked cells, bingo line flash cascade (CSS `.bingo-line-flash`), mini confetti on line completion, near-bingo pulse glow on unmarked cells one away from completing a line
+- `GuessInput` — enhanced button press (`scale: 0.92, rotate: -1`), pulsing boxShadow glow when input non-empty
+- `PlayerPageContent` — streak tracking in GUESS_RESULT handler, StreakCounter in header, BingoLineCelebration overlay on line completion, enhanced GAME_OVER with TrophyIcon + confetti + sequenced reveal
+
+**Host view integrations:**
+- `WinnerScreen` — TrophyIcon SVG replaces emoji, dual ConfettiBursts (left + right, 40 particles each), SparkleIcon sparkles around name, sequenced reveal (trophy → name → stats → button with staggered delays)
+- `Leaderboard` — CrownIcon on 1st place with subtle bob animation, score flash (scale pulse) on score increase, ArrowUp/ArrowDown on rank changes (auto-fade after 3s)
+- `DrinkingPrompt` — gold confetti on "Everybody Drinks", LightningBolt SVGs flanking "ROCK OFF!" with electric flicker opacity animation
+
+**Synthesized sounds** (`useAudio.ts`): `streak` (3 ascending tones: 600/800/1000 Hz, 50ms each), `bingo` (fanfare arpeggio: C5→E5→G5→C6, triangle wave, 120ms spacing with overlap)
+
+**CSS utilities** (`globals.css`):
+- `.confetti-container` — absolute positioned, pointer-events none, overflow hidden, z-50
+- `.streak-glow` — orange/red drop-shadow filter for flame icon
+- `.bingo-line-flash` — keyframe animation pulsing inset box-shadow 3 times (fuchsia glow)
+
+### Synthesized Audio (src/hooks/useAudio.ts)
+
+All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo'`. The `useAudio()` hook returns `{ playSound }` with 100ms debounce per sound name.
+
 ## Important Patterns
 
 - All pages using socket/audio/browser APIs must be `'use client'`
@@ -151,3 +195,7 @@ The host lobby (`src/components/host/HostLobby.tsx`) matches the home page's dis
 - Player reconnection works by matching `playerName` on the existing player list
 - Home page uses GSAP for animations; other pages use framer-motion — both coexist
 - GSAP animations on conditionally-rendered elements must NOT use inline `opacity: 0` — use `gsap.fromTo()` in an effect keyed on the condition instead
+- Animation components use `position: absolute; pointer-events: none` to avoid blocking gameplay
+- Confetti/particle counts are capped (15-25 per-round, 80 max game-over) for performance
+- Streak tracking spans across rounds via Zustand store (not local state)
+- Bingo line detection compares current completed lines against `prevCompletedRows` in store

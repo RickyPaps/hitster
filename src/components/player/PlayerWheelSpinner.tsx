@@ -6,6 +6,7 @@ import { WHEEL_SEGMENTS } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinFromMomentum, easeOutQuintic } from '@/lib/wheel/animate-spin';
 import CategoryBadge from '@/components/shared/CategoryBadge';
+import { useAudio, playSpinTick } from '@/hooks/useAudio';
 
 interface PlayerWheelSpinnerProps {
   onSwipe: (velocity: number) => void;
@@ -41,6 +42,7 @@ export default function PlayerWheelSpinner({
   const velocityRef = useRef(0); // current angular velocity (rad/ms)
   const spinStateRef = useRef<SpinState>('IDLE');
   const hasFiredSwipeRef = useRef(false);
+  const prevSegmentRef = useRef(-1);
 
   // Drag tracking
   const lastAngleRef = useRef(0);
@@ -49,6 +51,7 @@ export default function PlayerWheelSpinner({
 
   const [spinState, setSpinState] = useState<SpinState>('IDLE');
   const [showResult, setShowResult] = useState(false);
+  const { playSound } = useAudio();
 
   // Keep ref in sync with state for use in rAF callbacks
   const updateSpinState = useCallback((s: SpinState) => {
@@ -120,6 +123,9 @@ export default function PlayerWheelSpinner({
   }, []);
 
   // --- MOMENTUM animation loop ---
+  const segmentCount = WHEEL_SEGMENTS.length;
+  const arc = (2 * Math.PI) / segmentCount;
+
   const runMomentum = useCallback(() => {
     const state = spinStateRef.current;
     if (state !== 'MOMENTUM') return;
@@ -128,6 +134,15 @@ export default function PlayerWheelSpinner({
     rotationRef.current += velocityRef.current * 16; // ~16ms per frame
     redraw();
 
+    // Segment tick sound
+    const normalizedRotation = ((rotationRef.current % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const pointerAngle = (normalizedRotation + Math.PI / 2) % (2 * Math.PI);
+    const currentSegment = Math.floor(pointerAngle / arc) % segmentCount;
+    if (currentSegment !== prevSegmentRef.current) {
+      playSpinTick();
+    }
+    prevSegmentRef.current = currentSegment;
+
     // If velocity drops below threshold and server hasn't responded, keep going slowly
     if (Math.abs(velocityRef.current) > 0.0001) {
       animationRef.current = requestAnimationFrame(runMomentum);
@@ -135,7 +150,7 @@ export default function PlayerWheelSpinner({
       // Wheel stopped naturally before server responded — keep idle rotation visible
       velocityRef.current = 0;
     }
-  }, [redraw]);
+  }, [redraw, segmentCount, arc]);
 
   // --- SERVER_SPIN: animate from current state to target ---
   useEffect(() => {
@@ -152,6 +167,7 @@ export default function PlayerWheelSpinner({
 
     updateSpinState('SERVER_SPIN');
     setShowResult(false);
+    prevSegmentRef.current = -1;
 
     const currentRotation = rotationRef.current;
     const currentVelocity = velocityRef.current;
@@ -175,11 +191,21 @@ export default function PlayerWheelSpinner({
       rotationRef.current = startRotation + totalDelta * eased;
       redraw();
 
+      // Segment tick sound
+      const normalizedRotation = ((rotationRef.current % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const pointerAngle = (normalizedRotation + Math.PI / 2) % (2 * Math.PI);
+      const currentSegment = Math.floor(pointerAngle / arc) % segmentCount;
+      if (currentSegment !== prevSegmentRef.current && progress < 0.98) {
+        playSpinTick();
+      }
+      prevSegmentRef.current = currentSegment;
+
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
         rotationRef.current = targetRotation;
         redraw();
+        playSound('wheelLand');
         updateSpinState('COMPLETE');
         setShowResult(true);
         setTimeout(onSpinComplete, 1500);
@@ -244,6 +270,7 @@ export default function PlayerWheelSpinner({
       velocityRef.current = velocity;
       updateSpinState('MOMENTUM');
       hasFiredSwipeRef.current = true;
+      prevSegmentRef.current = -1;
 
       // Haptic feedback
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -310,6 +337,7 @@ export default function PlayerWheelSpinner({
         velocityRef.current = velocity;
         updateSpinState('MOMENTUM');
         hasFiredSwipeRef.current = true;
+        prevSegmentRef.current = -1;
 
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate(50);

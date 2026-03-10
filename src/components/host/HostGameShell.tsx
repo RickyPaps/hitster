@@ -23,8 +23,8 @@ interface HostGameShellProps {
   roundGuesses: GuessResult[];
   timerSeconds: number;
   maxTimer: number;
+  winCondition: 1 | 2 | 9;
   currentSpinnerName: string | null;
-  partyTarget?: string | null;
   trackHistory: TrackHistoryEntry[];
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
@@ -42,7 +42,7 @@ interface HostGameShellProps {
 export default function HostGameShell(props: HostGameShellProps) {
   const {
     roomCode, phase, roundNumber, players, currentTrack, currentCategory,
-    roundGuesses, timerSeconds, maxTimer, currentSpinnerName, partyTarget,
+    roundGuesses, timerSeconds, maxTimer, winCondition, currentSpinnerName,
     trackHistory, wheelSpinning, wheelResultIndex, swipeVelocity,
     volume, muted,
     onSpin, onSpinComplete, onNextRound, onEndSession, onVolumeChange, onMuteToggle,
@@ -98,7 +98,6 @@ export default function HostGameShell(props: HostGameShellProps) {
           roundGuesses={roundGuesses}
           players={players}
           currentSpinnerName={currentSpinnerName}
-          partyTarget={partyTarget}
           wheelSpinning={wheelSpinning}
           wheelResultIndex={wheelResultIndex}
           swipeVelocity={swipeVelocity}
@@ -108,7 +107,7 @@ export default function HostGameShell(props: HostGameShellProps) {
       </div>
 
       {/* Right Sidebar — row 2, col 3 */}
-      <Leaderboard players={players} />
+      <Leaderboard players={players} winCondition={winCondition} />
 
       {/* Bottom Bar — row 3, all columns */}
       <HostBottomBar
@@ -135,7 +134,6 @@ interface CenterContentProps {
   roundGuesses: GuessResult[];
   players: Player[];
   currentSpinnerName: string | null;
-  partyTarget?: string | null;
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
@@ -145,7 +143,7 @@ interface CenterContentProps {
 
 function CenterContent({
   phase, currentTrack, currentCategory, roundGuesses, players,
-  currentSpinnerName, partyTarget, wheelSpinning, wheelResultIndex, swipeVelocity,
+  currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity,
   onSpinComplete, onNextRound,
 }: CenterContentProps) {
   if (phase === 'SPINNING') {
@@ -226,6 +224,7 @@ function CenterContent({
                 : currentCategory === 'artist' ? 'artist'
                 : currentCategory === 'title' ? 'title'
                 : currentCategory === 'album' ? 'album'
+                : currentCategory === 'decade' ? 'decade'
                 : 'answer'
               }.
             </p>
@@ -268,8 +267,7 @@ function CenterContent({
     return (
       <div className="flex flex-col items-center gap-6 w-full max-w-lg">
         <DrinkingPrompt
-          type={currentCategory as 'everybody-drinks' | 'hot-take' | 'rock-off'}
-          targetPlayer={partyTarget}
+          type={currentCategory as 'everybody-drinks' | 'rock-off'}
           onContinue={onNextRound}
         />
         {currentCategory === 'rock-off' && currentTrack?.previewUrl && (

@@ -58,14 +58,15 @@ export async function convertSpotifyTracks(spotifyTracks: SpotifyTrack[]): Promi
     const results = await Promise.all(
       batch.map(async (st) => {
         const previewUrl = await getPreviewUrl(st);
-        const year = parseInt(st.album.release_date.split('-')[0], 10);
-        const albumArt = st.album.images[0]?.url || '';
+        const releaseDate = st.album?.release_date || '';
+        const year = parseInt(releaseDate.split('-')[0], 10);
+        const albumArt = st.album?.images?.[0]?.url || '';
 
         return {
           id: st.id,
           name: st.name,
-          artist: st.artists.map((a) => a.name).join(', '),
-          album: st.album.name,
+          artist: st.artists?.map((a) => a.name).join(', ') || 'Unknown Artist',
+          album: st.album?.name || 'Unknown Album',
           year: isNaN(year) ? 2000 : year,
           previewUrl,
           albumArt,

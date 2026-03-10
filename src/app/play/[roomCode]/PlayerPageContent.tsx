@@ -16,6 +16,12 @@ import GuessInput from '@/components/player/GuessInput';
 import RoundFeedback from '@/components/player/RoundFeedback';
 import PlayerWheelSpinner from '@/components/player/PlayerWheelSpinner';
 import CategoryBadge from '@/components/shared/CategoryBadge';
+import MilestoneReward from '@/components/player/MilestoneReward';
+import StreakCounter from '@/components/animations/StreakCounter';
+import BingoLineCelebration from '@/components/animations/BingoLineCelebration';
+import ConfettiBurst from '@/components/animations/ConfettiBurst';
+import { TrophyIcon } from '@/components/animations/SVGIcons';
+import { useAudio } from '@/hooks/useAudio';
 
 export default function PlayerPageContent() {
   const params = useParams();
@@ -27,16 +33,22 @@ export default function PlayerPageContent() {
   const {
     phase, currentCategory, timerSeconds, settings,
     bingoCard, hasGuessedThisRound, winner, roundGuesses,
-    playerId, playerName, partyTarget,
+    playerId, playerName, players,
     currentSpinnerId, currentSpinnerName,
   } = useGameStore();
 
+  const streak = useGameStore((s) => s.streak);
+  const prevCompletedRows = useGameStore((s) => s.prevCompletedRows);
   const setConnection = useGameStore((s) => s.setConnection);
   const setBingoCard = useGameStore((s) => s.setBingoCard);
   const setHasGuessedThisRound = useGameStore((s) => s.setHasGuessedThisRound);
+  const incrementStreak = useGameStore((s) => s.incrementStreak);
+  const resetStreak = useGameStore((s) => s.resetStreak);
+  const setPrevCompletedRows = useGameStore((s) => s.setPrevCompletedRows);
   const reset = useGameStore((s) => s.reset);
+  const { playSound } = useAudio();
 
-  const [lastResult, setLastResult] = useState<{ correct: boolean; shouldDrink?: boolean; noGuess?: boolean } | null>(null);
+  const [lastResult, setLastResult] = useState<{ correct: boolean; shouldDrink?: boolean; noGuess?: boolean; pointsAwarded?: number; bonusCategories?: string[] } | null>(null);
   const [joinName, setJoinName] = useState('');
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
@@ -46,15 +58,46 @@ export default function PlayerPageContent() {
   const [playerWheelResultIndex, setPlayerWheelResultIndex] = useState<number | null>(null);
   const [playerSwipeVelocity, setPlayerSwipeVelocity] = useState<number | undefined>(undefined);
 
+  // Milestone state
+  const [pendingMilestone, setPendingMilestone] = useState<{ type: 'drinks500' | 'block1000' } | null>(null);
+  const [milestoneNotification, setMilestoneNotification] = useState<string | null>(null);
+
+  // Rock Off drink assignment state
+  const [rockOffCanAssign, setRockOffCanAssign] = useState(false);
+  const [rockOffDrinkAssigned, setRockOffDrinkAssigned] = useState<string | null>(null);
+
+  // Streak broken animation
+  const [streakBroken, setStreakBroken] = useState(false);
+
+  // Bingo line celebration
+  const [showBingoCelebration, setShowBingoCelebration] = useState(false);
+  const [newLineCount, setNewLineCount] = useState(0);
+
   useEffect(() => {
     const socket = getSocket();
-    socket.on(SOCKET_EVENTS.GUESS_RESULT, (result: { correct: boolean; shouldDrink?: boolean; noGuess?: boolean }) => {
+    socket.on(SOCKET_EVENTS.GUESS_RESULT, (result: { correct: boolean; shouldDrink?: boolean; noGuess?: boolean; pointsAwarded?: number; bonusCategories?: string[]; rockOffWin?: boolean }) => {
       setLastResult(result);
+      if (result.rockOffWin) {
+        setRockOffCanAssign(true);
+      }
+      // Streak tracking
+      if (result.correct) {
+        incrementStreak();
+        if (useGameStore.getState().streak >= 2) {
+          playSound('streak');
+        }
+      } else if (!result.noGuess) {
+        if (useGameStore.getState().streak >= 2) {
+          setStreakBroken(true);
+          setTimeout(() => setStreakBroken(false), 1500);
+        }
+        resetStreak();
+      }
     });
     return () => {
       socket.off(SOCKET_EVENTS.GUESS_RESULT);
     };
-  }, []);
+  }, [incrementStreak, resetStreak, playSound]);
 
   // Listen for GAME_WHEEL_RESULT on spinner's phone
   useEffect(() => {
@@ -67,6 +110,30 @@ export default function PlayerPageContent() {
     socket.on(SOCKET_EVENTS.GAME_WHEEL_RESULT, handler);
     return () => {
       socket.off(SOCKET_EVENTS.GAME_WHEEL_RESULT, handler);
+    };
+  }, []);
+
+  // Listen for milestone events
+  useEffect(() => {
+    const socket = getSocket();
+    const earnedHandler = (data: { type: 'drinks500' | 'block1000' }) => {
+      setPendingMilestone(data);
+    };
+    const drinksReceivedHandler = (data: { fromPlayer: string }) => {
+      setMilestoneNotification(`${data.fromPlayer} assigned you a drink!`);
+      setTimeout(() => setMilestoneNotification(null), 4000);
+    };
+    const blockReceivedHandler = (data: { fromPlayer: string }) => {
+      setMilestoneNotification(`${data.fromPlayer} blocked one of your cells!`);
+      setTimeout(() => setMilestoneNotification(null), 4000);
+    };
+    socket.on(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
+    socket.on(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
+    socket.on(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, blockReceivedHandler);
+    return () => {
+      socket.off(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
+      socket.off(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
+      socket.off(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, blockReceivedHandler);
     };
   }, []);
 
@@ -92,10 +159,47 @@ export default function PlayerPageContent() {
       setPlayerWheelSpinning(false);
       setPlayerWheelResultIndex(null);
       setPlayerSwipeVelocity(undefined);
+      setRockOffCanAssign(false);
+      setRockOffDrinkAssigned(null);
     }
   }, [phase]);
 
+  // Detect bingo line completions
+  useEffect(() => {
+    if (bingoCard.length === 0) return;
+    const LINES = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+    const completedCount = LINES.filter(line =>
+      line.every(i => bingoCard[i]?.marked)
+    ).length;
+
+    if (completedCount > prevCompletedRows && prevCompletedRows >= 0) {
+      const newLines = completedCount - prevCompletedRows;
+      setNewLineCount(newLines);
+      setShowBingoCelebration(true);
+      playSound('bingo');
+    }
+    setPrevCompletedRows(completedCount);
+  }, [bingoCard, prevCompletedRows, setPrevCompletedRows, playSound]);
+
   const isSpinner = currentSpinnerId === playerId;
+
+  // Scroll to top when player wheel spinner mounts (fixes black screen bug)
+  useEffect(() => {
+    if (phase === 'SPINNING' && isSpinner) {
+      window.scrollTo(0, 0);
+    }
+  }, [phase, isSpinner]);
+
+  // Play win fanfare when game ends with a winner
+  useEffect(() => {
+    if (winner) {
+      playSound('win');
+    }
+  }, [winner, playSound]);
 
   const handleSwipe = (velocity: number) => {
     const socket = getSocket();
@@ -204,38 +308,68 @@ export default function PlayerPageContent() {
   }
 
   if (phase === 'GAME_OVER') {
+    const isWinner = winner?.name === playerName;
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
           <div className="absolute bottom-0 w-full h-[50%] dance-floor-grid" style={{ transform: 'perspective(600px) rotateX(55deg) scale(1.6)', transformOrigin: 'bottom' }} />
         </div>
+
+        {/* Winner confetti */}
+        {isWinner && (
+          <div className="fixed inset-0 pointer-events-none z-20 flex items-center justify-center">
+            <ConfettiBurst active={true} particleCount={30} duration={2} />
+          </div>
+        )}
+
         <div className="relative z-10 flex flex-col items-center">
-          <h1
+          {/* Trophy */}
+          {winner && (
+            <motion.div
+              initial={{ y: -100, scale: 0, rotate: -30 }}
+              animate={{ y: 0, scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0 }}
+              className="mb-4"
+            >
+              <TrophyIcon size={isWinner ? 80 : 64} color="#EAB308" />
+            </motion.div>
+          )}
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
             className="text-4xl neon-text-fuchsia uppercase tracking-widest mb-4"
             style={{ fontFamily: 'var(--font-display)', color: 'white' }}
           >
             Game Over!
-          </h1>
+          </motion.h1>
           {winner ? (
             <motion.p
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.6, type: 'spring', stiffness: 400, damping: 15 }}
               className="text-2xl font-black mb-4"
               style={{
-                color: winner.name === playerName ? '#22c55e' : '#d946ef',
-                textShadow: winner.name === playerName
+                color: isWinner ? '#22c55e' : '#d946ef',
+                textShadow: isWinner
                   ? '0 0 15px rgba(34, 197, 94, 0.5)'
                   : '0 0 15px rgba(217, 70, 239, 0.5)',
               }}
             >
-              {winner.name === playerName ? 'YOU WIN!' : `${winner.name} wins!`}
+              {isWinner ? 'YOU WIN!' : `${winner.name} wins!`}
             </motion.p>
           ) : (
             <p className="text-lg mb-4" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
               No more tracks available
             </p>
           )}
-          <div className="bg-purple-950/30 backdrop-blur-md border border-fuchsia-900/40 rounded-2xl p-5">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="bg-purple-950/30 backdrop-blur-md border border-fuchsia-900/40 rounded-2xl p-5"
+          >
             <h3
               className="text-[11px] font-bold uppercase tracking-widest text-center mb-3"
               style={{ color: 'rgba(217, 70, 239, 0.8)' }}
@@ -243,7 +377,7 @@ export default function PlayerPageContent() {
               Your Card
             </h3>
             <BingoCard cells={bingoCard} />
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -251,6 +385,33 @@ export default function PlayerPageContent() {
 
   return (
     <div className="min-h-svh flex flex-col relative overflow-y-auto overflow-x-hidden">
+      {/* Milestone reward overlay */}
+      {pendingMilestone && playerId && (
+        <MilestoneReward
+          milestone={pendingMilestone}
+          players={players}
+          myPlayerId={playerId}
+          onDismiss={() => setPendingMilestone(null)}
+        />
+      )}
+
+      {/* Milestone notification */}
+      {milestoneNotification && (
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -30 }}
+          className="fixed top-4 left-4 right-4 z-40 p-3 rounded-xl text-center text-sm font-bold"
+          style={{
+            background: 'rgba(234, 179, 8, 0.2)',
+            border: '1.5px solid rgba(234, 179, 8, 0.5)',
+            color: '#EAB308',
+            boxShadow: '0 0 20px rgba(234, 179, 8, 0.3)',
+          }}
+        >
+          {milestoneNotification}
+        </motion.div>
+      )}
       {/* Background */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-15">
         <div
@@ -263,6 +424,15 @@ export default function PlayerPageContent() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col min-h-svh px-4 py-4">
+        {/* Bingo line celebration overlay */}
+        {showBingoCelebration && (
+          <BingoLineCelebration
+            active={showBingoCelebration}
+            lineCount={newLineCount}
+            onComplete={() => setShowBingoCelebration(false)}
+          />
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -275,6 +445,7 @@ export default function PlayerPageContent() {
             >
               Hitster Bingo
             </span>
+            <StreakCounter streak={streak} broken={streakBroken} />
           </div>
           {currentCategory && phase !== 'SPINNING' && (
             <CategoryBadge category={currentCategory} />
@@ -427,6 +598,8 @@ export default function PlayerPageContent() {
                     correct={lastResult.correct}
                     shouldDrink={lastResult.shouldDrink}
                     noGuess={lastResult.noGuess}
+                    pointsAwarded={lastResult.pointsAwarded}
+                    bonusCategories={lastResult.bonusCategories}
                   />
                 )}
                 <motion.p
@@ -460,26 +633,6 @@ export default function PlayerPageContent() {
                       EVERYBODY DRINKS!
                     </motion.p>
                     <span className="text-4xl">&#x1F37B;</span>
-                  </div>
-                )}
-                {currentCategory === 'hot-take' && (
-                  <div className="flex flex-col items-center gap-3">
-                    <p
-                      className="text-2xl font-black"
-                      style={{ color: '#EC4899', textShadow: '0 0 15px rgba(236, 72, 153, 0.5)' }}
-                    >
-                      HOT TAKE
-                    </p>
-                    <span className="text-3xl">&#x1F525;</span>
-                    {partyTarget === playerName ? (
-                      <p className="text-lg font-semibold" style={{ color: '#e2e8f0' }}>
-                        Your turn! Give an unpopular music opinion or drink!
-                      </p>
-                    ) : (
-                      <p style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-                        {partyTarget} is on the hot seat!
-                      </p>
-                    )}
                   </div>
                 )}
                 {currentCategory === 'rock-off' && (() => {
@@ -554,6 +707,53 @@ export default function PlayerPageContent() {
                           <p className="text-sm mt-1" style={{ color: 'rgba(148,163,184,0.6)' }}>
                             &ldquo;{myGuess.guess}&rdquo;
                           </p>
+
+                          {/* Rock Off winner: assign a drink */}
+                          {myGuess.correct && rockOffCanAssign && !rockOffDrinkAssigned && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 pt-3"
+                              style={{ borderTop: '1px solid rgba(34, 197, 94, 0.3)' }}
+                            >
+                              <p
+                                className="text-sm font-black uppercase tracking-wider mb-2"
+                                style={{ color: '#EAB308', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
+                              >
+                                &#x1F37A; Assign a drink!
+                              </p>
+                              <div className="flex flex-col gap-1.5">
+                                {players.filter((p) => p.name !== playerName && p.connected).map((p) => (
+                                  <button
+                                    key={p.id}
+                                    onClick={() => {
+                                      const socket = getSocket();
+                                      socket.emit(SOCKET_EVENTS.ROCK_OFF_ASSIGN_DRINK, { targetPlayerId: p.id });
+                                      setRockOffDrinkAssigned(p.name);
+                                      setRockOffCanAssign(false);
+                                    }}
+                                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-white text-left cursor-pointer transition-all"
+                                    style={{
+                                      background: 'rgba(234, 179, 8, 0.15)',
+                                      border: '1px solid rgba(234, 179, 8, 0.3)',
+                                    }}
+                                  >
+                                    {p.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                          {rockOffDrinkAssigned && (
+                            <motion.p
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="mt-3 text-sm font-bold"
+                              style={{ color: '#EAB308', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
+                            >
+                              &#x1F37B; Drink assigned to {rockOffDrinkAssigned}!
+                            </motion.p>
+                          )}
                         </motion.div>
                       )}
 

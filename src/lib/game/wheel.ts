@@ -6,9 +6,9 @@ export function spinWheel(): { segment: WheelSegment; index: number } {
 }
 
 export function isGuessCategory(category: string): boolean {
-  return ['year', 'artist', 'title', 'year-approx', 'album'].includes(category);
+  return ['year', 'artist', 'title', 'year-approx', 'album', 'decade'].includes(category);
 }
 
 export function isPartyCategory(category: string): boolean {
-  return ['everybody-drinks', 'hot-take', 'rock-off'].includes(category);
+  return ['everybody-drinks', 'rock-off'].includes(category);
 }

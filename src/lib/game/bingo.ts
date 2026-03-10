@@ -1,16 +1,16 @@
 import type { BingoCell, GuessCategory } from '@/types/game';
 
-const GUESS_CATEGORIES: GuessCategory[] = ['year', 'artist', 'title', 'year-approx', 'album'];
+const GUESS_CATEGORIES: GuessCategory[] = ['year', 'artist', 'title', 'year-approx', 'album', 'decade'];
 
 export function generateBingoCard(): BingoCell[] {
   // 3x3 grid = 9 cells
   // Rules: at least 1 of each category, max 3 of any category
   const cells: BingoCell[] = [];
   const counts: Record<GuessCategory, number> = {
-    year: 0, artist: 0, title: 0, 'year-approx': 0, album: 0,
+    year: 0, artist: 0, title: 0, 'year-approx': 0, album: 0, decade: 0,
   };
 
-  // First, ensure at least 1 of each (5 cells)
+  // First, ensure at least 1 of each (6 cells)
   const guaranteed = [...GUESS_CATEGORIES];
   shuffle(guaranteed);
   for (const cat of guaranteed) {
@@ -18,8 +18,8 @@ export function generateBingoCard(): BingoCell[] {
     counts[cat]++;
   }
 
-  // Fill remaining 4 cells randomly, respecting max 3
-  for (let i = 0; i < 4; i++) {
+  // Fill remaining 3 cells randomly, respecting max 3
+  for (let i = 0; i < 3; i++) {
     const available = GUESS_CATEGORIES.filter((c) => counts[c] < 3);
     const cat = available[Math.floor(Math.random() * available.length)];
     cells.push({ category: cat, marked: false });

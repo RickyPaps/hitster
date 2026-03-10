@@ -58,7 +58,7 @@ export function createGameEngine(room: RoomState): GameEngine {
       // Check if already guessed
       if (room.roundGuesses.some((g) => g.playerId === playerId)) return null;
 
-      const { correct, similarity } = checkAnswer(
+      const { correct, similarity, bonusCategories } = checkAnswer(
         room.currentCategory,
         guess,
         room.currentTrack
@@ -70,6 +70,7 @@ export function createGameEngine(room: RoomState): GameEngine {
         guess,
         correct,
         similarity,
+        bonusCategories,
       };
       room.roundGuesses.push(result);
 

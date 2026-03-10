@@ -18,13 +18,16 @@ interface GameStore {
   settings: LobbySettings;
   timerSeconds: number;
   winner: Player | null;
-  partyTarget: string | null;
   currentSpinnerId: string | null;
   currentSpinnerName: string | null;
 
   // Player-specific
   bingoCard: BingoCell[];
   hasGuessedThisRound: boolean;
+
+  // Animation state
+  streak: number;
+  prevCompletedRows: number;
 
   // Actions
   setConnection: (roomCode: string, playerId: string, playerName: string, isHost: boolean) => void;
@@ -40,8 +43,10 @@ interface GameStore {
   markBingoCell: (index: number) => void;
   setHasGuessedThisRound: (v: boolean) => void;
   setWinner: (player: Player | null) => void;
-  setPartyTarget: (name: string | null) => void;
   setCurrentSpinner: (id: string | null, name: string | null) => void;
+  incrementStreak: () => void;
+  resetStreak: () => void;
+  setPrevCompletedRows: (n: number) => void;
   reset: () => void;
 }
 
@@ -68,9 +73,10 @@ const initialState = {
   bingoCard: [],
   hasGuessedThisRound: false,
   winner: null,
-  partyTarget: null,
   currentSpinnerId: null,
   currentSpinnerName: null,
+  streak: 0,
+  prevCompletedRows: 0,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -97,7 +103,9 @@ export const useGameStore = create<GameStore>((set) => ({
     }),
   setHasGuessedThisRound: (hasGuessedThisRound) => set({ hasGuessedThisRound }),
   setWinner: (winner) => set({ winner }),
-  setPartyTarget: (partyTarget) => set({ partyTarget }),
   setCurrentSpinner: (currentSpinnerId, currentSpinnerName) => set({ currentSpinnerId, currentSpinnerName }),
+  incrementStreak: () => set((state) => ({ streak: state.streak + 1 })),
+  resetStreak: () => set({ streak: 0 }),
+  setPrevCompletedRows: (prevCompletedRows) => set({ prevCompletedRows }),
   reset: () => set(initialState),
 }));
