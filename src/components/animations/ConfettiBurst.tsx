@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { ConfettiStar, ConfettiDiamond, MusicalNote } from './SVGIcons';
 
@@ -27,7 +27,7 @@ interface ConfettiBurstProps {
   spread?: number;
 }
 
-export default function ConfettiBurst({
+export default memo(function ConfettiBurst({
   active,
   particleCount = 20,
   colors = NEON_COLORS,
@@ -112,4 +112,4 @@ export default function ConfettiBurst({
       ))}
     </div>
   );
-}
+});

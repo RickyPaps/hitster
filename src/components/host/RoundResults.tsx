@@ -138,7 +138,7 @@ export default function RoundResults({
                 boxShadow: '0 0 25px rgba(188, 19, 254, 0.4)',
               }}
             >
-              <img
+              <Image
                 src={track.albumArt}
                 alt={getMediaTitle(track)}
                 className="w-full h-full object-cover"

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StreakFlame } from './SVGIcons';
 
@@ -8,7 +9,7 @@ interface StreakCounterProps {
   broken?: boolean;
 }
 
-export default function StreakCounter({ streak, broken }: StreakCounterProps) {
+export default memo(function StreakCounter({ streak, broken }: StreakCounterProps) {
   if (streak < 2 && !broken) return null;
 
   // Scale intensity with streak
@@ -87,4 +88,4 @@ export default function StreakCounter({ streak, broken }: StreakCounterProps) {
       ) : null}
     </AnimatePresence>
   );
-}
+});

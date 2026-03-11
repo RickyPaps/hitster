@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { LightningBolt } from './SVGIcons';
 
@@ -8,7 +9,7 @@ interface FloatingScoreProps {
   color?: string;
 }
 
-export default function FloatingScore({ points, color = '#00f2ff' }: FloatingScoreProps) {
+export default memo(function FloatingScore({ points, color = '#00f2ff' }: FloatingScoreProps) {
   return (
     <motion.div
       initial={{ y: 0, opacity: 1, scale: 0.5 }}
@@ -35,4 +36,4 @@ export default function FloatingScore({ points, color = '#00f2ff' }: FloatingSco
       </span>
     </motion.div>
   );
-}
+});

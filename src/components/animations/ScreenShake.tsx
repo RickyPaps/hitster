@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 
 interface ScreenShakeProps {
@@ -21,7 +21,7 @@ const shakeDurations = {
   heavy: 0.65,
 };
 
-export default function ScreenShake({ trigger, intensity = 'medium', children }: ScreenShakeProps) {
+export default memo(function ScreenShake({ trigger, intensity = 'medium', children }: ScreenShakeProps) {
   const controls = useAnimation();
 
   useEffect(() => {
@@ -38,4 +38,4 @@ export default function ScreenShake({ trigger, intensity = 'medium', children }:
       {children}
     </motion.div>
   );
-}
+});
