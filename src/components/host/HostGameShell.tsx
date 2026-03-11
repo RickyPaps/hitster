@@ -324,6 +324,7 @@ function CenterContent({
       <div className="flex flex-col items-center gap-6 w-full max-w-lg">
         <DrinkingPrompt
           type={currentCategory as 'everybody-drinks' | 'rock-off'}
+          isMovie={currentTrack?.mediaType === 'movie'}
           onContinue={onNextRound}
         />
         {currentCategory === 'rock-off' && currentTrack?.previewUrl && (
