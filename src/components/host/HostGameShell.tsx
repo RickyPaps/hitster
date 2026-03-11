@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry, MediaType } from '@/types/game';
 import { ALL_WHEEL_SEGMENTS, getWheelSegments, isMovieTrack } from '@/types/game';
 import HostTopNav from './HostTopNav';
-import HostBottomBar from './HostBottomBar';
 import HostLeftSidebar from './HostLeftSidebar';
 import Leaderboard from './Leaderboard';
 import MobileActionBar from './MobileActionBar';
@@ -94,8 +93,13 @@ export default function HostGameShell(props: HostGameShellProps) {
         phase={phase}
         roundNumber={roundNumber}
         playerCount={players.length}
+        timerSeconds={timerSeconds}
+        volume={volume}
+        muted={muted}
         onEndSession={onEndSession}
         onToggleLeaderboard={() => setShowMobileLeaderboard((v) => !v)}
+        onVolumeChange={onVolumeChange}
+        onMuteToggle={onMuteToggle}
       />
 
       {/* Left Sidebar — row 2, col 1 */}
@@ -133,6 +137,8 @@ export default function HostGameShell(props: HostGameShellProps) {
             wheelResultIndex={wheelResultIndex}
             swipeVelocity={swipeVelocity}
             wheelMediaType={wheelMediaType}
+            timerSeconds={timerSeconds}
+            maxTimer={maxTimer}
             onSpinComplete={onSpinComplete}
             onNextRound={onNextRound}
           />
@@ -171,20 +177,6 @@ export default function HostGameShell(props: HostGameShellProps) {
         </div>
       )}
 
-      {/* Bottom Bar — row 3, all columns */}
-      <HostBottomBar
-        phase={phase}
-        currentTrack={currentTrack}
-        timerSeconds={timerSeconds}
-        maxTimer={maxTimer}
-        roundNumber={roundNumber}
-        currentSpinnerName={currentSpinnerName}
-        volume={volume}
-        muted={muted}
-        onVolumeChange={onVolumeChange}
-        onMuteToggle={onMuteToggle}
-      />
-
       {/* Round transition announcer */}
       <RoundAnnouncer roundNumber={roundNumber} trigger={showRoundAnnounce} />
     </div>
@@ -204,6 +196,8 @@ interface CenterContentProps {
   wheelResultIndex: number | null;
   swipeVelocity?: number;
   wheelMediaType?: MediaType;
+  timerSeconds: number;
+  maxTimer: number;
   onSpinComplete: () => void;
   onNextRound: () => void;
 }
@@ -211,8 +205,15 @@ interface CenterContentProps {
 function CenterContent({
   phase, currentTrack, currentCategory, roundGuesses, players, roundNumber,
   currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity, wheelMediaType,
+  timerSeconds, maxTimer,
   onSpinComplete, onNextRound,
 }: CenterContentProps) {
+  // Memoize startAt per track so re-renders don't restart the video
+  const trailerStartAt = useMemo(
+    () => Math.floor(Math.random() * 30),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentTrack?.id]
+  );
   if (phase === 'SPINNING') {
     return (
       <div className="flex flex-col items-center gap-4 relative">
@@ -265,7 +266,7 @@ function CenterContent({
       : 'UNKNOWN';
 
     return (
-      <div className="flex flex-col items-center gap-8 w-full max-w-2xl">
+      <div className="flex flex-col items-center gap-8 w-full max-w-4xl">
         {/* Glowing challenge card */}
         <div className="w-full relative group">
           {/* Outer glow */}
@@ -300,6 +301,42 @@ function CenterContent({
               }.
             </p>
 
+            {/* Countdown timer */}
+            <div className="flex items-center justify-center gap-6 mt-4 mb-1">
+              <div className="relative flex items-center justify-center">
+                {/* Circular progress ring */}
+                <svg width="72" height="72" className="rotate-[-90deg]">
+                  <circle
+                    cx="36" cy="36" r="30"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.08)"
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx="36" cy="36" r="30"
+                    fill="none"
+                    stroke={timerSeconds <= 10 ? '#ff007f' : '#00f2ff'}
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 30}
+                    strokeDashoffset={2 * Math.PI * 30 * (1 - (maxTimer > 0 ? timerSeconds / maxTimer : 0))}
+                    style={{
+                      transition: 'stroke-dashoffset 1s linear, stroke 0.3s',
+                      filter: timerSeconds <= 10
+                        ? 'drop-shadow(0 0 6px rgba(255, 0, 127, 0.8))'
+                        : 'drop-shadow(0 0 6px rgba(0, 242, 255, 0.5))',
+                    }}
+                  />
+                </svg>
+                <span
+                  className={`absolute font-black text-xl tabular-nums ${timerSeconds <= 10 ? 'animate-pulse' : ''}`}
+                  style={{ color: timerSeconds <= 10 ? '#ff007f' : '#00f2ff' }}
+                >
+                  {timerSeconds}
+                </span>
+              </div>
+            </div>
+
             <div className="text-sm text-gray-400 mt-2">
               {roundGuesses.length} / {players.length} guesses submitted
             </div>
@@ -310,7 +347,7 @@ function CenterContent({
         {currentTrack && isMovieTrack(currentTrack) && currentTrack.trailerVideoId ? (
           <TrailerPlayer
             videoId={currentTrack.trailerVideoId}
-            startAt={Math.floor(Math.random() * 30)}
+            startAt={trailerStartAt}
             clipDuration={30}
           />
         ) : currentTrack?.previewUrl ? (
@@ -344,7 +381,7 @@ function CenterContent({
 
   if (phase === 'DRINKING_SEGMENT' && currentCategory) {
     return (
-      <div className="flex flex-col items-center gap-6 w-full max-w-lg">
+      <div className="flex flex-col items-center gap-6 w-full max-w-4xl">
         <DrinkingPrompt
           type={currentCategory as 'everybody-drinks' | 'rock-off'}
           isMovie={currentTrack?.mediaType === 'movie'}

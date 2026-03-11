@@ -81,7 +81,7 @@ export function addPlayer(roomCode: string, playerId: string, playerName: string
   const player: Player = {
     id: playerId,
     name: playerName,
-    bingoCard: generateBingoCard(room.settings.contentMode),
+    bingoCard: [], // generated at game start based on final contentMode
     score: 0,
     connected: true,
     completedRows: 0,

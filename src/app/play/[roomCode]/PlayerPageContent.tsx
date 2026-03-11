@@ -53,7 +53,12 @@ export default function PlayerPageContent() {
   const { playSound } = useAudio();
 
   const [lastResult, setLastResult] = useState<{ correct: boolean; shouldDrink?: boolean; noGuess?: boolean; pointsAwarded?: number; bonusCategories?: string[] } | null>(null);
-  const [joinName, setJoinName] = useState('');
+  // Pre-read stored name so first render shows "Rejoining..." instead of the join form
+  const storedNameForRoom = useRef(
+    (() => { try { return sessionStorage.getItem(`hitster_room_${roomCode.toUpperCase()}`); } catch { return null; } })()
+  );
+
+  const [joinName, setJoinName] = useState(storedNameForRoom.current ?? '');
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
 
@@ -79,42 +84,60 @@ export default function PlayerPageContent() {
   // Streak broken animation
   const [streakBroken, setStreakBroken] = useState(false);
 
+  // Bingo cell pick state
+  const [pendingPick, setPendingPick] = useState<{ eligibleIndices: number[]; category: string } | null>(null);
+
   // Bingo line celebration
   const [showBingoCelebration, setShowBingoCelebration] = useState(false);
   const [newLineCount, setNewLineCount] = useState(0);
-  const [autoRejoining, setAutoRejoining] = useState(false);
+  const [autoRejoining, setAutoRejoining] = useState(!!storedNameForRoom.current);
 
-  // Auto-rejoin: if we have a stored name for this room, rejoin silently
+  // Restore connection: if socket is already connected (client-side nav from home page),
+  // just restore the Zustand store — no need to re-emit PLAYER_JOIN_ROOM.
+  // If socket is NOT connected (page refresh / direct URL), do a full rejoin.
   useEffect(() => {
-    if (playerId) return; // already connected
-    try {
-      const storedName = sessionStorage.getItem(`hitster_room_${roomCode.toUpperCase()}`);
-      if (!storedName) return;
-      setAutoRejoining(true);
-      (async () => {
-        try {
-          const socket = await connectSocket();
-          socket.emit(
-            SOCKET_EVENTS.PLAYER_JOIN_ROOM,
-            { roomCode: roomCode.toUpperCase(), playerName: storedName },
-            (result: { success: boolean; error?: string; player?: any }) => {
-              if (result.success) {
-                setConnection(roomCode.toUpperCase(), socket.id!, storedName, false);
-                if (result.player?.bingoCard) {
-                  setBingoCard(result.player.bingoCard);
-                }
-              } else {
-                // Stored name no longer valid — clear it and show join form
-                sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`);
+    if (playerId) { setAutoRejoining(false); return; }
+    const storedName = storedNameForRoom.current;
+    if (!storedName) return;
+
+    const socket = getSocket();
+
+    // Fast path: socket already connected from home page — just restore store state
+    if (socket.connected && socket.id) {
+      setConnection(roomCode.toUpperCase(), socket.id, storedName, false);
+      // Request sync to get bingo card and current game state
+      socket.emit(SOCKET_EVENTS.REQUEST_SYNC);
+      setAutoRejoining(false);
+      return;
+    }
+
+    // Slow path: socket not connected (page refresh) — connect and rejoin
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await connectSocket();
+        s.emit(
+          SOCKET_EVENTS.PLAYER_JOIN_ROOM,
+          { roomCode: roomCode.toUpperCase(), playerName: storedName },
+          (result: { success: boolean; error?: string; player?: any }) => {
+            if (cancelled) return;
+            if (result.success) {
+              setConnection(roomCode.toUpperCase(), s.id!, storedName, false);
+              if (result.player?.bingoCard) {
+                setBingoCard(result.player.bingoCard);
               }
-              setAutoRejoining(false);
+            } else {
+              // Stored name no longer valid — clear it and show join form
+              try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {}
             }
-          );
-        } catch {
-          setAutoRejoining(false);
-        }
-      })();
-    } catch { /* sessionStorage unavailable */ }
+            setAutoRejoining(false);
+          }
+        );
+      } catch {
+        if (!cancelled) setAutoRejoining(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -142,6 +165,24 @@ export default function PlayerPageContent() {
       socket.off(SOCKET_EVENTS.GUESS_RESULT);
     };
   }, [incrementStreak, resetStreak, playSound]);
+
+  // Listen for BINGO_PICK_AVAILABLE (player must choose which cell to mark)
+  useEffect(() => {
+    const socket = getSocket();
+    const pickHandler = (data: { eligibleIndices: number[]; category: string }) => {
+      setPendingPick(data);
+    };
+    const cardHandler = () => {
+      // Card was updated by the server (after pick or auto-pick) — clear pending state
+      setPendingPick(null);
+    };
+    socket.on(SOCKET_EVENTS.BINGO_PICK_AVAILABLE, pickHandler);
+    socket.on(SOCKET_EVENTS.CARD_UPDATE, cardHandler);
+    return () => {
+      socket.off(SOCKET_EVENTS.BINGO_PICK_AVAILABLE, pickHandler);
+      socket.off(SOCKET_EVENTS.CARD_UPDATE, cardHandler);
+    };
+  }, []);
 
   // Listen for GAME_WHEEL_RESULT on spinner's phone
   useEffect(() => {
@@ -224,6 +265,20 @@ export default function PlayerPageContent() {
     socket.on(SOCKET_EVENTS.PLAYER_KICKED, handler);
     return () => {
       socket.off(SOCKET_EVENTS.PLAYER_KICKED, handler);
+    };
+  }, [reset, router]);
+
+  // Handle room closed by host
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = () => {
+      try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {}
+      reset();
+      router.push('/');
+    };
+    socket.on(SOCKET_EVENTS.ROOM_CLOSED, handler);
+    return () => {
+      socket.off(SOCKET_EVENTS.ROOM_CLOSED, handler);
     };
   }, [reset, router]);
 
@@ -317,12 +372,11 @@ export default function PlayerPageContent() {
     prevConnectionRef.current = connectionStatus;
   }, [connectionStatus, playerId]);
 
-  // Reset store on navigation away
-  useEffect(() => {
-    return () => {
-      useGameStore.getState().reset();
-    };
-  }, []);
+  const handleBingoCellPick = (cellIndex: number) => {
+    const socket = getSocket();
+    socket.emit(SOCKET_EVENTS.BINGO_CELL_PICK, { cellIndex });
+    setPendingPick(null);
+  };
 
   const handleSwipe = (velocity: number) => {
     const socket = getSocket();
@@ -723,9 +777,31 @@ export default function PlayerPageContent() {
           </div>
         )}
 
+        {/* Pick cell banner */}
+        {pendingPick && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-2 py-2 px-4 rounded-xl text-center"
+            style={{
+              background: 'rgba(217, 70, 239, 0.15)',
+              border: '1.5px solid rgba(217, 70, 239, 0.5)',
+              boxShadow: '0 0 12px rgba(217, 70, 239, 0.2)',
+            }}
+          >
+            <p className="text-sm font-bold" style={{ color: '#d946ef', textShadow: '0 0 8px rgba(217, 70, 239, 0.4)' }}>
+              Pick a cell to mark!
+            </p>
+          </motion.div>
+        )}
+
         {/* Bingo Card */}
         <div className="flex justify-center mb-3">
-          <BingoCard cells={bingoCard} />
+          <BingoCard
+            cells={bingoCard}
+            pickableIndices={pendingPick ? new Set(pendingPick.eligibleIndices) : undefined}
+            onCellPick={pendingPick ? handleBingoCellPick : undefined}
+          />
         </div>
 
         {/* Main Content */}

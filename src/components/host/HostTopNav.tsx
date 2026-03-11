@@ -7,8 +7,13 @@ interface HostTopNavProps {
   phase: GamePhase;
   roundNumber: number;
   playerCount: number;
+  timerSeconds: number;
+  volume: number;
+  muted: boolean;
   onEndSession: () => void;
   onToggleLeaderboard?: () => void;
+  onVolumeChange: (v: number) => void;
+  onMuteToggle: () => void;
 }
 
 const PHASE_TABS: { phase: GamePhase | null; label: string }[] = [
@@ -19,7 +24,13 @@ const PHASE_TABS: { phase: GamePhase | null; label: string }[] = [
   { phase: 'GAME_OVER', label: 'Final' },
 ];
 
-export default function HostTopNav({ roomCode, phase, roundNumber, playerCount, onEndSession, onToggleLeaderboard }: HostTopNavProps) {
+export default function HostTopNav({
+  roomCode, phase, roundNumber, playerCount, timerSeconds,
+  volume, muted, onEndSession, onToggleLeaderboard, onVolumeChange, onMuteToggle,
+}: HostTopNavProps) {
+  const showTimer = phase === 'PLAYING';
+  const timerDisplay = `${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60).toString().padStart(2, '0')}`;
+
   return (
     <header className="host-top-nav px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
       {/* Left: branding */}
@@ -57,8 +68,51 @@ export default function HostTopNav({ roomCode, phase, roundNumber, playerCount, 
         })}
       </nav>
 
-      {/* Right: room code + leaderboard toggle + end session */}
+      {/* Right: round/timer + volume + room code + end session */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        {/* Round / Timer */}
+        {showTimer ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full timer-ring-pink">
+            <span style={{ color: '#ff007f', fontSize: '0.9rem' }}>&#9201;</span>
+            <span className="font-black text-lg tabular-nums italic" style={{ color: '#ff007f' }}>
+              {timerDisplay}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-3 py-1.5 rounded-full" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+            <span className="text-xs font-bold text-gray-400 uppercase" style={{ letterSpacing: '0.1em' }}>
+              Round {roundNumber}
+            </span>
+          </div>
+        )}
+
+        {/* Volume */}
+        <button
+          onClick={onMuteToggle}
+          className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
+          style={{
+            background: 'rgba(75, 32, 56, 0.3)',
+            border: '1px solid rgba(0, 242, 255, 0.2)',
+          }}
+          title={muted ? 'Unmute' : 'Mute'}
+        >
+          {muted ? (
+            <span style={{ color: 'rgba(0, 242, 255, 0.5)', fontSize: '0.85rem' }}>&#128263;</span>
+          ) : (
+            <span style={{ color: '#00f2ff', fontSize: '0.85rem' }}>&#128266;</span>
+          )}
+        </button>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={muted ? 0 : volume}
+          onChange={(e) => onVolumeChange(Number(e.target.value))}
+          className="hidden sm:block w-16 h-1 accent-cyan-400 cursor-pointer"
+        />
+
+        <div className="hidden sm:block h-8 w-px bg-gray-700" />
+
         {/* Leaderboard toggle — mobile only */}
         {onToggleLeaderboard && (
           <button

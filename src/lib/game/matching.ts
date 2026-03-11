@@ -4,6 +4,14 @@ import { isMusicTrack, isMovieTrack } from '@/types/game';
 
 const FUZZY_THRESHOLD = 0.4;
 
+// Boost threshold when guess is much shorter than target to prevent
+// single-word guesses matching multi-word answers (e.g. "moves" → "moves like jagger")
+function effectiveThreshold(guessLen: number, targetLen: number): number {
+  if (targetLen === 0) return FUZZY_THRESHOLD;
+  const ratio = Math.min(guessLen / targetLen, 1);
+  return FUZZY_THRESHOLD + Math.max(0, 0.3 * (1 - ratio));
+}
+
 // Split "Artist ft. Other" into individual artist names
 const FEAT_PATTERN = /\s+(?:ft\.?|feat\.?|featuring|&|,|and|x|vs\.?)\s+/i;
 
@@ -61,30 +69,33 @@ function checkMusicAnswer(category: string, normalizedGuess: string, track: Medi
   switch (category) {
     case 'artist': {
       const similarity = bestNameSimilarity(normalizedGuess, track.artist);
+      const threshold = effectiveThreshold(normalizedGuess.length, track.artist.length);
       const titleSimA = compareTwoStrings(normalizedGuess, track.name.toLowerCase());
       const albumSimA = compareTwoStrings(normalizedGuess, track.album.toLowerCase());
-      if (similarity >= FUZZY_THRESHOLD && (titleSimA > similarity || albumSimA > similarity)) {
+      if (similarity >= threshold && (titleSimA > similarity || albumSimA > similarity)) {
         return { correct: false, similarity };
       }
-      return { correct: similarity >= FUZZY_THRESHOLD, similarity };
+      return { correct: similarity >= threshold, similarity };
     }
     case 'title': {
       const similarity = compareTwoStrings(normalizedGuess, track.name.toLowerCase());
+      const threshold = effectiveThreshold(normalizedGuess.length, track.name.length);
       const artistSimT = bestNameSimilarity(normalizedGuess, track.artist);
       const albumSimT = compareTwoStrings(normalizedGuess, track.album.toLowerCase());
-      if (similarity >= FUZZY_THRESHOLD && (artistSimT > similarity || albumSimT > similarity)) {
+      if (similarity >= threshold && (artistSimT > similarity || albumSimT > similarity)) {
         return { correct: false, similarity };
       }
-      return { correct: similarity >= FUZZY_THRESHOLD, similarity };
+      return { correct: similarity >= threshold, similarity };
     }
     case 'album': {
       const similarity = compareTwoStrings(normalizedGuess, track.album.toLowerCase());
+      const threshold = effectiveThreshold(normalizedGuess.length, track.album.length);
       const artistSim = bestNameSimilarity(normalizedGuess, track.artist);
       const titleSim = compareTwoStrings(normalizedGuess, track.name.toLowerCase());
-      if (similarity >= FUZZY_THRESHOLD && (artistSim > similarity || titleSim > similarity)) {
+      if (similarity >= threshold && (artistSim > similarity || titleSim > similarity)) {
         return { correct: false, similarity };
       }
-      return { correct: similarity >= FUZZY_THRESHOLD, similarity };
+      return { correct: similarity >= threshold, similarity };
     }
     default:
       return { correct: false };
@@ -97,24 +108,27 @@ function checkMovieAnswer(category: string, normalizedGuess: string, track: Medi
   switch (category) {
     case 'director': {
       const similarity = bestNameSimilarity(normalizedGuess, track.director);
+      const threshold = effectiveThreshold(normalizedGuess.length, track.director.length);
       // Reject if guess looks more like the movie title or genre
       const titleSim = compareTwoStrings(normalizedGuess, track.title.toLowerCase());
-      if (similarity >= FUZZY_THRESHOLD && titleSim > similarity) {
+      if (similarity >= threshold && titleSim > similarity) {
         return { correct: false, similarity };
       }
-      return { correct: similarity >= FUZZY_THRESHOLD, similarity };
+      return { correct: similarity >= threshold, similarity };
     }
     case 'movie-title': {
       const similarity = compareTwoStrings(normalizedGuess, track.title.toLowerCase());
+      const threshold = effectiveThreshold(normalizedGuess.length, track.title.length);
       const directorSim = bestNameSimilarity(normalizedGuess, track.director);
-      if (similarity >= FUZZY_THRESHOLD && directorSim > similarity) {
+      if (similarity >= threshold && directorSim > similarity) {
         return { correct: false, similarity };
       }
-      return { correct: similarity >= FUZZY_THRESHOLD, similarity };
+      return { correct: similarity >= threshold, similarity };
     }
     case 'genre': {
       const similarity = compareTwoStrings(normalizedGuess, track.genre.toLowerCase());
-      return { correct: similarity >= FUZZY_THRESHOLD, similarity };
+      const threshold = effectiveThreshold(normalizedGuess.length, track.genre.length);
+      return { correct: similarity >= threshold, similarity };
     }
     default:
       return { correct: false };

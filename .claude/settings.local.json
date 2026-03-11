@@ -14,7 +14,9 @@
       "mcp__stitch__get_screen",
       "Bash(curl:*)",
       "Bash(cd \"C:/Users/ricky/Desktop/Work/Hitster\" && export PATH=\"/c/nvm-symlink:$PATH\" && npx next build 2>&1)",
-      "Bash(cygpath:*)"
+      "Bash(cygpath:*)",
+      "Bash(grep:*)",
+      "Bash(cd \"C:/Users/ricky/Desktop/Work/Hitster\" && export PATH=\"/c/nvm-symlink:$PATH\" && npx tsx scripts/expand-music.ts 2>&1)"
     ]
   }
 }

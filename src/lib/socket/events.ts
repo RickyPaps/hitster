@@ -13,7 +13,9 @@ export const SOCKET_EVENTS = {
   HOST_KICK_PLAYER: 'host:kick-player',
   HOST_PLAY_AGAIN: 'host:play-again',
   HOST_REJOIN_ROOM: 'host:rejoin-room',
+  HOST_END_SESSION: 'host:end-session',
   REQUEST_SYNC: 'request:sync',
+  BINGO_CELL_PICK: 'bingo:cell-pick',
 
   // Server → Client
   ROOM_CREATED: 'room:created',
@@ -32,6 +34,8 @@ export const SOCKET_EVENTS = {
   GAME_WINNER: 'game:winner',
   GAME_PHASE_CHANGE: 'game:phase-change',
   SETTINGS_UPDATED: 'settings:updated',
+  BINGO_PICK_AVAILABLE: 'bingo:pick-available',
+  ROOM_CLOSED: 'room:closed',
 
   // Party events
   PARTY_EVERYBODY_DRINKS: 'party:everybody-drinks',

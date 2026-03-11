@@ -234,3 +234,5 @@ All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'d
 - Bingo line detection compares current completed lines against `prevCompletedRows` in store
 - Streak rewards (3/5) are repeatable and event-driven — server emits them on the fly each time the threshold is hit; score milestones use Earned/Used/Active booleans in `PlayerMilestones` and fire once per game
 - Surprise event listeners live in Host/PlayerPageContent (local state + sound), NOT in `useGameState` hook
+- Bingo cards are re-sent via individual `CARD_UPDATE` events (to each player's socket) on `HOST_START_GAME` and `HOST_PLAY_AGAIN` — this bypasses `GAME_STATE_SYNC` playerId lookup timing issues
+- TrailerPlayer uses `max-w-5xl` (1024px) to fill large host screens; parent containers in HostGameShell use `max-w-4xl` (896px) for both PLAYING and DRINKING_SEGMENT phases

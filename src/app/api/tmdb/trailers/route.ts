@@ -73,7 +73,22 @@ export async function POST(req: NextRequest) {
             videos.find((v) => v.site === 'YouTube');
 
           if (trailer) {
-            trailers[key] = trailer.key;
+            // Verify the YouTube video is actually embeddable via oEmbed
+            // Returns 200 for valid/embeddable videos, 401/403/404 for unavailable
+            try {
+              const oembedRes = await fetch(
+                `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${trailer.key}&format=json`,
+                { method: 'HEAD' }
+              );
+              if (oembedRes.ok) {
+                trailers[key] = trailer.key;
+              } else {
+                console.warn(`YouTube video ${trailer.key} for "${movie.title}" is unavailable (oembed ${oembedRes.status})`);
+              }
+            } catch {
+              // oEmbed check failed, still include the trailer (better to try than skip)
+              trailers[key] = trailer.key;
+            }
           }
         })
       );

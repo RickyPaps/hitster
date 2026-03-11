@@ -17,11 +17,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const setConnection = useGameStore((s) => s.setConnection);
   const setBingoCard = useGameStore((s) => s.setBingoCard);
+  const reset = useGameStore((s) => s.reset);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
   const joinFormRef = useRef<HTMLDivElement>(null);
+
+  // Clear stale game state when returning to home page
+  useEffect(() => {
+    reset();
+  }, [reset]);
 
   // Entrance animation (title + subtitle only — runs once)
   useEffect(() => {

@@ -23,6 +23,8 @@ const LINES = [
 interface BingoCardProps {
   cells: BingoCell[];
   compact?: boolean;
+  pickableIndices?: Set<number>;
+  onCellPick?: (index: number) => void;
 }
 
 const CATEGORY_LABELS: Partial<Record<GuessCategory, string>> = {
@@ -177,7 +179,7 @@ const BingoCellItem = memo(function BingoCellItem({ cell, index: i, isNewlyMarke
   );
 });
 
-export default function BingoCard({ cells, compact }: BingoCardProps) {
+export default function BingoCard({ cells, compact, pickableIndices, onCellPick }: BingoCardProps) {
   const prevCellsRef = useRef<BingoCell[]>([]);
   const [newlyMarked, setNewlyMarked] = useState<Set<number>>(new Set());
   const [flashingLines, setFlashingLines] = useState<Set<number>>(new Set());
@@ -344,6 +346,7 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
         const isFlashing = flashingLines.has(i);
         const isNearBingo = nearBingoCells.has(i) && !cell.marked;
         const isDisintegrating = disintegratingCells.has(i);
+        const isPickable = pickableIndices?.has(i) ?? false;
 
         // Colors: unmarked = muted fuchsia, marked = bright fuchsia, center = teal accent
         const unmarkedBg = isCenter
@@ -376,14 +379,17 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
                   : {}
             }
             transition={{ duration: isDisintegrating ? 0.3 : 0.4 }}
-            className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center overflow-hidden ${isFlashing ? 'bingo-line-flash' : ''}`}
+            onClick={isPickable ? () => onCellPick?.(i) : undefined}
+            className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center overflow-hidden ${isFlashing ? 'bingo-line-flash' : ''} ${isPickable ? 'cursor-pointer' : ''}`}
             style={{
               background: isDisintegrating
                 ? 'linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(30, 15, 50, 0.8))'
                 : cell.marked ? markedBg : unmarkedBg,
               border: isDisintegrating
                 ? '2px solid rgba(239, 68, 68, 0.6)'
-                : cell.marked ? markedBorder : unmarkedBorder,
+                : isPickable
+                  ? '2px solid rgba(217, 70, 239, 0.8)'
+                  : cell.marked ? markedBorder : unmarkedBorder,
               boxShadow: isDisintegrating
                 ? '0 0 20px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.2)'
                 : cell.marked ? markedShadow : unmarkedShadow,
@@ -397,8 +403,30 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
               />
             )}
 
+            {/* Pickable cell glow overlay */}
+            {isPickable && (
+              <motion.div
+                animate={{
+                  boxShadow: [
+                    'inset 0 0 10px rgba(217, 70, 239, 0.2), 0 0 12px rgba(217, 70, 239, 0.3)',
+                    'inset 0 0 20px rgba(217, 70, 239, 0.5), 0 0 24px rgba(217, 70, 239, 0.6)',
+                    'inset 0 0 10px rgba(217, 70, 239, 0.2), 0 0 12px rgba(217, 70, 239, 0.3)',
+                  ],
+                }}
+                transition={{ repeat: Infinity, duration: 1.2 }}
+                className="absolute inset-0 rounded-2xl pointer-events-none z-10"
+              >
+                <span
+                  className="absolute bottom-1.5 left-0 right-0 text-center text-[8px] font-black uppercase tracking-widest"
+                  style={{ color: '#d946ef', textShadow: '0 0 6px rgba(217, 70, 239, 0.6)' }}
+                >
+                  TAP
+                </span>
+              </motion.div>
+            )}
+
             {/* Near-bingo pulse overlay */}
-            {isNearBingo && (
+            {isNearBingo && !isPickable && (
               <motion.div
                 animate={{
                   boxShadow: [

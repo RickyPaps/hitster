@@ -79,13 +79,19 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
       setLeaderTakeover(true);
       setNewLeaderName(sorted[0].name);
       playSound('rankUp');
+    }
+  });
+
+  // Auto-dismiss takeover banner (separate effect so re-renders don't cancel the timer)
+  useEffect(() => {
+    if (leaderTakeover) {
       const timer = setTimeout(() => {
         setLeaderTakeover(false);
         setNewLeaderName(null);
       }, 2500);
       return () => clearTimeout(timer);
     }
-  });
+  }, [leaderTakeover]);
 
   // Update refs after render
   useEffect(() => {
@@ -187,9 +193,8 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                             }}
                             transition={{
                               duration: 0.6,
-                              type: 'spring',
-                              stiffness: 300,
-                              damping: 15,
+                              type: 'tween',
+                              ease: 'easeOut',
                             }}
                             style={{ filter: 'drop-shadow(0 0 12px rgba(255, 107, 0, 0.7))' }}
                           >
@@ -290,7 +295,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                       '0 0 0px transparent',
                     ],
                   } : {}}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  transition={{ duration: 0.6, type: 'tween', ease: 'easeOut' }}
                   className={`font-black text-right ${isLeader ? 'text-lg italic' : 'text-sm'}`}
                   style={{ color: isLeader ? '#ff007f' : '#d1d5db' }}
                 >
@@ -317,7 +322,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
             >
               <motion.span
                 animate={{ scale: [1, 1.05, 1] }}
-                transition={{ repeat: Infinity, duration: 0.8 }}
+                transition={{ repeat: Infinity, duration: 0.8, type: 'tween', ease: 'easeInOut' }}
                 className="text-xs font-black uppercase text-white tracking-wider"
                 style={{ textShadow: '0 1px 4px rgba(0, 0, 0, 0.3)' }}
               >

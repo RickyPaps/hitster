@@ -54,13 +54,6 @@ export default function HostPageContent() {
     }
   }, [roomCode, setConnection]);
 
-  // Reset store on navigation away
-  useEffect(() => {
-    return () => {
-      useGameStore.getState().reset();
-    };
-  }, []);
-
   // Persistent listener for GAME_WHEEL_RESULT
   useEffect(() => {
     const socket = getSocket();
@@ -205,6 +198,33 @@ export default function HostPageContent() {
       }
     }
 
+    // Verify all trailer video IDs are actually playable on YouTube
+    // This catches stale curated IDs and bad TMDB results before the game starts
+    const moviesWithTrailer = gameTracks.filter(
+      (t): t is MovieTrack => isMovieTrack(t) && !!t.trailerVideoId
+    );
+    if (moviesWithTrailer.length > 0) {
+      try {
+        const res = await fetch('/api/youtube/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoIds: moviesWithTrailer.map((m) => m.trailerVideoId) }),
+        });
+        if (res.ok) {
+          const { valid } = await res.json() as { valid: string[] };
+          const validSet = new Set(valid);
+          for (const track of gameTracks) {
+            if (isMovieTrack(track) && track.trailerVideoId && !validSet.has(track.trailerVideoId)) {
+              console.warn(`Trailer ${track.trailerVideoId} for "${track.title}" is unavailable, removing`);
+              track.trailerVideoId = undefined;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to verify trailer IDs:', e);
+      }
+    }
+
     const socket = getSocket();
     socket.emit(SOCKET_EVENTS.HOST_START_GAME, { tracks: gameTracks });
     setLoading(false);
@@ -243,6 +263,8 @@ export default function HostPageContent() {
   };
 
   const handleEndSession = () => {
+    const socket = getSocket();
+    socket.emit(SOCKET_EVENTS.HOST_END_SESSION);
     disconnectSocket();
     router.push('/');
   };

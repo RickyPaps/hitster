@@ -1,7 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import { SOCKET_EVENTS } from './events';
 import { createRoom, getRoom, addPlayer, removePlayer, kickPlayer, deleteRoom, getNextTrack, touchRoom, getAllRoomCodes, resetRoomToLobby, cleanupAbandonedRooms } from '../game/room';
-import { countCompletedLines } from '../game/bingo';
+import { countCompletedLines, generateBingoCard } from '../game/bingo';
 import { createGameEngine } from '../game/engine';
 import { clearRoomTimer, startRoundTimer } from '../game/timer';
 import { checkAnswer } from '../game/matching';
@@ -17,6 +17,57 @@ const SURPRISE_MAX_MS = 5 * 60 * 1000; // 5 minutes
 const engines = new Map<string, ReturnType<typeof createGameEngine>>();
 const spinnerTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 const surpriseTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Pending bingo cell picks: Map<roomCode, Map<playerId, { eligibleIndices, timeout }>>
+const pendingBingoPicks = new Map<string, Map<string, { eligibleIndices: number[]; timeout: ReturnType<typeof setTimeout> }>>();
+
+const BINGO_PICK_TIMEOUT_MS = 10_000;
+
+function clearPendingBingoPicks(roomCode: string) {
+  const roomPicks = pendingBingoPicks.get(roomCode);
+  if (roomPicks) {
+    for (const pick of roomPicks.values()) {
+      clearTimeout(pick.timeout);
+    }
+    pendingBingoPicks.delete(roomCode);
+  }
+}
+
+function autoPickBingoCell(io: Server, roomCode: string, playerId: string) {
+  const roomPicks = pendingBingoPicks.get(roomCode);
+  if (!roomPicks) return;
+  const pick = roomPicks.get(playerId);
+  if (!pick) return;
+
+  const room = getRoom(roomCode);
+  if (!room) { roomPicks.delete(playerId); return; }
+
+  const player = room.players.find((p) => p.id === playerId);
+  if (!player) { roomPicks.delete(playerId); return; }
+
+  // Auto-mark the first eligible cell
+  const cellIndex = pick.eligibleIndices[0];
+  if (cellIndex !== undefined && !player.bingoCard[cellIndex]?.marked) {
+    player.bingoCard[cellIndex].marked = true;
+
+    // Recalculate completed rows and award row bonuses
+    const prevRows = player.completedRows;
+    player.completedRows = countCompletedLines(player.bingoCard);
+    if (player.completedRows > prevRows) {
+      player.score += 250 * (player.completedRows - prevRows);
+      if (room.settings.drinkOnRowComplete) {
+        player.drinks += (player.completedRows - prevRows);
+      }
+    }
+
+    const ps = io.sockets.sockets.get(playerId);
+    if (ps) ps.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+    syncRoom(io, room);
+  }
+
+  roomPicks.delete(playerId);
+  if (roomPicks.size === 0) pendingBingoPicks.delete(roomCode);
+}
 
 function clearSpinnerTimeout(roomCode: string) {
   const timeout = spinnerTimeouts.get(roomCode);
@@ -262,6 +313,7 @@ function syncRoom(io: Server, room: RoomState) {
 function cleanupRoom(roomCode: string) {
   clearRoomTimer(roomCode);
   clearSurpriseTimer(roomCode);
+  clearPendingBingoPicks(roomCode);
   engines.delete(roomCode);
   deleteRoom(roomCode);
 }
@@ -336,7 +388,8 @@ function handleTimerEnd(io: Server, roomCode: string) {
       correctPlayerIds.add(player.id);
 
       // Accuracy-based scoring: similarity * 100, rounded
-      let pointsAwarded = Math.round((guess.similarity ?? 0) * 100);
+      const basePoints = Math.round((guess.similarity ?? 0) * 100);
+      let pointsAwarded = basePoints;
 
       // Double points from doublePts1500 (per-player)
       if (player.milestones.doublePts1500Active) {
@@ -356,19 +409,19 @@ function handleTimerEnd(io: Server, roomCode: string) {
 
       const prevScore = player.score - pointsAwarded;
 
-      // Mark bingo card cell(s)
-      if (room.currentCategory) {
-        const prevRows = player.completedRows;
+      // Mark bingo card cell(s) — only if base accuracy >= 50%
+      // Low-accuracy guesses still earn points but don't advance the bingo card
+      if (room.currentCategory && basePoints >= 50) {
+        // Collect eligible primary category cells for player choice
+        const eligibleIndices = player.bingoCard
+          .map((cell, i) => ({ cell, i }))
+          .filter(({ cell }) => cell.category === room.currentCategory && !cell.marked)
+          .map(({ i }) => i);
 
-        // Mark primary category cell
-        const cellIndex = player.bingoCard.findIndex(
-          (cell) => cell.category === room.currentCategory && !cell.marked
-        );
-        if (cellIndex !== -1) {
-          player.bingoCard[cellIndex].marked = true;
-        }
+        // Store eligible indices on the guess for post-round pick event
+        (guess as any)._eligibleIndices = eligibleIndices;
 
-        // Mark bonus category cells (e.g. exact year → also marks year-approx)
+        // Auto-mark bonus category cells (e.g. exact year → also marks year-approx)
         if (guess.bonusCategories) {
           for (const bonusCat of guess.bonusCategories) {
             const bonusIndex = player.bingoCard.findIndex(
@@ -380,16 +433,27 @@ function handleTimerEnd(io: Server, roomCode: string) {
           }
         }
 
-        // Recalculate completed rows after all markings
-        player.completedRows = countCompletedLines(player.bingoCard);
-
-        // Bonus points for completing a row
-        if (player.completedRows > prevRows) {
-          player.score += 250 * (player.completedRows - prevRows);
-          if (room.settings.drinkOnRowComplete) {
-            player.drinks += (player.completedRows - prevRows);
+        // If only 0 or 1 eligible cell, auto-mark immediately (no choice needed)
+        if (eligibleIndices.length <= 1) {
+          if (eligibleIndices.length === 1) {
+            player.bingoCard[eligibleIndices[0]].marked = true;
           }
+
+          // Recalculate completed rows after all markings
+          const prevRows = player.completedRows;
+          player.completedRows = countCompletedLines(player.bingoCard);
+
+          // Bonus points for completing a row
+          if (player.completedRows > prevRows) {
+            player.score += 250 * (player.completedRows - prevRows);
+            if (room.settings.drinkOnRowComplete) {
+              player.drinks += (player.completedRows - prevRows);
+            }
+          }
+          // Clear eligibleIndices so we don't send a pick event
+          (guess as any)._eligibleIndices = [];
         }
+        // If 2+ eligible cells, defer marking — player will pick
       }
 
       // Check milestone thresholds
@@ -467,10 +531,36 @@ function handleTimerEnd(io: Server, roomCode: string) {
       if (guess.correct) {
         const player = room.players.find((p) => p.id === guess.playerId);
         if (player) {
-          playerSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+          const eligibleIndices: number[] = (guess as any)._eligibleIndices ?? [];
+
+          if (eligibleIndices.length >= 2) {
+            // Player must choose which cell to mark
+            playerSocket.emit(SOCKET_EVENTS.BINGO_PICK_AVAILABLE, {
+              eligibleIndices,
+              category: room.currentCategory,
+            });
+
+            // Set up pending pick with auto-pick timeout
+            if (!pendingBingoPicks.has(roomCode)) {
+              pendingBingoPicks.set(roomCode, new Map());
+            }
+            const roomPicks = pendingBingoPicks.get(roomCode)!;
+            const timeout = setTimeout(() => {
+              autoPickBingoCell(io, roomCode, guess.playerId);
+            }, BINGO_PICK_TIMEOUT_MS);
+            roomPicks.set(guess.playerId, { eligibleIndices, timeout });
+          } else {
+            // Already auto-marked or no eligible cells — send card update directly
+            playerSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+          }
         }
       }
     }
+  }
+
+  // Clean up _eligibleIndices from guesses
+  for (const guess of room.roundGuesses) {
+    delete (guess as any)._eligibleIndices;
   }
 
   // Notify players who didn't guess that they should drink
@@ -588,6 +678,12 @@ export function registerSocketHandlers(io: Server) {
         players: room.players,
         playerName: player.name,
       });
+
+      // If reconnecting during SPINNING phase with no active spinner, re-select one
+      if (room.phase === 'SPINNING' && !room.currentSpinnerId) {
+        selectSpinnerForRoom(io, room);
+      }
+
       syncRoom(io, room);
     });
 
@@ -642,6 +738,14 @@ export function registerSocketHandlers(io: Server) {
       if (!engine) return;
       const room = getRoom(currentRoom);
       if (!room || room.hostId !== socket.id) return;
+
+      // Regenerate bingo cards for all players based on current contentMode
+      // (host may have changed mode after players joined the lobby)
+      for (const player of room.players) {
+        player.bingoCard = generateBingoCard(room.settings.contentMode);
+        // Send card directly to player's socket (bypasses GAME_STATE_SYNC lookup timing)
+        io.to(player.id).emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+      }
 
       engine.startGame(data.tracks);
       touchRoom(currentRoom);
@@ -1008,6 +1112,47 @@ export function registerSocketHandlers(io: Server) {
       syncRoom(io, room);
     });
 
+    // BINGO: Player picks which cell to mark
+    socket.on(SOCKET_EVENTS.BINGO_CELL_PICK, (data: { cellIndex: number }) => {
+      if (!currentRoom) return;
+      const roomPicks = pendingBingoPicks.get(currentRoom);
+      if (!roomPicks) return;
+      const pick = roomPicks.get(socket.id);
+      if (!pick) return;
+
+      const room = getRoom(currentRoom);
+      if (!room) return;
+
+      const player = room.players.find((p) => p.id === socket.id);
+      if (!player) return;
+
+      const cellIndex = data.cellIndex;
+      // Validate: must be in eligible indices
+      if (!pick.eligibleIndices.includes(cellIndex)) return;
+      if (player.bingoCard[cellIndex]?.marked) return;
+
+      // Clear the timeout
+      clearTimeout(pick.timeout);
+      roomPicks.delete(socket.id);
+      if (roomPicks.size === 0) pendingBingoPicks.delete(currentRoom);
+
+      // Mark the chosen cell
+      player.bingoCard[cellIndex].marked = true;
+
+      // Recalculate completed rows and award row bonuses
+      const prevRows = player.completedRows;
+      player.completedRows = countCompletedLines(player.bingoCard);
+      if (player.completedRows > prevRows) {
+        player.score += 250 * (player.completedRows - prevRows);
+        if (room.settings.drinkOnRowComplete) {
+          player.drinks += (player.completedRows - prevRows);
+        }
+      }
+
+      socket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+      syncRoom(io, room);
+    });
+
     // PLAYER: Buzz In (for Rock Off)
     socket.on(SOCKET_EVENTS.PLAYER_BUZZ_IN, (data: { guess: string }) => {
       if (!currentRoom) return;
@@ -1023,6 +1168,22 @@ export function registerSocketHandlers(io: Server) {
       });
     });
 
+    // HOST: End Session (notify players before closing room)
+    socket.on(SOCKET_EVENTS.HOST_END_SESSION, () => {
+      if (!currentRoom) return;
+      const room = getRoom(currentRoom);
+      if (!room || room.hostId !== socket.id) return;
+
+      // Notify all players that room is closing
+      io.to(currentRoom).emit(SOCKET_EVENTS.ROOM_CLOSED);
+
+      // Clean up
+      clearPendingBingoPicks(currentRoom);
+      clearSpinnerTimeout(currentRoom);
+      cleanupRoom(currentRoom);
+      currentRoom = null;
+    });
+
     // HOST: Play Again (return to lobby from GAME_OVER)
     socket.on(SOCKET_EVENTS.HOST_PLAY_AGAIN, () => {
       if (!currentRoom) return;
@@ -1034,10 +1195,16 @@ export function registerSocketHandlers(io: Server) {
       clearRoomTimer(currentRoom);
       clearSpinnerTimeout(currentRoom);
       clearSurpriseTimer(currentRoom);
+      clearPendingBingoPicks(currentRoom);
       engines.delete(currentRoom);
 
       const resetRoom = resetRoomToLobby(currentRoom);
       if (!resetRoom) return;
+
+      // Send regenerated bingo cards directly to each player
+      for (const player of resetRoom.players) {
+        io.to(player.id).emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+      }
 
       // Recreate engine for new game
       engines.set(currentRoom, createGameEngine(resetRoom));
@@ -1088,6 +1255,8 @@ export function registerSocketHandlers(io: Server) {
 
         // If host disconnects and no players remain, clean up the room entirely
         if (isHost && !anyConnected) {
+          io.to(currentRoom).emit(SOCKET_EVENTS.ROOM_CLOSED);
+          clearPendingBingoPicks(currentRoom);
           clearSpinnerTimeout(currentRoom);
           clearSurpriseTimer(currentRoom);
           cleanupRoom(currentRoom);

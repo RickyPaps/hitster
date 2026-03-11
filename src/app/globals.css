@@ -145,7 +145,7 @@ body {
 .host-game-grid {
   display: grid;
   grid-template-columns: 260px 1fr 320px;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   height: 100dvh;
   overflow: hidden;
 }
@@ -155,10 +155,6 @@ body {
   background: rgba(13, 2, 22, 0.8);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 0, 127, 0.2);
-}
-
-.host-bottom-bar {
-  grid-column: 1 / -1;
 }
 
 .sidebar-panel {
@@ -263,13 +259,6 @@ body {
   opacity: 0.4;
 }
 
-/* Now playing bottom bar */
-.now-playing-bar {
-  border-top: 1px solid rgba(255, 0, 127, 0.2);
-  background: rgba(13, 2, 22, 0.8);
-  backdrop-filter: blur(16px);
-}
-
 /* Neon timer ring */
 .timer-ring-pink {
   background: rgba(255, 0, 127, 0.1);
@@ -354,7 +343,7 @@ body {
 @media (max-width: 1023px) {
   .host-game-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 1fr;
     height: 100dvh;
   }
   .sidebar-panel,
