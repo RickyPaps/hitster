@@ -129,9 +129,9 @@ export default function HostPageContent() {
       return (curatedTracks as any[]).map((t) => ({ ...t, mediaType: 'music' as const })) as MusicTrack[];
     };
 
-    // Fetch movie tracks (curated for now)
+    // Fetch movie tracks (curated for now, skip entries without Spotify IDs)
     const fetchMovieTracks = (): Track[] => {
-      return curatedMovies as MovieTrack[];
+      return (curatedMovies as MovieTrack[]).filter((m) => m.id);
     };
 
     if (contentMode === 'music') {
