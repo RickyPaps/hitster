@@ -1,6 +1,7 @@
 'use client';
 
 import type { GamePhase, Track } from '@/types/game';
+import { getMediaTitle, getMediaSubtitle } from '@/types/game';
 
 interface HostBottomBarProps {
   phase: GamePhase;
@@ -20,8 +21,8 @@ export default function HostBottomBar({
   currentSpinnerName, volume, muted, onVolumeChange, onMuteToggle,
 }: HostBottomBarProps) {
   const showTrackInfo = phase === 'ROUND_RESULTS' || phase === 'GAME_OVER';
-  const trackName = showTrackInfo && currentTrack ? currentTrack.name : '??????';
-  const trackArtist = showTrackInfo && currentTrack ? currentTrack.artist : '?????';
+  const trackName = showTrackInfo && currentTrack ? getMediaTitle(currentTrack) : '??????';
+  const trackArtist = showTrackInfo && currentTrack ? getMediaSubtitle(currentTrack) : '?????';
   const showTimer = phase === 'PLAYING';
 
   // Format timer as m:ss

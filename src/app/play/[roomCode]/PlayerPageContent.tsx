@@ -22,7 +22,8 @@ import BingoLineCelebration from '@/components/animations/BingoLineCelebration';
 import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { TrophyIcon } from '@/components/animations/SVGIcons';
 import { useAudio } from '@/hooks/useAudio';
-import type { MilestoneType, SurpriseEventType } from '@/types/game';
+import type { MilestoneType, SurpriseEventType, MediaType } from '@/types/game';
+import { getWheelSegments } from '@/types/game';
 
 export default function PlayerPageContent() {
   const params = useParams();
@@ -60,13 +61,13 @@ export default function PlayerPageContent() {
   const [playerWheelSpinning, setPlayerWheelSpinning] = useState(false);
   const [playerWheelResultIndex, setPlayerWheelResultIndex] = useState<number | null>(null);
   const [playerSwipeVelocity, setPlayerSwipeVelocity] = useState<number | undefined>(undefined);
+  const [playerWheelMediaType, setPlayerWheelMediaType] = useState<MediaType | undefined>(undefined);
 
   // Milestone state (queue for sequential display)
   const [milestoneQueue, setMilestoneQueue] = useState<{ type: MilestoneType }[]>([]);
-  const [milestoneNotification, setMilestoneNotification] = useState<string | null>(null);
 
-  // Surprise event state
-  const [playerSurpriseEvent, setPlayerSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null } | null>(null);
+  // Notification queue for passive alerts (surprise events, milestone received, etc.)
+  const [notificationQueue, setNotificationQueue] = useState<{ message: string; color: string; colorRgb: string; icon: string }[]>([]);
 
   // Rock Off drink assignment state
   const [rockOffCanAssign, setRockOffCanAssign] = useState(false);
@@ -81,6 +82,40 @@ export default function PlayerPageContent() {
   // Bingo line celebration
   const [showBingoCelebration, setShowBingoCelebration] = useState(false);
   const [newLineCount, setNewLineCount] = useState(0);
+  const [autoRejoining, setAutoRejoining] = useState(false);
+
+  // Auto-rejoin: if we have a stored name for this room, rejoin silently
+  useEffect(() => {
+    if (playerId) return; // already connected
+    try {
+      const storedName = sessionStorage.getItem(`hitster_room_${roomCode.toUpperCase()}`);
+      if (!storedName) return;
+      setAutoRejoining(true);
+      (async () => {
+        try {
+          const socket = await connectSocket();
+          socket.emit(
+            SOCKET_EVENTS.PLAYER_JOIN_ROOM,
+            { roomCode: roomCode.toUpperCase(), playerName: storedName },
+            (result: { success: boolean; error?: string; player?: any }) => {
+              if (result.success) {
+                setConnection(roomCode.toUpperCase(), socket.id!, storedName, false);
+                if (result.player?.bingoCard) {
+                  setBingoCard(result.player.bingoCard);
+                }
+              } else {
+                // Stored name no longer valid — clear it and show join form
+                sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`);
+              }
+              setAutoRejoining(false);
+            }
+          );
+        } catch {
+          setAutoRejoining(false);
+        }
+      })();
+    } catch { /* sessionStorage unavailable */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const socket = getSocket();
@@ -111,9 +146,10 @@ export default function PlayerPageContent() {
   // Listen for GAME_WHEEL_RESULT on spinner's phone
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number }) => {
+    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType }) => {
       setPlayerWheelResultIndex(data.segmentIndex);
       setPlayerSwipeVelocity(data.swipeVelocity);
+      setPlayerWheelMediaType(data.mediaType);
       setPlayerWheelSpinning(true);
     };
     socket.on(SOCKET_EVENTS.GAME_WHEEL_RESULT, handler);
@@ -125,12 +161,14 @@ export default function PlayerPageContent() {
   // Listen for milestone events
   useEffect(() => {
     const socket = getSocket();
+    const pushNotification = (message: string, color: string, colorRgb: string, icon: string) => {
+      setNotificationQueue((prev) => [...prev, { message, color, colorRgb, icon }]);
+    };
     const earnedHandler = (data: { type: MilestoneType; playerName?: string }) => {
       // streak5AllDrink is a room broadcast — show as notification, not queue
       if (data.type === 'streak5AllDrink' && data.playerName) {
         if (data.playerName !== playerName) {
-          setMilestoneNotification(`${data.playerName} hit a 5-streak! Everybody drinks!`);
-          setTimeout(() => setMilestoneNotification(null), 4000);
+          pushNotification(`${data.playerName} hit a 5-streak! Everybody drinks!`, '#EAB308', '234, 179, 8', '\u{1F37B}');
         } else {
           // The streaker sees it in the queue
           setMilestoneQueue((prev) => [...prev, data]);
@@ -140,28 +178,22 @@ export default function PlayerPageContent() {
       setMilestoneQueue((prev) => [...prev, data]);
     };
     const drinksReceivedHandler = (data: { fromPlayer: string }) => {
-      setMilestoneNotification(`${data.fromPlayer} assigned you a drink!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} assigned you a drink!`, '#EAB308', '234, 179, 8', '\u{1F37A}');
     };
     const blockReceivedHandler = (data: { fromPlayer: string }) => {
-      setMilestoneNotification(`${data.fromPlayer} blocked one of your cells!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} blocked one of your cells!`, '#ef4444', '239, 68, 68', '\u{1F6E1}');
     };
     const swapReceivedHandler = (data: { fromPlayer: string }) => {
-      setMilestoneNotification(`${data.fromPlayer} swapped one of your cells!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} swapped one of your cells!`, '#33ff77', '51, 255, 119', '\u{1F500}');
     };
     const stealReceivedHandler = (data: { fromPlayer: string; amount: number }) => {
-      setMilestoneNotification(`${data.fromPlayer} stole ${data.amount} points from you!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} stole ${data.amount} points from you!`, '#ef4444', '239, 68, 68', '\u{1F4B0}');
     };
     const shieldConsumedHandler = () => {
-      setMilestoneNotification('Shield activated! Drink penalty blocked!');
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification('Shield activated! Drink penalty blocked!', '#4d9fff', '77, 159, 255', '\u{1F6E1}');
     };
     const doubleConsumedHandler = () => {
-      setMilestoneNotification('Double points activated! 2x score this round!');
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification('Double points activated! 2x score this round!', '#ff8833', '255, 136, 51', '\u{2728}');
     };
     socket.on(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
     socket.on(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
@@ -185,6 +217,7 @@ export default function PlayerPageContent() {
   useEffect(() => {
     const socket = getSocket();
     const handler = () => {
+      try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {}
       reset();
       router.push('/');
     };
@@ -199,8 +232,20 @@ export default function PlayerPageContent() {
     const socket = getSocket();
     const handler = (data: { type: SurpriseEventType; targetName: string | null }) => {
       playSound('surprise');
-      setPlayerSurpriseEvent(data);
-      setTimeout(() => setPlayerSurpriseEvent(null), 4000);
+      const SURPRISE_MESSAGES: Record<SurpriseEventType, string> = {
+        spotlight: `Spotlight! ${data.targetName} drinks!`,
+        doubleRound: 'Double Round! 2x scores next round!',
+        everybodyCheers: 'Everybody Cheers! All drink!',
+        categoryCurse: `Category Curse! ${data.targetName} lost a cell!`,
+        luckyStar: `Lucky Star! ${data.targetName} gets a free cell!`,
+        hotSeat: `Hot Seat! ${data.targetName}: 2x drinks if wrong!`,
+      };
+      setNotificationQueue((prev) => [...prev, {
+        message: SURPRISE_MESSAGES[data.type],
+        color: '#bc4dff',
+        colorRgb: '188, 77, 255',
+        icon: '\u{2728}',
+      }]);
     };
     socket.on(SOCKET_EVENTS.SURPRISE_EVENT, handler);
     return () => {
@@ -330,7 +375,7 @@ export default function PlayerPageContent() {
         <h1 className="text-2xl font-bold mb-2" style={{ color: '#ef4444' }}>Room Unavailable</h1>
         <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>{roomError}</p>
         <button
-          onClick={() => { reset(); router.push('/'); }}
+          onClick={() => { try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {} reset(); router.push('/'); }}
           className="py-3 px-8 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
           style={{
             background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
@@ -343,8 +388,23 @@ export default function PlayerPageContent() {
     );
   }
 
-  // Guard: if store has no connection data, show inline join form
+  // Guard: if store has no connection data, show inline join form or auto-rejoin loading
   if (!playerId) {
+    // Show loading while auto-rejoining from sessionStorage
+    if (autoRejoining) {
+      return (
+        <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center">
+          <motion.p
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            className="text-lg font-semibold"
+            style={{ color: '#d946ef', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
+          >
+            Rejoining game...
+          </motion.p>
+        </div>
+      );
+    }
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         {/* Background */}
@@ -538,49 +598,49 @@ export default function PlayerPageContent() {
         />
       )}
 
-      {/* Surprise event banner */}
+      {/* Notification queue overlay (surprise events, milestone received, etc.) */}
       <AnimatePresence>
-        {playerSurpriseEvent && (
+        {notificationQueue.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            className="fixed top-4 left-4 right-4 z-50 p-3 rounded-xl text-center"
-            style={{
-              background: 'rgba(188, 77, 255, 0.2)',
-              border: '1.5px solid rgba(188, 77, 255, 0.5)',
-              boxShadow: '0 0 20px rgba(188, 77, 255, 0.3)',
-            }}
+            key={notificationQueue[0].message}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-[55] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
           >
-            <p className="text-sm font-black uppercase tracking-wider" style={{ color: '#bc4dff', textShadow: '0 0 8px rgba(188, 77, 255, 0.5)' }}>
-              {playerSurpriseEvent.type === 'spotlight' && `Spotlight! ${playerSurpriseEvent.targetName} drinks!`}
-              {playerSurpriseEvent.type === 'doubleRound' && 'Double Round! 2x scores next round!'}
-              {playerSurpriseEvent.type === 'everybodyCheers' && 'Everybody Cheers! All drink!'}
-              {playerSurpriseEvent.type === 'categoryCurse' && `Category Curse! ${playerSurpriseEvent.targetName} lost a cell!`}
-              {playerSurpriseEvent.type === 'luckyStar' && `Lucky Star! ${playerSurpriseEvent.targetName} gets a free cell!`}
-              {playerSurpriseEvent.type === 'hotSeat' && `Hot Seat! ${playerSurpriseEvent.targetName}: 2x drinks if wrong!`}
-            </p>
+            <div
+              className="max-w-sm w-full rounded-2xl p-5 text-center"
+              style={{
+                background: `linear-gradient(135deg, rgba(${notificationQueue[0].colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
+                border: `2px solid rgba(${notificationQueue[0].colorRgb}, 0.6)`,
+                boxShadow: `0 0 30px rgba(${notificationQueue[0].colorRgb}, 0.3)`,
+              }}
+            >
+              <div className="text-4xl mb-3">{notificationQueue[0].icon}</div>
+              <p
+                className="text-lg font-black uppercase tracking-wider mb-5"
+                style={{
+                  color: notificationQueue[0].color,
+                  textShadow: `0 0 12px rgba(${notificationQueue[0].colorRgb}, 0.5)`,
+                }}
+              >
+                {notificationQueue[0].message}
+              </p>
+              <button
+                onClick={() => setNotificationQueue((prev) => prev.slice(1))}
+                className="py-2.5 px-6 rounded-xl font-bold text-white cursor-pointer"
+                style={{
+                  background: `linear-gradient(135deg, ${notificationQueue[0].color}, ${notificationQueue[0].color}cc)`,
+                  boxShadow: `0 0 12px rgba(${notificationQueue[0].colorRgb}, 0.4)`,
+                }}
+              >
+                Got it!
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Milestone notification */}
-      {milestoneNotification && (
-        <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -30 }}
-          className="fixed top-4 left-4 right-4 z-40 p-3 rounded-xl text-center text-sm font-bold"
-          style={{
-            background: 'rgba(234, 179, 8, 0.2)',
-            border: '1.5px solid rgba(234, 179, 8, 0.5)',
-            color: '#EAB308',
-            boxShadow: '0 0 20px rgba(234, 179, 8, 0.3)',
-          }}
-        >
-          {milestoneNotification}
-        </motion.div>
-      )}
       {/* Background */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-15">
         <div
@@ -686,6 +746,7 @@ export default function PlayerPageContent() {
                     resultIndex={playerWheelResultIndex}
                     swipeVelocity={playerSwipeVelocity}
                     onSpinComplete={handlePlayerSpinComplete}
+                    segments={playerWheelMediaType ? getWheelSegments(playerWheelMediaType) : undefined}
                   />
                 ) : currentSpinnerName ? (
                   <motion.div className="flex flex-col items-center gap-3">
@@ -727,6 +788,7 @@ export default function PlayerPageContent() {
                     category={currentCategory}
                     disabled={hasGuessedThisRound}
                     onGuessSubmitted={() => setHasGuessedThisRound(true)}
+                    timerSeconds={timerSeconds}
                   />
                 ) : (
                   <motion.div
@@ -747,7 +809,7 @@ export default function PlayerPageContent() {
                       Guess locked in!
                     </motion.p>
                     <p className="text-sm mt-1" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                      Waiting for the song to end...
+                      Waiting for the round to end...
                     </p>
                   </motion.div>
                 )}
@@ -828,10 +890,10 @@ export default function PlayerPageContent() {
                       {!myGuess ? (
                         <>
                           <p style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-                            Listen and buzz in to name the artist!
+                            Listen and buzz in to name the {settings.contentMode === 'movie' ? 'movie' : 'artist'}!
                           </p>
                           <GuessInput
-                            category="artist"
+                            category={settings.contentMode === 'movie' ? 'movie-title' : 'artist'}
                             disabled={false}
                             onGuessSubmitted={() => {}}
                           />

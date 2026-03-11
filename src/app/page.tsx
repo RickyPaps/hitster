@@ -144,7 +144,7 @@ export default function Home() {
               opacity: 0,
             }}
           >
-            Music Bingo Party Game
+            The Bingo Party Game
           </p>
         </div>
 

@@ -412,67 +412,167 @@ body {
   animation: shield-shimmer 2s linear infinite;
 }
 
-/* Crown bob animation (replaces Framer Motion repeat: Infinity) */
-@keyframes crown-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+/* ── Leaderboard Takeover ── */
+
+@keyframes leader-fire-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 107, 0, 0.2), inset 0 0 10px rgba(255, 107, 0, 0.05); }
+  50% { box-shadow: 0 0 30px rgba(255, 107, 0, 0.4), inset 0 0 20px rgba(234, 179, 8, 0.1); }
 }
-.crown-bob {
-  animation: crown-bob 1.5s ease-in-out infinite;
+.leader-fire-glow {
+  animation: leader-fire-glow 1.5s ease-in-out infinite;
 }
 
-/* Near-bingo pulse (replaces Framer Motion repeat: Infinity boxShadow) */
-@keyframes near-bingo-pulse {
-  0%, 100% { box-shadow: inset 0 0 8px rgba(234,179,8,0.15), 0 0 6px rgba(234,179,8,0.1); }
-  50% { box-shadow: inset 0 0 15px rgba(234,179,8,0.35), 0 0 12px rgba(234,179,8,0.25); }
+@keyframes leader-row-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
-.near-bingo-pulse {
-  animation: near-bingo-pulse 2s ease-in-out infinite;
-}
-
-/* Submit button glow pulse (replaces Framer Motion repeat: Infinity boxShadow) */
-@keyframes submit-glow-pulse {
-  0%, 100% { box-shadow: 0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2); }
-  50% { box-shadow: 0 0 25px rgba(217,70,239,0.7), 0 0 45px rgba(139,92,246,0.4); }
-}
-.submit-glow-pulse {
-  animation: submit-glow-pulse 1.5s ease-in-out infinite;
+.leader-row-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 107, 0, 0.12) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: leader-row-shimmer 2s linear;
 }
 
-/* Album art breathing pulse (replaces Framer Motion repeat: Infinity scale) */
-@keyframes album-art-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
+/* ── Cell Disintegration ── */
+
+@keyframes cell-crack {
+  0% { opacity: 0; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.1); }
 }
-.album-art-pulse {
-  animation: album-art-pulse 2s ease-in-out infinite;
+.cell-crack-flash {
+  animation: cell-crack 0.4s ease-out;
 }
 
-/* Streak flame pulse (replaces Framer Motion repeat: Infinity scale) */
-@keyframes streak-pulse-light {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+@keyframes cell-fade-to-empty {
+  0% { background: linear-gradient(145deg, rgba(239, 68, 68, 0.3), rgba(30, 15, 50, 0.8)); }
+  100% { background: linear-gradient(145deg, rgba(26, 10, 48, 0.8), rgba(37, 13, 61, 0.8)); }
 }
-@keyframes streak-pulse-medium {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-@keyframes streak-pulse-heavy {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-.streak-pulse-light {
-  animation: streak-pulse-light 1.2s ease-in-out infinite;
-}
-.streak-pulse-medium {
-  animation: streak-pulse-medium 0.8s ease-in-out infinite;
-}
-.streak-pulse-heavy {
-  animation: streak-pulse-heavy 0.6s ease-in-out infinite;
+.cell-fade-to-empty {
+  animation: cell-fade-to-empty 0.8s ease-out 0.4s forwards;
 }
 
-/* Bingo celebration text pulse (replaces Framer Motion repeat: Infinity scale) */
-@keyframes celebration-text-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+/* ── Answer Reveal ── */
+
+@keyframes reveal-flash {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+.reveal-flash {
+  animation: reveal-flash 0.4s ease-out forwards;
+}
+
+@keyframes reveal-slam {
+  0% { transform: scale(1.8) translateY(-20px); opacity: 0; filter: blur(10px); }
+  60% { transform: scale(1.05) translateY(2px); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0); }
+}
+.reveal-slam {
+  animation: reveal-slam 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Timer Pressure ── */
+
+@keyframes pressure-pulse {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 0 8px rgba(239, 68, 68, 0.1); }
+  50% { border-color: rgba(239, 68, 68, 0.8); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+}
+.timer-pressure-5 {
+  animation: pressure-pulse 1s ease-in-out infinite;
+}
+.timer-pressure-3 {
+  animation: pressure-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes vignette-pulse {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.4; }
+}
+.timer-vignette {
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(239, 68, 68, 0.3) 100%);
+  animation: vignette-pulse 1s ease-in-out infinite;
+}
+
+/* ── Wheel Landing Burst ── */
+
+@keyframes segment-burst {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(1.15); filter: brightness(1.4); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+.segment-burst {
+  animation: segment-burst 0.6s ease-out;
+}
+
+/* ── Round Counter ── */
+
+@keyframes round-slam-in {
+  0% { transform: translateX(-100vw) scale(1.5); opacity: 0; }
+  40% { transform: translateX(5px) scale(1.05); opacity: 1; }
+  60% { transform: translateX(-2px) scale(1); }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+.round-slam-in {
+  animation: round-slam-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes round-slam-out {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100vw); opacity: 0; }
+}
+.round-slam-out {
+  animation: round-slam-out 0.3s ease-in forwards;
+}
+
+/* ── Streak Fire Border ── */
+
+@keyframes streak-fire-border {
+  0%, 100% {
+    box-shadow: inset 0 0 15px rgba(255, 107, 0, 0.1), 0 0 20px rgba(255, 107, 0, 0.05);
+  }
+  50% {
+    box-shadow: inset 0 0 25px rgba(255, 107, 0, 0.2), 0 0 40px rgba(234, 179, 8, 0.15);
+  }
+}
+.streak-fire-border {
+  animation: streak-fire-border 1.5s ease-in-out infinite;
+}
+
+/* ── Drink Splash ── */
+
+@keyframes splash-drop {
+  0% { transform: translateY(-40px) scale(0); opacity: 0; }
+  30% { transform: translateY(0) scale(1.2); opacity: 0.8; }
+  60% { transform: translateY(5px) scale(0.9); opacity: 0.6; }
+  100% { transform: translateY(20px) scale(0.3); opacity: 0; }
+}
+
+/* ── Player Join Portal ── */
+
+@keyframes portal-appear {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.portal-appear {
+  animation: portal-appear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── Guess Stamp Lock ── */
+
+@keyframes stamp-lock {
+  0% { transform: scale(0.92) rotate(-1deg); }
+  40% { transform: scale(1.08) rotate(0.5deg); }
+  70% { transform: scale(0.98) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.stamp-lock {
+  animation: stamp-lock 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes stamp-ring {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.stamp-ring {
+  animation: stamp-ring 0.5s ease-out forwards;
 }

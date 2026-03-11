@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo, memo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { BingoCell, GuessCategory } from '@/types/game';
 import { SparkleIcon, BingoCalendar, BingoArtist, BingoSongTitle, BingoAlbum, BingoYearApprox, BingoDecade } from '@/components/animations/SVGIcons';
 import ConfettiBurst from '@/components/animations/ConfettiBurst';
+import CellDisintegrate from '@/components/animations/CellDisintegrate';
+import { useAudio } from '@/hooks/useAudio';
 import type { ComponentType, SVGProps } from 'react';
 
 interface BingoIconProps extends SVGProps<SVGSVGElement> {
@@ -23,32 +25,42 @@ interface BingoCardProps {
   compact?: boolean;
 }
 
-const CATEGORY_LABELS: Record<GuessCategory, string> = {
+const CATEGORY_LABELS: Partial<Record<GuessCategory, string>> = {
   year: 'YEAR',
   'year-approx': 'YEAR \u00B11',
   artist: 'ARTIST',
   title: 'SONG TITLE',
   album: 'ALBUM',
   decade: 'DECADE',
+  director: 'DIRECTOR',
+  'movie-title': 'MOVIE',
+  genre: 'GENRE',
 };
 
-const CATEGORY_SVG: Record<GuessCategory, ComponentType<BingoIconProps>> = {
+const CATEGORY_SVG: Partial<Record<GuessCategory, ComponentType<BingoIconProps>>> = {
   year: BingoCalendar,
   'year-approx': BingoYearApprox,
   artist: BingoArtist,
   title: BingoSongTitle,
   album: BingoAlbum,
   decade: BingoDecade,
+  // Movie categories reuse closest icons
+  director: BingoArtist,
+  'movie-title': BingoSongTitle,
+  genre: BingoAlbum,
 };
 
 // Compact mode still uses emoji for tiny cards
-const CATEGORY_ICONS_COMPACT: Record<GuessCategory, string> = {
+const CATEGORY_ICONS_COMPACT: Partial<Record<GuessCategory, string>> = {
   year: '\u{1F4C5}',
   'year-approx': '\u{1F570}',
   artist: '\u{1F3A4}',
   title: '\u{1F3B5}',
   album: '\u{1F4BF}',
   decade: '\u{1F4C6}',
+  director: '\u{1F3AC}',
+  'movie-title': '\u{1F3AC}',
+  genre: '\u{1F3AD}',
 };
 
 interface BingoCellItemProps {
@@ -168,8 +180,18 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
   const [newlyMarked, setNewlyMarked] = useState<Set<number>>(new Set());
   const [flashingLines, setFlashingLines] = useState<Set<number>>(new Set());
   const [showLineConfetti, setShowLineConfetti] = useState(false);
+  const [disintegratingCells, setDisintegratingCells] = useState<Set<number>>(new Set());
+  const { playSound } = useAudio();
 
-  // Detect newly marked cells
+  const handleDisintegrateComplete = useCallback((cellIdx: number) => {
+    setDisintegratingCells((prev) => {
+      const next = new Set(prev);
+      next.delete(cellIdx);
+      return next;
+    });
+  }, []);
+
+  // Detect newly marked AND newly unmarked cells
   useEffect(() => {
     if (cells.length === 0 || prevCellsRef.current.length === 0) {
       prevCellsRef.current = cells;
@@ -177,11 +199,23 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
     }
 
     const newMarks = new Set<number>();
+    const newUnmarks = new Set<number>();
+
     cells.forEach((cell, i) => {
-      if (cell.marked && !prevCellsRef.current[i]?.marked) {
+      const prev = prevCellsRef.current[i];
+      if (cell.marked && !prev?.marked) {
         newMarks.add(i);
       }
+      if (!cell.marked && prev?.marked) {
+        newUnmarks.add(i);
+      }
     });
+
+    // Handle newly unmarked cells (block/curse) — disintegration effect
+    if (newUnmarks.size > 0) {
+      setDisintegratingCells(newUnmarks);
+      playSound('cellBreak');
+    }
 
     if (newMarks.size > 0) {
       setNewlyMarked(newMarks);
@@ -217,7 +251,7 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
     }
 
     prevCellsRef.current = cells;
-  }, [cells]);
+  }, [cells, playSound]);
 
   // Compute near-bingo cells
   const nearBingoCells = useMemo(() => {
@@ -300,16 +334,152 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
         </div>
       )}
 
-      {cells.map((cell, i) => (
-        <BingoCellItem
-          key={i}
-          cell={cell}
-          index={i}
-          isNewlyMarked={newlyMarked.has(i)}
-          isFlashing={flashingLines.has(i)}
-          isNearBingo={nearBingoCells.has(i) && !cell.marked}
-        />
-      ))}
+      {cells.map((cell, i) => {
+        const label = CATEGORY_LABELS[cell.category];
+        const SvgIcon = CATEGORY_SVG[cell.category];
+        const isCenter = i === 4;
+        const isNewlyMarked = newlyMarked.has(i);
+        const isFlashing = flashingLines.has(i);
+        const isNearBingo = nearBingoCells.has(i) && !cell.marked;
+        const isDisintegrating = disintegratingCells.has(i);
+
+        // Colors: unmarked = muted fuchsia, marked = bright fuchsia, center = teal accent
+        const unmarkedBg = isCenter
+          ? 'linear-gradient(145deg, #1c0e35 0%, #2a1245 100%)'
+          : 'linear-gradient(145deg, #1a0a30 0%, #250d3d 100%)';
+        const markedBg = 'linear-gradient(145deg, rgba(217, 70, 239, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%)';
+
+        const unmarkedBorder = isCenter
+          ? '2px solid rgba(45, 212, 191, 0.6)'
+          : '1.5px solid rgba(217, 70, 239, 0.25)';
+        const markedBorder = '2px solid rgba(217, 70, 239, 0.8)';
+
+        const unmarkedShadow = isCenter
+          ? '0 0 15px rgba(45, 212, 191, 0.3), inset 0 0 12px rgba(45, 212, 191, 0.08)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.03)';
+        const markedShadow = '0 0 18px rgba(217, 70, 239, 0.5), inset 0 0 12px rgba(217, 70, 239, 0.15)';
+
+        const iconColor = cell.marked
+          ? '#d946ef'
+          : isCenter ? '#2dd4bf' : 'rgba(180, 140, 220, 0.6)';
+
+        return (
+          <motion.div
+            key={i}
+            animate={
+              isDisintegrating
+                ? { scale: [1, 1.05, 0.95], opacity: [1, 0.8, 0.3] }
+                : cell.marked
+                  ? { scale: [1, 1.06, 1] }
+                  : {}
+            }
+            transition={{ duration: isDisintegrating ? 0.3 : 0.4 }}
+            className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center overflow-hidden ${isFlashing ? 'bingo-line-flash' : ''}`}
+            style={{
+              background: isDisintegrating
+                ? 'linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(30, 15, 50, 0.8))'
+                : cell.marked ? markedBg : unmarkedBg,
+              border: isDisintegrating
+                ? '2px solid rgba(239, 68, 68, 0.6)'
+                : cell.marked ? markedBorder : unmarkedBorder,
+              boxShadow: isDisintegrating
+                ? '0 0 20px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.2)'
+                : cell.marked ? markedShadow : unmarkedShadow,
+            }}
+          >
+            {/* Disintegration overlay */}
+            {isDisintegrating && (
+              <CellDisintegrate
+                active
+                onComplete={() => handleDisintegrateComplete(i)}
+              />
+            )}
+
+            {/* Near-bingo pulse overlay */}
+            {isNearBingo && (
+              <motion.div
+                animate={{
+                  boxShadow: [
+                    'inset 0 0 8px rgba(234,179,8,0.15), 0 0 6px rgba(234,179,8,0.1)',
+                    'inset 0 0 15px rgba(234,179,8,0.35), 0 0 12px rgba(234,179,8,0.25)',
+                    'inset 0 0 8px rgba(234,179,8,0.15), 0 0 6px rgba(234,179,8,0.1)',
+                  ],
+                }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{ border: '1.5px solid rgba(234,179,8,0.35)' }}
+              />
+            )}
+
+            {/* Sparkle overlay on newly marked cells */}
+            {isNewlyMarked && (
+              <motion.div
+                initial={{ scale: 0, opacity: 1 }}
+                animate={{ scale: [0, 1.5, 0], opacity: [1, 1, 0] }}
+                transition={{ duration: 0.6 }}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+              >
+                <SparkleIcon size={44} color="#d946ef" />
+              </motion.div>
+            )}
+
+            {/* Icon */}
+            <div className="flex flex-col items-center justify-center gap-1.5">
+              {SvgIcon ? (
+                <SvgIcon
+                  size={30}
+                  color={isDisintegrating ? 'rgba(239, 68, 68, 0.5)' : iconColor}
+                  style={{
+                    filter: cell.marked && !isDisintegrating
+                      ? 'drop-shadow(0 0 8px rgba(217, 70, 239, 0.7))'
+                      : isDisintegrating
+                        ? 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.5))'
+                        : 'none',
+                    transition: 'filter 0.3s, color 0.3s',
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: 24, color: isDisintegrating ? 'rgba(239, 68, 68, 0.5)' : iconColor }}>{CATEGORY_ICONS_COMPACT[cell.category] ?? '?'}</span>
+              )}
+              <span
+                className="text-[9px] font-black tracking-[0.15em] uppercase leading-none"
+                style={{
+                  color: isDisintegrating
+                    ? 'rgba(239, 68, 68, 0.6)'
+                    : cell.marked
+                      ? '#d946ef'
+                      : isCenter ? '#2dd4bf' : 'rgba(180, 140, 220, 0.7)',
+                  textShadow: isDisintegrating
+                    ? '0 0 6px rgba(239, 68, 68, 0.4)'
+                    : cell.marked
+                      ? '0 0 8px rgba(217, 70, 239, 0.5)'
+                      : 'none',
+                  transition: 'color 0.3s, text-shadow 0.3s',
+                }}
+              >
+                {label}
+              </span>
+            </div>
+
+            {/* Checkmark badge */}
+            {cell.marked && !isDisintegrating && (
+              <motion.div
+                initial={isNewlyMarked ? { scale: 0 } : { scale: 1 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="absolute top-1.5 right-1.5 rounded-full flex items-center justify-center"
+                style={{
+                  width: '20px', height: '20px',
+                  background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
+                  boxShadow: '0 0 8px rgba(217, 70, 239, 0.6)',
+                }}
+              >
+                <span className="text-[10px]" style={{ color: '#fff', fontWeight: 800 }}>&#x2713;</span>
+              </motion.div>
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

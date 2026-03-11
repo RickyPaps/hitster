@@ -7,7 +7,7 @@ import { getNextTrack } from './room';
 export interface GameEngine {
   room: RoomState;
   startGame: (tracks: import('@/types/game').Track[]) => void;
-  doSpin: () => { category: WheelCategory; segmentIndex: number };
+  doSpin: () => { category: WheelCategory; segmentIndex: number; mediaType?: import('@/types/game').MediaType };
   startRound: () => import('@/types/game').Track | null;
   submitGuess: (playerId: string, guess: string) => GuessResult | null;
   endRound: () => void;
@@ -16,6 +16,9 @@ export interface GameEngine {
 }
 
 export function createGameEngine(room: RoomState): GameEngine {
+  // Track pre-picked by doSpin() in mixed mode so startRound() reuses it
+  let prePickedTrack: import('@/types/game').Track | null = null;
+
   return {
     room,
 
@@ -25,17 +28,35 @@ export function createGameEngine(room: RoomState): GameEngine {
       room.roundNumber = 0;
       room.usedTrackIds = new Set();
       room.winner = null;
+      prePickedTrack = null;
     },
 
     doSpin() {
-      const { segment, index } = spinWheel();
+      // Determine media type for wheel segments based on content mode
+      let mediaType: import('@/types/game').MediaType | undefined;
+      const mode = room.settings.contentMode;
+      if (mode === 'music' || mode === 'movie') {
+        mediaType = mode;
+      } else if (mode === 'mixed') {
+        // In mixed mode, pre-pick the next track so we know its media type
+        // before the wheel spins. startRound() will reuse this pre-picked track.
+        const nextTrack = getNextTrack(room);
+        if (nextTrack) {
+          prePickedTrack = nextTrack;
+          room.currentTrack = nextTrack;
+          mediaType = nextTrack.mediaType;
+        }
+      }
+      const { segment, index, mediaType: resolvedMediaType } = spinWheel(mediaType);
       room.currentCategory = segment.category;
       // Phase stays SPINNING — client emits HOST_WHEEL_DONE after animation completes
-      return { category: segment.category, segmentIndex: index };
+      return { category: segment.category, segmentIndex: index, mediaType: resolvedMediaType };
     },
 
     startRound() {
-      const track = getNextTrack(room);
+      // In mixed mode, doSpin() pre-picks the track — reuse it instead of picking another
+      const track = prePickedTrack ?? getNextTrack(room);
+      prePickedTrack = null;
       if (!track) return null;
 
       room.currentTrack = track;
