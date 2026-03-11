@@ -7,7 +7,7 @@ import { getNextTrack } from './room';
 export interface GameEngine {
   room: RoomState;
   startGame: (tracks: import('@/types/game').Track[]) => void;
-  doSpin: () => { category: WheelCategory; segmentIndex: number };
+  doSpin: () => { category: WheelCategory; segmentIndex: number; mediaType?: import('@/types/game').MediaType };
   startRound: () => import('@/types/game').Track | null;
   submitGuess: (playerId: string, guess: string) => GuessResult | null;
   endRound: () => void;
@@ -37,10 +37,10 @@ export function createGameEngine(room: RoomState): GameEngine {
       } else if (mode === 'mixed' && room.currentTrack?.mediaType) {
         mediaType = room.currentTrack.mediaType;
       }
-      const { segment, index } = spinWheel(mediaType);
+      const { segment, index, mediaType: resolvedMediaType } = spinWheel(mediaType);
       room.currentCategory = segment.category;
       // Phase stays SPINNING — client emits HOST_WHEEL_DONE after animation completes
-      return { category: segment.category, segmentIndex: index };
+      return { category: segment.category, segmentIndex: index, mediaType: resolvedMediaType };
     },
 
     startRound() {

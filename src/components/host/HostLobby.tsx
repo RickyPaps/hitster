@@ -320,7 +320,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             {loading ? (
               <span className="flex items-center justify-center gap-3">
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Loading Songs...
+                {localSettings.contentMode === 'movie' ? 'Loading Movies...' : localSettings.contentMode === 'mixed' ? 'Loading Content...' : 'Loading Songs...'}
               </span>
             ) : (
               'Start Game'

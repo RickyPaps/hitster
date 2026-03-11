@@ -14,7 +14,7 @@ import Scoreboard from '@/components/host/Scoreboard';
 import SurpriseEventOverlay from '@/components/host/SurpriseEventOverlay';
 import curatedTracks from '@/data/curated-tracks.json';
 import curatedMovies from '@/data/curated-movies.json';
-import type { Track, TrackHistoryEntry, SurpriseEventType, MusicTrack, MovieTrack } from '@/types/game';
+import type { Track, TrackHistoryEntry, SurpriseEventType, MusicTrack, MovieTrack, MediaType } from '@/types/game';
 import { useAudio } from '@/hooks/useAudio';
 
 export default function HostPageContent() {
@@ -34,6 +34,7 @@ export default function HostPageContent() {
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [wheelResultIndex, setWheelResultIndex] = useState<number | null>(null);
   const [swipeVelocity, setSwipeVelocity] = useState<number | undefined>(undefined);
+  const [wheelMediaType, setWheelMediaType] = useState<MediaType | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [trackHistory, setTrackHistory] = useState<TrackHistoryEntry[]>([]);
   const [volume, setVolume] = useState(70);
@@ -62,9 +63,10 @@ export default function HostPageContent() {
   // Persistent listener for GAME_WHEEL_RESULT
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number }) => {
+    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType }) => {
       setWheelResultIndex(data.segmentIndex);
       setSwipeVelocity(data.swipeVelocity);
+      setWheelMediaType(data.mediaType);
       setWheelSpinning(true);
     };
     socket.on(SOCKET_EVENTS.GAME_WHEEL_RESULT, handler);
@@ -194,6 +196,7 @@ export default function HostPageContent() {
       setWheelSpinning(false);
       setWheelResultIndex(null);
       setSwipeVelocity(undefined);
+      setWheelMediaType(undefined);
     }
   }, [phase]);
 
@@ -318,6 +321,7 @@ export default function HostPageContent() {
       wheelSpinning={wheelSpinning}
       wheelResultIndex={wheelResultIndex}
       swipeVelocity={swipeVelocity}
+      wheelMediaType={wheelMediaType}
       volume={volume}
       muted={muted}
       onSpin={handleSpin}

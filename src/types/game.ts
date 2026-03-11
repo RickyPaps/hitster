@@ -216,7 +216,7 @@ export interface RoomState {
   winner: Player | null;
   currentSpinnerId: string | null;
   currentSpinnerName: string | null;
-  pendingSpinResult: { category: WheelCategory; segmentIndex: number } | null;
+  pendingSpinResult: { category: WheelCategory; segmentIndex: number; mediaType?: MediaType } | null;
   lastActivityAt: number;
   surpriseModifiers: SurpriseModifiers;
 }

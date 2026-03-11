@@ -662,6 +662,7 @@ export function registerSocketHandlers(io: Server) {
       socket.emit(SOCKET_EVENTS.GAME_WHEEL_RESULT, {
         category: result.category,
         segmentIndex: result.segmentIndex,
+        mediaType: result.mediaType,
       });
     });
 
@@ -693,6 +694,7 @@ export function registerSocketHandlers(io: Server) {
       const resultPayload = {
         category: room.pendingSpinResult.category,
         segmentIndex: room.pendingSpinResult.segmentIndex,
+        mediaType: room.pendingSpinResult.mediaType,
         swipeVelocity,
       };
 

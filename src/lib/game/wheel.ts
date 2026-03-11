@@ -1,9 +1,9 @@
 import { WHEEL_SEGMENTS, getWheelSegments, type WheelSegment, type MediaType } from '@/types/game';
 
-export function spinWheel(mediaType?: MediaType): { segment: WheelSegment; index: number } {
+export function spinWheel(mediaType?: MediaType): { segment: WheelSegment; index: number; mediaType?: MediaType } {
   const segments = mediaType ? getWheelSegments(mediaType) : WHEEL_SEGMENTS;
   const index = Math.floor(Math.random() * segments.length);
-  return { segment: segments[index], index };
+  return { segment: segments[index], index, mediaType };
 }
 
 export function isGuessCategory(category: string): boolean {

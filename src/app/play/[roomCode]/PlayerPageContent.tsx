@@ -22,7 +22,8 @@ import BingoLineCelebration from '@/components/animations/BingoLineCelebration';
 import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { TrophyIcon } from '@/components/animations/SVGIcons';
 import { useAudio } from '@/hooks/useAudio';
-import type { MilestoneType, SurpriseEventType } from '@/types/game';
+import type { MilestoneType, SurpriseEventType, MediaType } from '@/types/game';
+import { getWheelSegments } from '@/types/game';
 
 export default function PlayerPageContent() {
   const params = useParams();
@@ -60,6 +61,7 @@ export default function PlayerPageContent() {
   const [playerWheelSpinning, setPlayerWheelSpinning] = useState(false);
   const [playerWheelResultIndex, setPlayerWheelResultIndex] = useState<number | null>(null);
   const [playerSwipeVelocity, setPlayerSwipeVelocity] = useState<number | undefined>(undefined);
+  const [playerWheelMediaType, setPlayerWheelMediaType] = useState<MediaType | undefined>(undefined);
 
   // Milestone state (queue for sequential display)
   const [milestoneQueue, setMilestoneQueue] = useState<{ type: MilestoneType }[]>([]);
@@ -144,9 +146,10 @@ export default function PlayerPageContent() {
   // Listen for GAME_WHEEL_RESULT on spinner's phone
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number }) => {
+    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType }) => {
       setPlayerWheelResultIndex(data.segmentIndex);
       setPlayerSwipeVelocity(data.swipeVelocity);
+      setPlayerWheelMediaType(data.mediaType);
       setPlayerWheelSpinning(true);
     };
     socket.on(SOCKET_EVENTS.GAME_WHEEL_RESULT, handler);
@@ -743,6 +746,7 @@ export default function PlayerPageContent() {
                     resultIndex={playerWheelResultIndex}
                     swipeVelocity={playerSwipeVelocity}
                     onSpinComplete={handlePlayerSpinComplete}
+                    segments={playerWheelMediaType ? getWheelSegments(playerWheelMediaType) : undefined}
                   />
                 ) : currentSpinnerName ? (
                   <motion.div className="flex flex-col items-center gap-3">

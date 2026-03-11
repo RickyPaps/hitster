@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry } from '@/types/game';
-import { ALL_WHEEL_SEGMENTS } from '@/types/game';
+import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry, MediaType } from '@/types/game';
+import { ALL_WHEEL_SEGMENTS, getWheelSegments, isMovieTrack } from '@/types/game';
 import HostTopNav from './HostTopNav';
 import HostBottomBar from './HostBottomBar';
 import HostLeftSidebar from './HostLeftSidebar';
@@ -31,6 +31,7 @@ interface HostGameShellProps {
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
+  wheelMediaType?: MediaType;
   volume: number;
   muted: boolean;
   onSpin: () => void;
@@ -45,7 +46,7 @@ export default function HostGameShell(props: HostGameShellProps) {
   const {
     roomCode, phase, roundNumber, players, currentTrack, currentCategory,
     roundGuesses, timerSeconds, maxTimer, winCondition, currentSpinnerName,
-    trackHistory, wheelSpinning, wheelResultIndex, swipeVelocity,
+    trackHistory, wheelSpinning, wheelResultIndex, swipeVelocity, wheelMediaType,
     volume, muted,
     onSpin, onSpinComplete, onNextRound, onEndSession, onVolumeChange, onMuteToggle,
   } = props;
@@ -117,6 +118,7 @@ export default function HostGameShell(props: HostGameShellProps) {
             wheelSpinning={wheelSpinning}
             wheelResultIndex={wheelResultIndex}
             swipeVelocity={swipeVelocity}
+            wheelMediaType={wheelMediaType}
             onSpinComplete={onSpinComplete}
             onNextRound={onNextRound}
           />
@@ -184,13 +186,14 @@ interface CenterContentProps {
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
+  wheelMediaType?: MediaType;
   onSpinComplete: () => void;
   onNextRound: () => void;
 }
 
 function CenterContent({
   phase, currentTrack, currentCategory, roundGuesses, players, roundNumber,
-  currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity,
+  currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity, wheelMediaType,
   onSpinComplete, onNextRound,
 }: CenterContentProps) {
   if (phase === 'SPINNING') {
@@ -212,6 +215,7 @@ function CenterContent({
           isSpinning={wheelSpinning}
           resultIndex={wheelResultIndex}
           swipeVelocity={swipeVelocity}
+          segments={wheelMediaType ? getWheelSegments(wheelMediaType) : undefined}
         />
 
         {/* Call to action below wheel */}
@@ -266,11 +270,14 @@ function CenterContent({
             </h1>
 
             <p className="text-gray-300 text-lg font-medium max-w-md mb-2">
-              Listen closely to the track and identify its {
+              {currentTrack && isMovieTrack(currentTrack) ? 'Listen to the soundtrack' : 'Listen closely to the track'} and identify its {
                 currentCategory === 'year' || currentCategory === 'year-approx' ? 'release date'
                 : currentCategory === 'artist' ? 'artist'
                 : currentCategory === 'title' ? 'title'
                 : currentCategory === 'album' ? 'album'
+                : currentCategory === 'director' ? 'director'
+                : currentCategory === 'movie-title' ? 'movie title'
+                : currentCategory === 'genre' ? 'genre'
                 : currentCategory === 'decade' ? 'decade'
                 : 'answer'
               }.
@@ -292,7 +299,7 @@ function CenterContent({
           <div className="text-center p-6 rounded-xl" style={{ background: 'rgba(75, 32, 56, 0.3)', border: '1px solid rgba(0, 242, 255, 0.2)' }}>
             <p className="text-4xl mb-3">&#9835;</p>
             <p className="font-bold text-lg text-white">No audio available</p>
-            <p className="text-sm mt-1 text-gray-400">Play the song from your own device!</p>
+            <p className="text-sm mt-1 text-gray-400">Play the {currentTrack && isMovieTrack(currentTrack) ? 'soundtrack' : 'song'} from your own device!</p>
           </div>
         )}
       </div>
