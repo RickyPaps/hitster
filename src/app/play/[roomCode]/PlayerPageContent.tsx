@@ -788,6 +788,7 @@ export default function PlayerPageContent() {
                     category={currentCategory}
                     disabled={hasGuessedThisRound}
                     onGuessSubmitted={() => setHasGuessedThisRound(true)}
+                    timerSeconds={timerSeconds}
                   />
                 ) : (
                   <motion.div

@@ -299,7 +299,7 @@ export default function HostPageContent() {
 
         <div className="relative z-10 flex flex-col items-center w-full max-w-lg">
           {winner ? (
-            <WinnerScreen winner={winner} onPlayAgain={handlePlayAgain} />
+            <WinnerScreen winner={winner} players={players} onPlayAgain={handlePlayAgain} />
           ) : (
             <div className="text-center glass-panel-purple rounded-2xl p-8 w-full">
               <h2

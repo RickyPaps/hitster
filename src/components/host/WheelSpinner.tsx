@@ -6,6 +6,8 @@ import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinAnimation, easeOutQuintic } from '@/lib/wheel/animate-spin';
 import CategoryBadge from '@/components/shared/CategoryBadge';
+import ScreenShake from '@/components/animations/ScreenShake';
+import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { useAudio, playSpinTick } from '@/hooks/useAudio';
 
 interface WheelSpinnerProps {
@@ -25,6 +27,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
   const prevSegmentRef = useRef(-1);
   const [spinning, setSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [landed, setLanded] = useState(false);
   const { playSound } = useAudio();
 
   // Cache canvas context and draw initial wheel
@@ -47,6 +50,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
 
     setSpinning(true);
     setShowResult(false);
+    setLanded(false);
     prevSegmentRef.current = -1;
 
     // Use provided swipeVelocity or random fallback for host-only spin
@@ -82,6 +86,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
       } else {
         playSound('wheelLand');
         setSpinning(false);
+        setLanded(true);
         setShowResult(true);
         setTimeout(() => {
           onSpinComplete();
@@ -98,43 +103,55 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
     };
   }, [isSpinning, resultIndex]);
 
+  const landedColor = landed && resultIndex !== null ? segments[resultIndex].color : undefined;
+
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative max-w-[400px] w-full">
-        {/* Outer glow ring — matches Stitch neon purple border */}
-        <div
-          className="absolute -inset-3 rounded-full pointer-events-none"
-          style={{
-            border: '2px solid rgba(188, 19, 254, 0.6)',
-            boxShadow: '0 0 50px rgba(188, 19, 254, 0.4)',
-          }}
-        />
-        <div
-          className="absolute -inset-1 rounded-full pointer-events-none opacity-50"
-          style={{
-            border: '12px solid rgba(188, 19, 254, 0.15)',
-            filter: 'blur(6px)',
-          }}
-        />
-        <canvas
-          ref={canvasRef}
-          width={400}
-          height={400}
-          className="max-w-full w-full h-auto relative"
-          style={{ filter: spinning ? 'brightness(1.1)' : 'brightness(1)' }}
-        />
+    <ScreenShake trigger={landed} intensity="medium">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative max-w-[400px] w-full">
+          {/* Outer glow ring — matches Stitch neon purple border */}
+          <div
+            className="absolute -inset-3 rounded-full pointer-events-none transition-all duration-500"
+            style={{
+              border: `2px solid ${landed && landedColor ? landedColor : 'rgba(188, 19, 254, 0.6)'}`,
+              boxShadow: landed && landedColor
+                ? `0 0 60px ${landedColor}, 0 0 120px ${landedColor}40`
+                : '0 0 50px rgba(188, 19, 254, 0.4)',
+            }}
+          />
+          <div
+            className="absolute -inset-1 rounded-full pointer-events-none opacity-50"
+            style={{
+              border: '12px solid rgba(188, 19, 254, 0.15)',
+              filter: 'blur(6px)',
+            }}
+          />
+          <canvas
+            ref={canvasRef}
+            width={400}
+            height={400}
+            className="max-w-full w-full h-auto relative"
+            style={{ filter: spinning ? 'brightness(1.1)' : 'brightness(1)' }}
+          />
+          {/* Landing burst confetti */}
+          {landed && (
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none">
+              <ConfettiBurst active={true} particleCount={20} duration={1.2} spread={200} />
+            </div>
+          )}
+        </div>
+        <AnimatePresence>
+          {showResult && resultIndex !== null && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <CategoryBadge category={segments[resultIndex].category} large />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <AnimatePresence>
-        {showResult && resultIndex !== null && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <CategoryBadge category={segments[resultIndex].category} large />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    </ScreenShake>
   );
 }

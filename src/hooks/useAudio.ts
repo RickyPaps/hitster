@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from 'react';
 
-type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand' | 'surprise' | 'rankUp' | 'cellBreak';
+type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand' | 'surprise' | 'rankUp' | 'cellBreak' | 'reveal' | 'splash' | 'playerJoin';
 
 let audioCtx: AudioContext | null = null;
 
@@ -338,6 +338,120 @@ function playCellBreak() {
   osc.stop(now + 0.2);
 }
 
+function playReveal() {
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+
+  // Dramatic timpani hit → resolve chord
+  // Low boom
+  const boom = ctx.createOscillator();
+  boom.type = 'sine';
+  boom.frequency.setValueAtTime(80, now);
+  boom.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+  const boomGain = ctx.createGain();
+  boomGain.gain.setValueAtTime(0.35, now);
+  boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  boom.connect(boomGain);
+  boomGain.connect(ctx.destination);
+  boom.start(now);
+  boom.stop(now + 0.5);
+
+  // Noise transient (impact)
+  const impactSize = Math.floor(ctx.sampleRate * 0.08);
+  const impactBuf = ctx.createBuffer(1, impactSize, ctx.sampleRate);
+  const impactData = impactBuf.getChannelData(0);
+  for (let i = 0; i < impactSize; i++) {
+    impactData[i] = (Math.random() * 2 - 1) * (1 - i / impactSize);
+  }
+  const impact = ctx.createBufferSource();
+  impact.buffer = impactBuf;
+  const impactGain = ctx.createGain();
+  impactGain.gain.setValueAtTime(0.2, now);
+  impactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+  impact.connect(impactGain);
+  impactGain.connect(ctx.destination);
+  impact.start(now);
+
+  // Resolve chord: C4 + E4 + G4 (major triad, warm)
+  [261.63, 329.63, 392.0].forEach((freq) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.12, now + 0.15);
+    g.gain.setValueAtTime(0.12, now + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(now + 0.1);
+    osc.stop(now + 1.2);
+  });
+}
+
+function playSplash() {
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+
+  // Liquid splash: filtered noise with resonant bandpass sweep
+  const splashSize = Math.floor(ctx.sampleRate * 0.3);
+  const buf = ctx.createBuffer(1, splashSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < splashSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * 0.5;
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.value = 5;
+  bp.frequency.setValueAtTime(4000, now);
+  bp.frequency.exponentialRampToValueAtTime(400, now + 0.25);
+
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.25, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+  noise.connect(bp);
+  bp.connect(g);
+  g.connect(ctx.destination);
+  noise.start(now);
+
+  // Drip tone
+  const drip = ctx.createOscillator();
+  drip.type = 'sine';
+  drip.frequency.setValueAtTime(1200, now + 0.05);
+  drip.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+  const dg = ctx.createGain();
+  dg.gain.setValueAtTime(0.15, now + 0.05);
+  dg.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  drip.connect(dg);
+  dg.connect(ctx.destination);
+  drip.start(now + 0.05);
+  drip.stop(now + 0.2);
+}
+
+function playPlayerJoin() {
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+
+  // Two-note ascending chime: A4 → E5 (bright, welcoming)
+  [440, 659.25].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    const start = now + i * 0.1;
+    g.gain.setValueAtTime(0.2, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.3);
+  });
+}
+
 const players: Record<SoundName, () => void> = {
   whoosh: playWhoosh,
   tick: playTick,
@@ -350,6 +464,9 @@ const players: Record<SoundName, () => void> = {
   surprise: playSurprise,
   rankUp: playRankUp,
   cellBreak: playCellBreak,
+  reveal: playReveal,
+  splash: playSplash,
+  playerJoin: playPlayerJoin,
 };
 
 export function useAudio() {

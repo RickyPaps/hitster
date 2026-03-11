@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry, MediaType } from '@/types/game';
 import { ALL_WHEEL_SEGMENTS, getWheelSegments, isMovieTrack } from '@/types/game';
@@ -12,6 +12,7 @@ import MobileActionBar from './MobileActionBar';
 import WheelSpinner from './WheelSpinner';
 import RoundResults from './RoundResults';
 import DrinkingPrompt from './DrinkingPrompt';
+import RoundAnnouncer from '@/components/animations/RoundAnnouncer';
 
 const SongPlayer = dynamic(() => import('./SongPlayer'), { ssr: false });
 const TrailerPlayer = dynamic(() => import('./TrailerPlayer'), { ssr: false });
@@ -53,6 +54,18 @@ export default function HostGameShell(props: HostGameShellProps) {
   } = props;
 
   const [showMobileLeaderboard, setShowMobileLeaderboard] = useState(false);
+  const [showRoundAnnounce, setShowRoundAnnounce] = useState(false);
+  const prevPhaseRef = useRef<GamePhase | null>(null);
+
+  // Trigger round announcer on phase transition to PLAYING
+  useEffect(() => {
+    if (phase === 'PLAYING' && prevPhaseRef.current && prevPhaseRef.current !== 'PLAYING') {
+      setShowRoundAnnounce(true);
+      const t = setTimeout(() => setShowRoundAnnounce(false), 1500);
+      return () => clearTimeout(t);
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
 
   return (
     <div className="host-game-grid">
@@ -171,6 +184,9 @@ export default function HostGameShell(props: HostGameShellProps) {
         onVolumeChange={onVolumeChange}
         onMuteToggle={onMuteToggle}
       />
+
+      {/* Round transition announcer */}
+      <RoundAnnouncer roundNumber={roundNumber} trigger={showRoundAnnounce} />
     </div>
   );
 }

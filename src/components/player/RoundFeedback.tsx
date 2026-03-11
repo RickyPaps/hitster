@@ -6,6 +6,7 @@ import { useAudio } from '@/hooks/useAudio';
 import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import FloatingScore from '@/components/animations/FloatingScore';
 import ScreenShake from '@/components/animations/ScreenShake';
+import DrinkSplash from '@/components/animations/DrinkSplash';
 import { SparkleIcon } from '@/components/animations/SVGIcons';
 
 interface RoundFeedbackProps {
@@ -35,6 +36,14 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
     }
   }, [correct, playSound]);
 
+  // Drink splash sound
+  useEffect(() => {
+    if (shouldDrink) {
+      const t = setTimeout(() => playSound('splash'), 500);
+      return () => clearTimeout(t);
+    }
+  }, [shouldDrink, playSound]);
+
   if (correct === null) return null;
 
   return (
@@ -42,6 +51,9 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
       <div className="relative">
         {/* Confetti on correct */}
         <ConfettiBurst active={showConfetti} particleCount={15} duration={1} />
+
+        {/* Drink splash overlay */}
+        <DrinkSplash active={!!shouldDrink} />
 
         {/* Floating score */}
         {showFloatingScore && correct && (

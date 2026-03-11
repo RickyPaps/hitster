@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getSocket, disconnectSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import { useGameStore } from '@/stores/gameStore';
+import { useAudio } from '@/hooks/useAudio';
 import type { LobbySettings } from '@/types/game';
 
 interface HostLobbyProps {
@@ -28,6 +29,16 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
   const router = useRouter();
   const { roomCode, players, settings } = useGameStore();
   const [localSettings, setLocalSettings] = useState<LobbySettings>(settings);
+  const { playSound } = useAudio();
+  const prevPlayerCountRef = useRef(players.length);
+
+  // Play join chime when a new player joins
+  useEffect(() => {
+    if (players.length > prevPlayerCountRef.current) {
+      playSound('playerJoin');
+    }
+    prevPlayerCountRef.current = players.length;
+  }, [players.length, playSound]);
 
   const handleBack = () => {
     disconnectSocket();
