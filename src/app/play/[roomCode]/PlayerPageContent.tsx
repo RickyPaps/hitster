@@ -80,6 +80,40 @@ export default function PlayerPageContent() {
   // Bingo line celebration
   const [showBingoCelebration, setShowBingoCelebration] = useState(false);
   const [newLineCount, setNewLineCount] = useState(0);
+  const [autoRejoining, setAutoRejoining] = useState(false);
+
+  // Auto-rejoin: if we have a stored name for this room, rejoin silently
+  useEffect(() => {
+    if (playerId) return; // already connected
+    try {
+      const storedName = sessionStorage.getItem(`hitster_room_${roomCode.toUpperCase()}`);
+      if (!storedName) return;
+      setAutoRejoining(true);
+      (async () => {
+        try {
+          const socket = await connectSocket();
+          socket.emit(
+            SOCKET_EVENTS.PLAYER_JOIN_ROOM,
+            { roomCode: roomCode.toUpperCase(), playerName: storedName },
+            (result: { success: boolean; error?: string; player?: any }) => {
+              if (result.success) {
+                setConnection(roomCode.toUpperCase(), socket.id!, storedName, false);
+                if (result.player?.bingoCard) {
+                  setBingoCard(result.player.bingoCard);
+                }
+              } else {
+                // Stored name no longer valid — clear it and show join form
+                sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`);
+              }
+              setAutoRejoining(false);
+            }
+          );
+        } catch {
+          setAutoRejoining(false);
+        }
+      })();
+    } catch { /* sessionStorage unavailable */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const socket = getSocket();
@@ -180,6 +214,7 @@ export default function PlayerPageContent() {
   useEffect(() => {
     const socket = getSocket();
     const handler = () => {
+      try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {}
       reset();
       router.push('/');
     };
@@ -337,7 +372,7 @@ export default function PlayerPageContent() {
         <h1 className="text-2xl font-bold mb-2" style={{ color: '#ef4444' }}>Room Unavailable</h1>
         <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>{roomError}</p>
         <button
-          onClick={() => { reset(); router.push('/'); }}
+          onClick={() => { try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {} reset(); router.push('/'); }}
           className="py-3 px-8 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
           style={{
             background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
@@ -350,8 +385,23 @@ export default function PlayerPageContent() {
     );
   }
 
-  // Guard: if store has no connection data, show inline join form
+  // Guard: if store has no connection data, show inline join form or auto-rejoin loading
   if (!playerId) {
+    // Show loading while auto-rejoining from sessionStorage
+    if (autoRejoining) {
+      return (
+        <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center">
+          <motion.p
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            className="text-lg font-semibold"
+            style={{ color: '#d946ef', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
+          >
+            Rejoining game...
+          </motion.p>
+        </div>
+      );
+    }
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         {/* Background */}

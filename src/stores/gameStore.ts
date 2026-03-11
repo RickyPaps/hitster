@@ -93,8 +93,14 @@ const initialState = {
 export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
 
-  setConnection: (roomCode, playerId, playerName, isHost) =>
-    set({ roomCode, playerId, playerName, isHost }),
+  setConnection: (roomCode, playerId, playerName, isHost) => {
+    set({ roomCode, playerId, playerName, isHost });
+    try {
+      if (typeof window !== 'undefined' && roomCode && playerName) {
+        sessionStorage.setItem(`hitster_room_${roomCode}`, playerName);
+      }
+    } catch { /* sessionStorage unavailable */ }
+  },
   setPhase: (phase) => set({ phase }),
   setPlayers: (players) => set({ players }),
   setCurrentTrack: (currentTrack) => set({ currentTrack }),
