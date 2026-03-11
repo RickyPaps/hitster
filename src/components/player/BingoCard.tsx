@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { memo, useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { BingoCell, GuessCategory } from '@/types/game';
 import { SparkleIcon, BingoCalendar, BingoArtist, BingoSongTitle, BingoAlbum, BingoYearApprox, BingoDecade } from '@/components/animations/SVGIcons';
@@ -129,16 +129,18 @@ const BingoCellItem = memo(function BingoCellItem({ cell, index: i, isNewlyMarke
 
       {/* Icon */}
       <div className="flex flex-col items-center justify-center gap-1.5">
-        <SvgIcon
-          size={30}
-          color={iconColor}
-          style={{
-            filter: cell.marked
-              ? 'drop-shadow(0 0 8px rgba(217, 70, 239, 0.7))'
-              : 'none',
-            transition: 'filter 0.3s',
-          }}
-        />
+        {SvgIcon && (
+          <SvgIcon
+            size={30}
+            color={iconColor}
+            style={{
+              filter: cell.marked
+                ? 'drop-shadow(0 0 8px rgba(217, 70, 239, 0.7))'
+                : 'none',
+              transition: 'filter 0.3s',
+            }}
+          />
+        )}
         <span
           className="text-[9px] font-black tracking-[0.15em] uppercase leading-none"
           style={{

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Player } from '@/types/game';
 import { getNearBingoPlayers } from '@/lib/game/bingo-utils';
@@ -13,120 +13,6 @@ interface LeaderboardProps {
   winCondition: 1 | 2 | 9;
 }
 
-interface PlayerRowProps {
-  player: Player;
-  index: number;
-  rankChange: 'up' | 'down' | null;
-  scoreChanged: boolean;
-  isNearBingo: boolean;
-}
-
-const PlayerRow = memo(function PlayerRow({ player: p, index: i, rankChange, scoreChanged, isNearBingo }: PlayerRowProps) {
-  return (
-    <motion.div
-      key={p.id}
-      layout
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      className="flex items-center justify-between px-4 py-3"
-      style={{ borderTop: i > 0 ? '1px solid rgba(255, 255, 255, 0.05)' : undefined }}
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <span
-            className="font-black w-4 text-sm"
-            style={{ color: i === 0 ? '#00f2ff' : '#6b7280' }}
-          >
-            {i + 1}
-          </span>
-          {i === 0 && (
-            <div className="crown-bob">
-              <CrownIcon size={16} color="#EAB308" />
-            </div>
-          )}
-          <span className={`font-bold text-sm ${!p.connected ? 'opacity-40' : ''} ${i === 0 ? 'text-white' : 'text-gray-200'}`}>
-            {p.name}
-          </span>
-          {rankChange === 'up' && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: [1, 1, 0], y: 0 }}
-              transition={{ duration: 3 }}
-            >
-              <ArrowUp size={12} />
-            </motion.div>
-          )}
-          {rankChange === 'down' && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: [1, 1, 0], y: 0 }}
-              transition={{ duration: 3 }}
-            >
-              <ArrowDown size={12} />
-            </motion.div>
-          )}
-        </div>
-        {/* Inline badges */}
-        {isNearBingo && (
-          <div className="mt-1 ml-7">
-            <span
-              className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-              style={{ background: 'rgba(255, 0, 127, 0.2)', color: '#ff007f' }}
-            >
-              Near Bingo!
-            </span>
-          </div>
-        )}
-        {p.completedRows > 0 && !isNearBingo && (
-          <div className="mt-1 ml-7">
-            <span
-              className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-              style={{ background: 'rgba(188, 19, 254, 0.2)', color: '#bc13fe' }}
-            >
-              {p.completedRows} Line{p.completedRows > 1 ? 's' : ''}
-            </span>
-          </div>
-        )}
-        {p.milestones && (p.milestones.drinks500Earned && !p.milestones.drinks500Used) && (
-          <div className="mt-1 ml-7">
-            <span
-              className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-              style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#EAB308' }}
-            >
-              &#127866; Drink Ready
-            </span>
-          </div>
-        )}
-        {p.milestones && (p.milestones.block1000Earned && !p.milestones.block1000Used) && (
-          <div className="mt-1 ml-7">
-            <span
-              className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-              style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
-            >
-              &#128737; Block Ready
-            </span>
-          </div>
-        )}
-        {!p.connected && (
-          <div className="mt-1 ml-7">
-            <span className="text-[10px] text-gray-600">Disconnected</span>
-          </div>
-        )}
-      </div>
-      <motion.span
-        key={p.score}
-        animate={scoreChanged ? { scale: [1, 1.3, 1] } : {}}
-        transition={{ duration: 0.5 }}
-        className={`font-black text-right ${i === 0 ? 'text-lg italic' : 'text-sm'}`}
-        style={{ color: i === 0 ? '#ff007f' : '#d1d5db' }}
-      >
-        {p.score.toLocaleString()}
-      </motion.span>
-    </motion.div>
-  );
-});
-
 export default function Leaderboard({ players, winCondition }: LeaderboardProps) {
   const sorted = useMemo(
     () => [...players].sort((a, b) => b.completedRows - a.completedRows || b.score - a.score),
@@ -135,17 +21,12 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
 
   const nearBingo = useMemo(() => getNearBingoPlayers(players, winCondition), [players, winCondition]);
 
-  const nearBingoIds = useMemo(() => new Set(nearBingo.map(nb => nb.id)), [nearBingo]);
-
   const totalDrinks = useMemo(() => players.reduce((sum, p) => sum + p.drinks, 0), [players]);
 
   const drinkSorted = useMemo(
     () => [...players].sort((a, b) => b.drinks - a.drinks),
     [players]
   );
-  const nearBingo = getNearBingoPlayers(players, winCondition);
-  const totalDrinks = players.reduce((sum, p) => sum + p.drinks, 0);
-  const drinkSorted = [...players].sort((a, b) => b.drinks - a.drinks);
   const { playSound } = useAudio();
 
   // Track previous scores and rankings for animations
