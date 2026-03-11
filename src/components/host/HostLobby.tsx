@@ -68,7 +68,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             Hitster
           </h1>
           <h2 className="text-lg md:text-xl font-bold text-gray-300 mb-6">
-            Music Bingo Party Game
+            {localSettings.contentMode === 'movie' ? 'Movie' : localSettings.contentMode === 'mixed' ? 'Mixed' : 'Music'} Bingo Party Game
           </h2>
 
           {/* Lobby code badge */}

@@ -808,7 +808,7 @@ export default function PlayerPageContent() {
                       Guess locked in!
                     </motion.p>
                     <p className="text-sm mt-1" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                      Waiting for the song to end...
+                      Waiting for the round to end...
                     </p>
                   </motion.div>
                 )}
@@ -889,10 +889,10 @@ export default function PlayerPageContent() {
                       {!myGuess ? (
                         <>
                           <p style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-                            Listen and buzz in to name the artist!
+                            Listen and buzz in to name the {settings.contentMode === 'movie' ? 'movie' : 'artist'}!
                           </p>
                           <GuessInput
-                            category="artist"
+                            category={settings.contentMode === 'movie' ? 'movie-title' : 'artist'}
                             disabled={false}
                             onGuessSubmitted={() => {}}
                           />
