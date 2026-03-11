@@ -63,10 +63,9 @@ export default function PlayerPageContent() {
 
   // Milestone state (queue for sequential display)
   const [milestoneQueue, setMilestoneQueue] = useState<{ type: MilestoneType }[]>([]);
-  const [milestoneNotification, setMilestoneNotification] = useState<string | null>(null);
 
-  // Surprise event state
-  const [playerSurpriseEvent, setPlayerSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null } | null>(null);
+  // Notification queue for passive alerts (surprise events, milestone received, etc.)
+  const [notificationQueue, setNotificationQueue] = useState<{ message: string; color: string; colorRgb: string; icon: string }[]>([]);
 
   // Rock Off drink assignment state
   const [rockOffCanAssign, setRockOffCanAssign] = useState(false);
@@ -125,12 +124,14 @@ export default function PlayerPageContent() {
   // Listen for milestone events
   useEffect(() => {
     const socket = getSocket();
+    const pushNotification = (message: string, color: string, colorRgb: string, icon: string) => {
+      setNotificationQueue((prev) => [...prev, { message, color, colorRgb, icon }]);
+    };
     const earnedHandler = (data: { type: MilestoneType; playerName?: string }) => {
       // streak5AllDrink is a room broadcast — show as notification, not queue
       if (data.type === 'streak5AllDrink' && data.playerName) {
         if (data.playerName !== playerName) {
-          setMilestoneNotification(`${data.playerName} hit a 5-streak! Everybody drinks!`);
-          setTimeout(() => setMilestoneNotification(null), 4000);
+          pushNotification(`${data.playerName} hit a 5-streak! Everybody drinks!`, '#EAB308', '234, 179, 8', '\u{1F37B}');
         } else {
           // The streaker sees it in the queue
           setMilestoneQueue((prev) => [...prev, data]);
@@ -140,28 +141,22 @@ export default function PlayerPageContent() {
       setMilestoneQueue((prev) => [...prev, data]);
     };
     const drinksReceivedHandler = (data: { fromPlayer: string }) => {
-      setMilestoneNotification(`${data.fromPlayer} assigned you a drink!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} assigned you a drink!`, '#EAB308', '234, 179, 8', '\u{1F37A}');
     };
     const blockReceivedHandler = (data: { fromPlayer: string }) => {
-      setMilestoneNotification(`${data.fromPlayer} blocked one of your cells!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} blocked one of your cells!`, '#ef4444', '239, 68, 68', '\u{1F6E1}');
     };
     const swapReceivedHandler = (data: { fromPlayer: string }) => {
-      setMilestoneNotification(`${data.fromPlayer} swapped one of your cells!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} swapped one of your cells!`, '#33ff77', '51, 255, 119', '\u{1F500}');
     };
     const stealReceivedHandler = (data: { fromPlayer: string; amount: number }) => {
-      setMilestoneNotification(`${data.fromPlayer} stole ${data.amount} points from you!`);
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification(`${data.fromPlayer} stole ${data.amount} points from you!`, '#ef4444', '239, 68, 68', '\u{1F4B0}');
     };
     const shieldConsumedHandler = () => {
-      setMilestoneNotification('Shield activated! Drink penalty blocked!');
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification('Shield activated! Drink penalty blocked!', '#4d9fff', '77, 159, 255', '\u{1F6E1}');
     };
     const doubleConsumedHandler = () => {
-      setMilestoneNotification('Double points activated! 2x score this round!');
-      setTimeout(() => setMilestoneNotification(null), 4000);
+      pushNotification('Double points activated! 2x score this round!', '#ff8833', '255, 136, 51', '\u{2728}');
     };
     socket.on(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
     socket.on(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
@@ -199,8 +194,20 @@ export default function PlayerPageContent() {
     const socket = getSocket();
     const handler = (data: { type: SurpriseEventType; targetName: string | null }) => {
       playSound('surprise');
-      setPlayerSurpriseEvent(data);
-      setTimeout(() => setPlayerSurpriseEvent(null), 4000);
+      const SURPRISE_MESSAGES: Record<SurpriseEventType, string> = {
+        spotlight: `Spotlight! ${data.targetName} drinks!`,
+        doubleRound: 'Double Round! 2x scores next round!',
+        everybodyCheers: 'Everybody Cheers! All drink!',
+        categoryCurse: `Category Curse! ${data.targetName} lost a cell!`,
+        luckyStar: `Lucky Star! ${data.targetName} gets a free cell!`,
+        hotSeat: `Hot Seat! ${data.targetName}: 2x drinks if wrong!`,
+      };
+      setNotificationQueue((prev) => [...prev, {
+        message: SURPRISE_MESSAGES[data.type],
+        color: '#bc4dff',
+        colorRgb: '188, 77, 255',
+        icon: '\u{2728}',
+      }]);
     };
     socket.on(SOCKET_EVENTS.SURPRISE_EVENT, handler);
     return () => {
@@ -538,49 +545,49 @@ export default function PlayerPageContent() {
         />
       )}
 
-      {/* Surprise event banner */}
+      {/* Notification queue overlay (surprise events, milestone received, etc.) */}
       <AnimatePresence>
-        {playerSurpriseEvent && (
+        {notificationQueue.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            className="fixed top-4 left-4 right-4 z-50 p-3 rounded-xl text-center"
-            style={{
-              background: 'rgba(188, 77, 255, 0.2)',
-              border: '1.5px solid rgba(188, 77, 255, 0.5)',
-              boxShadow: '0 0 20px rgba(188, 77, 255, 0.3)',
-            }}
+            key={notificationQueue[0].message}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-[55] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
           >
-            <p className="text-sm font-black uppercase tracking-wider" style={{ color: '#bc4dff', textShadow: '0 0 8px rgba(188, 77, 255, 0.5)' }}>
-              {playerSurpriseEvent.type === 'spotlight' && `Spotlight! ${playerSurpriseEvent.targetName} drinks!`}
-              {playerSurpriseEvent.type === 'doubleRound' && 'Double Round! 2x scores next round!'}
-              {playerSurpriseEvent.type === 'everybodyCheers' && 'Everybody Cheers! All drink!'}
-              {playerSurpriseEvent.type === 'categoryCurse' && `Category Curse! ${playerSurpriseEvent.targetName} lost a cell!`}
-              {playerSurpriseEvent.type === 'luckyStar' && `Lucky Star! ${playerSurpriseEvent.targetName} gets a free cell!`}
-              {playerSurpriseEvent.type === 'hotSeat' && `Hot Seat! ${playerSurpriseEvent.targetName}: 2x drinks if wrong!`}
-            </p>
+            <div
+              className="max-w-sm w-full rounded-2xl p-5 text-center"
+              style={{
+                background: `linear-gradient(135deg, rgba(${notificationQueue[0].colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
+                border: `2px solid rgba(${notificationQueue[0].colorRgb}, 0.6)`,
+                boxShadow: `0 0 30px rgba(${notificationQueue[0].colorRgb}, 0.3)`,
+              }}
+            >
+              <div className="text-4xl mb-3">{notificationQueue[0].icon}</div>
+              <p
+                className="text-lg font-black uppercase tracking-wider mb-5"
+                style={{
+                  color: notificationQueue[0].color,
+                  textShadow: `0 0 12px rgba(${notificationQueue[0].colorRgb}, 0.5)`,
+                }}
+              >
+                {notificationQueue[0].message}
+              </p>
+              <button
+                onClick={() => setNotificationQueue((prev) => prev.slice(1))}
+                className="py-2.5 px-6 rounded-xl font-bold text-white cursor-pointer"
+                style={{
+                  background: `linear-gradient(135deg, ${notificationQueue[0].color}, ${notificationQueue[0].color}cc)`,
+                  boxShadow: `0 0 12px rgba(${notificationQueue[0].colorRgb}, 0.4)`,
+                }}
+              >
+                Got it!
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Milestone notification */}
-      {milestoneNotification && (
-        <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -30 }}
-          className="fixed top-4 left-4 right-4 z-40 p-3 rounded-xl text-center text-sm font-bold"
-          style={{
-            background: 'rgba(234, 179, 8, 0.2)',
-            border: '1.5px solid rgba(234, 179, 8, 0.5)',
-            color: '#EAB308',
-            boxShadow: '0 0 20px rgba(234, 179, 8, 0.3)',
-          }}
-        >
-          {milestoneNotification}
-        </motion.div>
-      )}
       {/* Background */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-15">
         <div
