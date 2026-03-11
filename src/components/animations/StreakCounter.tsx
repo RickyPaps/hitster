@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StreakFlame } from './SVGIcons';
 
@@ -8,13 +9,11 @@ interface StreakCounterProps {
   broken?: boolean;
 }
 
-export default function StreakCounter({ streak, broken }: StreakCounterProps) {
+export default memo(function StreakCounter({ streak, broken }: StreakCounterProps) {
   if (streak < 2 && !broken) return null;
 
-  // Scale intensity with streak
-  const pulseScale = streak >= 6 ? 1.15 : streak >= 4 ? 1.1 : 1.05;
-  const pulseDuration = streak >= 6 ? 0.6 : streak >= 4 ? 0.8 : 1.2;
   const flameSize = streak >= 6 ? 28 : streak >= 4 ? 24 : 20;
+  const pulseClass = streak >= 6 ? 'streak-pulse-heavy' : streak >= 4 ? 'streak-pulse-medium' : 'streak-pulse-light';
 
   return (
     <AnimatePresence>
@@ -44,12 +43,9 @@ export default function StreakCounter({ streak, broken }: StreakCounterProps) {
           transition={{ type: 'spring', stiffness: 500, damping: 20 }}
           className="flex items-center gap-1"
         >
-          <motion.div
-            animate={{ scale: [1, pulseScale, 1] }}
-            transition={{ repeat: Infinity, duration: pulseDuration }}
-          >
+          <div className={pulseClass}>
             <StreakFlame size={flameSize} className="streak-glow" />
-          </motion.div>
+          </div>
           <motion.span
             key={streak}
             initial={{ scale: 1.5, opacity: 0 }}
@@ -63,4 +59,4 @@ export default function StreakCounter({ streak, broken }: StreakCounterProps) {
       ) : null}
     </AnimatePresence>
   );
-}
+});

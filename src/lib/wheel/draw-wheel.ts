@@ -1,5 +1,44 @@
 import { WHEEL_SEGMENTS } from '@/types/game';
 
+// Cache for gradients that don't change with rotation
+let cachedSize = 0;
+let cachedSegmentGrads: CanvasGradient[] = [];
+let cachedHubGrad: CanvasGradient | null = null;
+let cachedPointerGrad: CanvasGradient | null = null;
+
+function ensureGradientCache(ctx: CanvasRenderingContext2D, size: number): void {
+  if (cachedSize === size && cachedSegmentGrads.length > 0) return;
+
+  const center = size / 2;
+  const radius = center - 12;
+  const segments = WHEEL_SEGMENTS;
+
+  // Segment radial gradients
+  cachedSegmentGrads = segments.map(seg => {
+    const grad = ctx.createRadialGradient(center, center, 0, center, center, radius);
+    grad.addColorStop(0, seg.baseColor);
+    grad.addColorStop(0.6, seg.baseColor);
+    grad.addColorStop(1, seg.accentColor);
+    return grad;
+  });
+
+  // Hub gradient
+  const hubRadius = Math.max(20, size / 16);
+  cachedHubGrad = ctx.createRadialGradient(center, center, 0, center, center, hubRadius);
+  cachedHubGrad.addColorStop(0, '#1a0a2e');
+  cachedHubGrad.addColorStop(0.7, '#0d0216');
+  cachedHubGrad.addColorStop(1, '#1a0a2e');
+
+  // Pointer gradient
+  const pointerY = 4;
+  const pointerH = 28;
+  cachedPointerGrad = ctx.createLinearGradient(center, pointerY, center, pointerY + pointerH);
+  cachedPointerGrad.addColorStop(0, '#ff007f');
+  cachedPointerGrad.addColorStop(1, '#bc13fe');
+
+  cachedSize = size;
+}
+
 export function drawWheel(
   ctx: CanvasRenderingContext2D,
   size: number,
@@ -13,23 +52,18 @@ export function drawWheel(
 
   ctx.clearRect(0, 0, size, size);
 
-  // --- Segments with radial gradients ---
+  ensureGradientCache(ctx, size);
+
+  // --- Segments with cached radial gradients ---
   for (let i = 0; i < segments.length; i++) {
     const startAngle = i * arc + currentRotation;
     const endAngle = startAngle + arc;
-    const seg = segments[i];
-
-    // Radial gradient: base color at center → accent color at edge
-    const grad = ctx.createRadialGradient(center, center, 0, center, center, radius);
-    grad.addColorStop(0, seg.baseColor);
-    grad.addColorStop(0.6, seg.baseColor);
-    grad.addColorStop(1, seg.accentColor);
 
     ctx.beginPath();
     ctx.moveTo(center, center);
     ctx.arc(center, center, radius, startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = grad;
+    ctx.fillStyle = cachedSegmentGrads[i];
     ctx.fill();
   }
 
@@ -91,15 +125,9 @@ export function drawWheel(
   // --- Center hub: vinyl record feel ---
   const hubRadius = Math.max(20, size / 16);
 
-  // Dark fill with radial gradient
-  const hubGrad = ctx.createRadialGradient(center, center, 0, center, center, hubRadius);
-  hubGrad.addColorStop(0, '#1a0a2e');
-  hubGrad.addColorStop(0.7, '#0d0216');
-  hubGrad.addColorStop(1, '#1a0a2e');
-
   ctx.beginPath();
   ctx.arc(center, center, hubRadius, 0, 2 * Math.PI);
-  ctx.fillStyle = hubGrad;
+  ctx.fillStyle = cachedHubGrad!;
   ctx.fill();
 
   // Neon purple ring around hub
@@ -143,16 +171,12 @@ export function drawWheel(
   const pointerH = 28;
   const pointerY = 4;
 
-  const pGrad = ctx.createLinearGradient(center, pointerY, center, pointerY + pointerH);
-  pGrad.addColorStop(0, '#ff007f');
-  pGrad.addColorStop(1, '#bc13fe');
-
   ctx.beginPath();
   ctx.moveTo(center - pointerW, pointerY);
   ctx.lineTo(center + pointerW, pointerY);
   ctx.lineTo(center, pointerY + pointerH);
   ctx.closePath();
-  ctx.fillStyle = pGrad;
+  ctx.fillStyle = cachedPointerGrad!;
   ctx.fill();
 
   // Thin bright edge

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Howl } from 'howler';
-import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface SongPlayerProps {
   previewUrl: string | null;
@@ -55,13 +55,11 @@ export default function SongPlayer({ previewUrl, albumArt, autoPlay = true, show
   return (
     <div className="flex flex-col items-center gap-4">
       {albumArt && (
-        <motion.div
-          animate={playing ? { scale: [1, 1.02, 1] } : {}}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="w-48 h-48 rounded-2xl overflow-hidden shadow-2xl"
+        <div
+          className={`relative w-48 h-48 rounded-2xl overflow-hidden shadow-2xl ${playing ? 'album-art-pulse' : ''}`}
         >
-          <img src={albumArt} alt="Album art" className="w-full h-full object-cover" />
-        </motion.div>
+          <Image src={albumArt} alt="Album art" fill sizes="192px" className="object-cover" unoptimized />
+        </div>
       )}
       {showControls && (
         <button

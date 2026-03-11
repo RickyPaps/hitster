@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion } from 'framer-motion';
 import { getSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
@@ -20,6 +20,24 @@ const DECADE_OPTIONS = [
   { label: "10's", value: '10' },
   { label: "20's", value: '20' },
 ];
+
+const SubmitButton = memo(function SubmitButton({ disabled, hasValue }: { disabled: boolean; hasValue: boolean }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.92, rotate: -1 }}
+      whileHover={{ scale: 1.02 }}
+      type="submit"
+      disabled={disabled}
+      className={`w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer ${hasValue ? 'submit-glow-pulse' : ''}`}
+      style={{
+        background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
+        boxShadow: !hasValue ? '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' : undefined,
+      }}
+    >
+      Submit Guess
+    </motion.button>
+  );
+});
 
 export default function GuessInput({ category, disabled, onGuessSubmitted }: GuessInputProps) {
   const [guess, setGuess] = useState('');
@@ -67,24 +85,7 @@ export default function GuessInput({ category, disabled, onGuessSubmitted }: Gue
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <motion.button
-          whileTap={{ scale: 0.92, rotate: -1 }}
-          whileHover={{ scale: 1.02 }}
-          type="submit"
-          disabled={disabled || !guess}
-          className="w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer"
-          animate={
-            guess
-              ? { boxShadow: ['0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)', '0 0 25px rgba(217,70,239,0.7), 0 0 45px rgba(139,92,246,0.4)', '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)'] }
-              : { boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' }
-          }
-          transition={guess ? { repeat: Infinity, duration: 1.5 } : {}}
-          style={{
-            background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
-          }}
-        >
-          Submit Guess
-        </motion.button>
+        <SubmitButton disabled={disabled || !guess} hasValue={!!guess} />
       </form>
     );
   }
@@ -112,24 +113,7 @@ export default function GuessInput({ category, disabled, onGuessSubmitted }: Gue
           boxShadow: '0 0 8px rgba(217, 70, 239, 0.1)',
         }}
       />
-      <motion.button
-        whileTap={{ scale: 0.92, rotate: -1 }}
-        whileHover={{ scale: 1.02 }}
-        type="submit"
-        disabled={disabled || !guess.trim()}
-        className="w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer"
-        animate={
-          guess.trim()
-            ? { boxShadow: ['0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)', '0 0 25px rgba(217,70,239,0.7), 0 0 45px rgba(139,92,246,0.4)', '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)'] }
-          : { boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' }
-        }
-        transition={guess.trim() ? { repeat: Infinity, duration: 1.5 } : {}}
-        style={{
-          background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
-        }}
-      >
-        Submit Guess
-      </motion.button>
+      <SubmitButton disabled={disabled || !guess.trim()} hasValue={!!guess.trim()} />
     </form>
   );
 }

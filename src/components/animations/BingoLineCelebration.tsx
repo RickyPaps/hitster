@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfettiBurst from './ConfettiBurst';
 
@@ -12,7 +12,7 @@ interface BingoLineCelebrationProps {
 
 const GOLD_COLORS = ['#EAB308', '#d946ef', '#fbbf24', '#f59e0b', '#ff3355', '#bc13fe'];
 
-export default function BingoLineCelebration({ active, lineCount, onComplete }: BingoLineCelebrationProps) {
+export default memo(function BingoLineCelebration({ active, lineCount, onComplete }: BingoLineCelebrationProps) {
   useEffect(() => {
     if (active) {
       const timer = setTimeout(onComplete, 2000);
@@ -51,18 +51,17 @@ export default function BingoLineCelebration({ active, lineCount, onComplete }: 
               boxShadow: '0 0 40px rgba(234,179,8,0.5), 0 0 80px rgba(217,70,239,0.3)',
             }}
           >
-            <motion.h2
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ repeat: Infinity, duration: 0.8 }}
+            <h2
               className="text-3xl font-black uppercase tracking-widest"
               style={{
                 fontFamily: 'var(--font-display)',
                 color: '#fff',
                 textShadow: '0 0 20px rgba(255,255,255,0.5)',
+                animation: 'celebration-text-pulse 0.8s ease-in-out infinite',
               }}
             >
               {lineCount > 1 ? 'DOUBLE LINE!' : 'BINGO LINE!'}
-            </motion.h2>
+            </h2>
           </motion.div>
 
           {/* Confetti */}
@@ -73,4 +72,4 @@ export default function BingoLineCelebration({ active, lineCount, onComplete }: 
       )}
     </AnimatePresence>
   );
-}
+});

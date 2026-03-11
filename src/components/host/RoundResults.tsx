@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import type { GuessResult, Track, Player } from '@/types/game';
 import { WHEEL_SEGMENTS } from '@/types/game';
 import CategoryBadge from '@/components/shared/CategoryBadge';
@@ -87,7 +88,7 @@ export default function RoundResults({
           {/* Album Art */}
           {track.albumArt && (
             <div
-              className="shrink-0 rounded-xl overflow-hidden"
+              className="relative shrink-0 rounded-xl overflow-hidden"
               style={{
                 width: 'clamp(80px, 20vw, 120px)',
                 height: 'clamp(80px, 20vw, 120px)',
@@ -95,10 +96,13 @@ export default function RoundResults({
                 boxShadow: '0 0 25px rgba(188, 19, 254, 0.4)',
               }}
             >
-              <img
+              <Image
                 src={track.albumArt}
                 alt={track.name}
-                className="w-full h-full object-cover"
+                fill
+                sizes="120px"
+                className="object-cover"
+                unoptimized
               />
             </div>
           )}
