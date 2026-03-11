@@ -92,6 +92,7 @@ export interface MovieTrack extends MediaBase {
   title: string;
   director: string;
   genre: string;
+  trailerVideoId?: string;  // YouTube video ID for trailer clip
 }
 
 export type MediaItem = MusicTrack | MovieTrack;

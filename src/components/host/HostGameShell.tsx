@@ -14,6 +14,7 @@ import RoundResults from './RoundResults';
 import DrinkingPrompt from './DrinkingPrompt';
 
 const SongPlayer = dynamic(() => import('./SongPlayer'), { ssr: false });
+const TrailerPlayer = dynamic(() => import('./TrailerPlayer'), { ssr: false });
 
 interface HostGameShellProps {
   roomCode: string;
@@ -289,8 +290,14 @@ function CenterContent({
           </div>
         </div>
 
-        {/* Song player below the card */}
-        {currentTrack?.previewUrl ? (
+        {/* Media player below the card — trailer for movies, audio for music */}
+        {currentTrack && isMovieTrack(currentTrack) && currentTrack.trailerVideoId ? (
+          <TrailerPlayer
+            videoId={currentTrack.trailerVideoId}
+            startAt={Math.floor(Math.random() * 30)}
+            clipDuration={30}
+          />
+        ) : currentTrack?.previewUrl ? (
           <SongPlayer
             previewUrl={currentTrack.previewUrl}
             albumArt={currentTrack.albumArt}
@@ -327,12 +334,14 @@ function CenterContent({
           isMovie={currentTrack?.mediaType === 'movie'}
           onContinue={onNextRound}
         />
-        {currentCategory === 'rock-off' && currentTrack?.previewUrl && (
+        {currentCategory === 'rock-off' && currentTrack && isMovieTrack(currentTrack) && currentTrack.trailerVideoId ? (
+          <TrailerPlayer videoId={currentTrack.trailerVideoId} clipDuration={30} />
+        ) : currentCategory === 'rock-off' && currentTrack?.previewUrl ? (
           <SongPlayer
             previewUrl={currentTrack.previewUrl}
             albumArt={currentTrack.albumArt}
           />
-        )}
+        ) : null}
         {currentCategory === 'rock-off' && roundGuesses.length > 0 && (
           <RockOffResults guesses={roundGuesses} />
         )}

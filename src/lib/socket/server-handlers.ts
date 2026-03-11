@@ -6,6 +6,7 @@ import { createGameEngine } from '../game/engine';
 import { clearRoomTimer, startRoundTimer } from '../game/timer';
 import { checkAnswer } from '../game/matching';
 import type { LobbySettings, Track, RoomState, GuessResult, SurpriseEventType, Player } from '@/types/game';
+import { isMovieTrack } from '@/types/game';
 import { isGuessCategory, isPartyCategory } from '../game/wheel';
 
 const ROOM_CODE_RE = /^[A-Z2-9]{4}$/;
@@ -237,10 +238,19 @@ function serializeRoom(room: RoomState) {
     currentSpinnerName: room.currentSpinnerName,
     surpriseModifiers: room.surpriseModifiers,
     // Don't send currentTrack details to players during PLAYING (they shouldn't see the answer)
+    // trailerVideoId is safe to include — it's an opaque YouTube ID, not a spoiler
     currentTrack: room.phase === 'ROUND_RESULTS' || room.phase === 'GAME_OVER'
       ? room.currentTrack
       : room.currentTrack
-        ? { id: room.currentTrack.id, previewUrl: room.currentTrack.previewUrl, mediaType: room.currentTrack.mediaType, albumArt: '' }
+        ? {
+            id: room.currentTrack.id,
+            previewUrl: room.currentTrack.previewUrl,
+            mediaType: room.currentTrack.mediaType,
+            albumArt: '',
+            ...(isMovieTrack(room.currentTrack) && room.currentTrack.trailerVideoId
+              ? { trailerVideoId: room.currentTrack.trailerVideoId }
+              : {}),
+          }
         : null,
   };
 }

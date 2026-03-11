@@ -15,6 +15,7 @@ import SurpriseEventOverlay from '@/components/host/SurpriseEventOverlay';
 import curatedTracks from '@/data/curated-tracks.json';
 import curatedMovies from '@/data/curated-movies.json';
 import type { Track, TrackHistoryEntry, SurpriseEventType, MusicTrack, MovieTrack, MediaType } from '@/types/game';
+import { isMovieTrack } from '@/types/game';
 import { useAudio } from '@/hooks/useAudio';
 
 export default function HostPageContent() {
@@ -172,6 +173,35 @@ export default function HostPageContent() {
         }
       } catch (e) {
         console.error('Failed to fetch preview URLs:', e);
+      }
+    }
+
+    // Fetch trailer video IDs for movies that don't have one yet
+    const moviesNeedingTrailer = gameTracks.filter(
+      (t): t is MovieTrack => isMovieTrack(t) && !t.trailerVideoId
+    );
+    if (moviesNeedingTrailer.length > 0) {
+      try {
+        const res = await fetch('/api/tmdb/trailers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            movies: moviesNeedingTrailer.map((m) => ({ title: m.title, year: m.year })),
+          }),
+        });
+        if (res.ok) {
+          const { trailers } = await res.json() as { trailers: Record<string, string> };
+          for (const track of gameTracks) {
+            if (isMovieTrack(track) && !track.trailerVideoId) {
+              const key = `${track.title}|${track.year}`;
+              if (trailers[key]) {
+                track.trailerVideoId = trailers[key];
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch trailer IDs:', e);
       }
     }
 
