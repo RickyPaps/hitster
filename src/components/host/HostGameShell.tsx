@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry } from '@/types/game';
-import { WHEEL_SEGMENTS } from '@/types/game';
+import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry, MediaType } from '@/types/game';
+import { ALL_WHEEL_SEGMENTS, getWheelSegments, isMovieTrack } from '@/types/game';
 import HostTopNav from './HostTopNav';
 import HostBottomBar from './HostBottomBar';
 import HostLeftSidebar from './HostLeftSidebar';
@@ -12,8 +12,10 @@ import MobileActionBar from './MobileActionBar';
 import WheelSpinner from './WheelSpinner';
 import RoundResults from './RoundResults';
 import DrinkingPrompt from './DrinkingPrompt';
+import RoundAnnouncer from '@/components/animations/RoundAnnouncer';
 
 const SongPlayer = dynamic(() => import('./SongPlayer'), { ssr: false });
+const TrailerPlayer = dynamic(() => import('./TrailerPlayer'), { ssr: false });
 
 interface HostGameShellProps {
   roomCode: string;
@@ -31,6 +33,7 @@ interface HostGameShellProps {
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
+  wheelMediaType?: MediaType;
   volume: number;
   muted: boolean;
   onSpin: () => void;
@@ -45,12 +48,24 @@ export default function HostGameShell(props: HostGameShellProps) {
   const {
     roomCode, phase, roundNumber, players, currentTrack, currentCategory,
     roundGuesses, timerSeconds, maxTimer, winCondition, currentSpinnerName,
-    trackHistory, wheelSpinning, wheelResultIndex, swipeVelocity,
+    trackHistory, wheelSpinning, wheelResultIndex, swipeVelocity, wheelMediaType,
     volume, muted,
     onSpin, onSpinComplete, onNextRound, onEndSession, onVolumeChange, onMuteToggle,
   } = props;
 
   const [showMobileLeaderboard, setShowMobileLeaderboard] = useState(false);
+  const [showRoundAnnounce, setShowRoundAnnounce] = useState(false);
+  const prevPhaseRef = useRef<GamePhase | null>(null);
+
+  // Trigger round announcer on phase transition to PLAYING
+  useEffect(() => {
+    if (phase === 'PLAYING' && prevPhaseRef.current && prevPhaseRef.current !== 'PLAYING') {
+      setShowRoundAnnounce(true);
+      const t = setTimeout(() => setShowRoundAnnounce(false), 1500);
+      return () => clearTimeout(t);
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
 
   return (
     <div className="host-game-grid">
@@ -117,6 +132,7 @@ export default function HostGameShell(props: HostGameShellProps) {
             wheelSpinning={wheelSpinning}
             wheelResultIndex={wheelResultIndex}
             swipeVelocity={swipeVelocity}
+            wheelMediaType={wheelMediaType}
             onSpinComplete={onSpinComplete}
             onNextRound={onNextRound}
           />
@@ -168,6 +184,9 @@ export default function HostGameShell(props: HostGameShellProps) {
         onVolumeChange={onVolumeChange}
         onMuteToggle={onMuteToggle}
       />
+
+      {/* Round transition announcer */}
+      <RoundAnnouncer roundNumber={roundNumber} trigger={showRoundAnnounce} />
     </div>
   );
 }
@@ -184,13 +203,14 @@ interface CenterContentProps {
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
+  wheelMediaType?: MediaType;
   onSpinComplete: () => void;
   onNextRound: () => void;
 }
 
 function CenterContent({
   phase, currentTrack, currentCategory, roundGuesses, players, roundNumber,
-  currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity,
+  currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity, wheelMediaType,
   onSpinComplete, onNextRound,
 }: CenterContentProps) {
   if (phase === 'SPINNING') {
@@ -212,6 +232,7 @@ function CenterContent({
           isSpinning={wheelSpinning}
           resultIndex={wheelResultIndex}
           swipeVelocity={swipeVelocity}
+          segments={wheelMediaType ? getWheelSegments(wheelMediaType) : undefined}
         />
 
         {/* Call to action below wheel */}
@@ -240,7 +261,7 @@ function CenterContent({
 
   if (phase === 'PLAYING') {
     const categoryLabel = currentCategory
-      ? WHEEL_SEGMENTS.find((s) => s.category === currentCategory)?.label ?? currentCategory
+      ? ALL_WHEEL_SEGMENTS.find((s) => s.category === currentCategory)?.label ?? currentCategory
       : 'UNKNOWN';
 
     return (
@@ -266,11 +287,14 @@ function CenterContent({
             </h1>
 
             <p className="text-gray-300 text-lg font-medium max-w-md mb-2">
-              Listen closely to the track and identify its {
+              {currentTrack && isMovieTrack(currentTrack) ? 'Listen to the soundtrack' : 'Listen closely to the track'} and identify its {
                 currentCategory === 'year' || currentCategory === 'year-approx' ? 'release date'
                 : currentCategory === 'artist' ? 'artist'
                 : currentCategory === 'title' ? 'title'
                 : currentCategory === 'album' ? 'album'
+                : currentCategory === 'director' ? 'director'
+                : currentCategory === 'movie-title' ? 'movie title'
+                : currentCategory === 'genre' ? 'genre'
                 : currentCategory === 'decade' ? 'decade'
                 : 'answer'
               }.
@@ -282,8 +306,14 @@ function CenterContent({
           </div>
         </div>
 
-        {/* Song player below the card */}
-        {currentTrack?.previewUrl ? (
+        {/* Media player below the card — trailer for movies, audio for music */}
+        {currentTrack && isMovieTrack(currentTrack) && currentTrack.trailerVideoId ? (
+          <TrailerPlayer
+            videoId={currentTrack.trailerVideoId}
+            startAt={Math.floor(Math.random() * 30)}
+            clipDuration={30}
+          />
+        ) : currentTrack?.previewUrl ? (
           <SongPlayer
             previewUrl={currentTrack.previewUrl}
             albumArt={currentTrack.albumArt}
@@ -292,7 +322,7 @@ function CenterContent({
           <div className="text-center p-6 rounded-xl" style={{ background: 'rgba(75, 32, 56, 0.3)', border: '1px solid rgba(0, 242, 255, 0.2)' }}>
             <p className="text-4xl mb-3">&#9835;</p>
             <p className="font-bold text-lg text-white">No audio available</p>
-            <p className="text-sm mt-1 text-gray-400">Play the song from your own device!</p>
+            <p className="text-sm mt-1 text-gray-400">Play the {currentTrack && isMovieTrack(currentTrack) ? 'soundtrack' : 'song'} from your own device!</p>
           </div>
         )}
       </div>
@@ -317,14 +347,17 @@ function CenterContent({
       <div className="flex flex-col items-center gap-6 w-full max-w-lg">
         <DrinkingPrompt
           type={currentCategory as 'everybody-drinks' | 'rock-off'}
+          isMovie={currentTrack?.mediaType === 'movie'}
           onContinue={onNextRound}
         />
-        {currentCategory === 'rock-off' && currentTrack?.previewUrl && (
+        {currentCategory === 'rock-off' && currentTrack && isMovieTrack(currentTrack) && currentTrack.trailerVideoId ? (
+          <TrailerPlayer videoId={currentTrack.trailerVideoId} clipDuration={30} />
+        ) : currentCategory === 'rock-off' && currentTrack?.previewUrl ? (
           <SongPlayer
             previewUrl={currentTrack.previewUrl}
             albumArt={currentTrack.albumArt}
           />
-        )}
+        ) : null}
         {currentCategory === 'rock-off' && roundGuesses.length > 0 && (
           <RockOffResults guesses={roundGuesses} />
         )}

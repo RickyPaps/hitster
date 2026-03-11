@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getSocket, disconnectSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import { useGameStore } from '@/stores/gameStore';
+import { useAudio } from '@/hooks/useAudio';
 import type { LobbySettings } from '@/types/game';
 
 interface HostLobbyProps {
@@ -28,6 +29,16 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
   const router = useRouter();
   const { roomCode, players, settings } = useGameStore();
   const [localSettings, setLocalSettings] = useState<LobbySettings>(settings);
+  const { playSound } = useAudio();
+  const prevPlayerCountRef = useRef(players.length);
+
+  // Play join chime when a new player joins
+  useEffect(() => {
+    if (players.length > prevPlayerCountRef.current) {
+      playSound('playerJoin');
+    }
+    prevPlayerCountRef.current = players.length;
+  }, [players.length, playSound]);
 
   const handleBack = () => {
     disconnectSocket();
@@ -68,7 +79,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             Hitster
           </h1>
           <h2 className="text-lg md:text-xl font-bold text-gray-300 mb-6">
-            Music Bingo Party Game
+            {localSettings.contentMode === 'movie' ? 'Movie' : localSettings.contentMode === 'mixed' ? 'Mixed' : 'Music'} Bingo Party Game
           </h2>
 
           {/* Lobby code badge */}
@@ -209,10 +220,32 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   </div>
                 </div>
 
+                {/* Content Mode */}
+                <div>
+                  <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
+                    Content
+                  </label>
+                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
+                    {(['music', 'movie', 'mixed'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => updateSetting('contentMode', mode)}
+                        className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                          localSettings.contentMode === mode
+                            ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
+                            : 'hover:bg-fuchsia-500/10 text-gray-300'
+                        }`}
+                      >
+                        {mode === 'music' ? 'Music' : mode === 'movie' ? 'Movies' : 'Mixed'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Music Source */}
                 <div>
                   <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
-                    Music Source
+                    {localSettings.contentMode === 'movie' ? 'Movie Source' : 'Music Source'}
                   </label>
                   <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
                     <button
@@ -298,7 +331,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             {loading ? (
               <span className="flex items-center justify-center gap-3">
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Loading Songs...
+                {localSettings.contentMode === 'movie' ? 'Loading Movies...' : localSettings.contentMode === 'mixed' ? 'Loading Content...' : 'Loading Songs...'}
               </span>
             ) : (
               'Start Game'

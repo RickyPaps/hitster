@@ -6,6 +6,7 @@ import { createGameEngine } from '../game/engine';
 import { clearRoomTimer, startRoundTimer } from '../game/timer';
 import { checkAnswer } from '../game/matching';
 import type { LobbySettings, Track, RoomState, GuessResult, SurpriseEventType, Player } from '@/types/game';
+import { isMovieTrack } from '@/types/game';
 import { isGuessCategory, isPartyCategory } from '../game/wheel';
 
 const ROOM_CODE_RE = /^[A-Z2-9]{4}$/;
@@ -237,10 +238,19 @@ function serializeRoom(room: RoomState) {
     currentSpinnerName: room.currentSpinnerName,
     surpriseModifiers: room.surpriseModifiers,
     // Don't send currentTrack details to players during PLAYING (they shouldn't see the answer)
+    // trailerVideoId is safe to include — it's an opaque YouTube ID, not a spoiler
     currentTrack: room.phase === 'ROUND_RESULTS' || room.phase === 'GAME_OVER'
       ? room.currentTrack
       : room.currentTrack
-        ? { id: room.currentTrack.id, previewUrl: room.currentTrack.previewUrl }
+        ? {
+            id: room.currentTrack.id,
+            previewUrl: room.currentTrack.previewUrl,
+            mediaType: room.currentTrack.mediaType,
+            albumArt: '',
+            ...(isMovieTrack(room.currentTrack) && room.currentTrack.trailerVideoId
+              ? { trailerVideoId: room.currentTrack.trailerVideoId }
+              : {}),
+          }
         : null,
   };
 }
@@ -662,6 +672,7 @@ export function registerSocketHandlers(io: Server) {
       socket.emit(SOCKET_EVENTS.GAME_WHEEL_RESULT, {
         category: result.category,
         segmentIndex: result.segmentIndex,
+        mediaType: result.mediaType,
       });
     });
 
@@ -693,6 +704,7 @@ export function registerSocketHandlers(io: Server) {
       const resultPayload = {
         category: room.pendingSpinResult.category,
         segmentIndex: room.pendingSpinResult.segmentIndex,
+        mediaType: room.pendingSpinResult.mediaType,
         swipeVelocity,
       };
 
@@ -731,7 +743,9 @@ export function registerSocketHandlers(io: Server) {
         const player = room.players.find((p) => p.id === socket.id);
         if (!player || !room.currentTrack) return;
 
-        const { correct, similarity } = checkAnswer('artist', guess, room.currentTrack);
+        // Rock Off: for music, guess the artist; for movies, guess the movie title
+        const rockOffCategory = room.currentTrack.mediaType === 'movie' ? 'movie-title' : 'artist';
+        const { correct, similarity } = checkAnswer(rockOffCategory, guess, room.currentTrack);
         const result: GuessResult = {
           playerId: socket.id,
           playerName: player.name,

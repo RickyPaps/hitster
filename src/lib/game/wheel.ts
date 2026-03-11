@@ -1,12 +1,16 @@
-import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
+import { WHEEL_SEGMENTS, getWheelSegments, type WheelSegment, type MediaType } from '@/types/game';
 
-export function spinWheel(): { segment: WheelSegment; index: number } {
-  const index = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
-  return { segment: WHEEL_SEGMENTS[index], index };
+export function spinWheel(mediaType?: MediaType): { segment: WheelSegment; index: number; mediaType?: MediaType } {
+  const segments = mediaType ? getWheelSegments(mediaType) : WHEEL_SEGMENTS;
+  const index = Math.floor(Math.random() * segments.length);
+  return { segment: segments[index], index, mediaType };
 }
 
 export function isGuessCategory(category: string): boolean {
-  return ['year', 'artist', 'title', 'year-approx', 'album', 'decade'].includes(category);
+  return [
+    'year', 'artist', 'title', 'year-approx', 'album', 'decade',
+    'director', 'movie-title', 'genre',
+  ].includes(category);
 }
 
 export function isPartyCategory(category: string): boolean {

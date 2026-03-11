@@ -1,7 +1,7 @@
 'use client';
 
 import type { GamePhase, TrackHistoryEntry } from '@/types/game';
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { ALL_WHEEL_SEGMENTS } from '@/types/game';
 
 interface HostLeftSidebarProps {
   phase: GamePhase;
@@ -118,7 +118,7 @@ export default function HostLeftSidebar({
             <p className="text-[10px] text-gray-400 uppercase font-bold mb-3">Recent Results</p>
             <div className="space-y-2 opacity-60">
               {trackHistory.slice(0, 3).map((entry) => {
-                const segment = WHEEL_SEGMENTS.find((s) => s.category === entry.category);
+                const segment = ALL_WHEEL_SEGMENTS.find((s) => s.category === entry.category);
                 return (
                   <div
                     key={`${entry.track.id}-${entry.roundNumber}`}

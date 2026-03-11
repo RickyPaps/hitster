@@ -20,6 +20,7 @@ export function createRoom(hostId: string, settings?: Partial<LobbySettings>): R
   const defaultSettings: LobbySettings = {
     timerDuration: 20,
     winCondition: 1,
+    contentMode: 'music',
     musicSource: 'curated',
     playlistUrl: '',
     drinkOnWrongGuess: true,
@@ -80,7 +81,7 @@ export function addPlayer(roomCode: string, playerId: string, playerName: string
   const player: Player = {
     id: playerId,
     name: playerName,
-    bingoCard: generateBingoCard(),
+    bingoCard: generateBingoCard(room.settings.contentMode),
     score: 0,
     connected: true,
     completedRows: 0,
@@ -152,7 +153,7 @@ export function resetRoomToLobby(roomCode: string): RoomState | null {
     player.completedRows = 0;
     player.drinks = 0;
     player.streak = 0;
-    player.bingoCard = generateBingoCard();
+    player.bingoCard = generateBingoCard(room.settings.contentMode);
     player.milestones = {
       shield250Earned: false,
       shield250Active: false,

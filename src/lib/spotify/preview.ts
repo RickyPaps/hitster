@@ -64,6 +64,7 @@ export async function convertSpotifyTracks(spotifyTracks: SpotifyTrack[]): Promi
 
         return {
           id: st.id,
+          mediaType: 'music' as const,
           name: st.name,
           artist: st.artists?.map((a) => a.name).join(', ') || 'Unknown Artist',
           album: st.album?.name || 'Unknown Album',

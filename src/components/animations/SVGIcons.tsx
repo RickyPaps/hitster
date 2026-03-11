@@ -248,3 +248,54 @@ export function BingoDecade({ size = 32, color = '#d946ef', ...props }: IconProp
     </svg>
   );
 }
+
+// ── Leaderboard & Animation Icons ──
+
+/** Flame crown — a crown wreathed in stylized flames for #1 takeover */
+export function FlameCrown({ size = 32, color = '#EAB308', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" {...props}>
+      {/* Outer flames */}
+      <path
+        d="M8 30C6 22 10 16 14 12c-1 5 2 8 5 6-2-4 1-10 5-14 2 6 4 8 6 6 1-3 4-6 6-8 0 5 3 10 1 16 3 2 6-1 5-6 4 4 8 10 6 18"
+        fill="url(#flame-grad)"
+        opacity={0.7}
+      />
+      {/* Crown */}
+      <path
+        d="M10 36h28v4H10zM10 34l5-14 5 8 4-12 4 12 5-8 5 14z"
+        fill={color}
+      />
+      {/* Crown jewels */}
+      <circle cx="24" cy="28" r="2.5" fill="#fff" opacity={0.5} />
+      <circle cx="17" cy="30" r="1.5" fill="#ff6b00" opacity={0.7} />
+      <circle cx="31" cy="30" r="1.5" fill="#ff6b00" opacity={0.7} />
+      {/* Gradient definition */}
+      <defs>
+        <linearGradient id="flame-grad" x1="24" y1="2" x2="24" y2="36" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#fff176" />
+          <stop offset="30%" stopColor="#ffb700" />
+          <stop offset="60%" stopColor="#ff6b00" />
+          <stop offset="100%" stopColor="#ff4500" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+/** Shattered cell icon — cracked tile for block/remove effects */
+export function ShatterIcon({ size = 24, color = '#ef4444', ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      {/* Broken tile pieces */}
+      <path d="M2 2l8 3 2 7-7 2z" fill={color} opacity={0.8} />
+      <path d="M12 2l7 1-1 9-6-2z" fill={color} opacity={0.6} />
+      <path d="M5 14l7-2 3 8-8 2z" fill={color} opacity={0.7} />
+      <path d="M18 12l4 2-3 8-7-2z" fill={color} opacity={0.5} />
+      {/* Crack lines */}
+      <line x1="12" y1="2" x2="12" y2="12" stroke="#fff" strokeWidth="0.5" opacity={0.4} />
+      <line x1="2" y1="12" x2="12" y2="12" stroke="#fff" strokeWidth="0.5" opacity={0.4} />
+      <line x1="12" y1="12" x2="22" y2="22" stroke="#fff" strokeWidth="0.5" opacity={0.4} />
+    </svg>
+  );
+}

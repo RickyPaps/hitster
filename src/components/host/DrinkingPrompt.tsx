@@ -8,12 +8,13 @@ import { LightningBolt } from '@/components/animations/SVGIcons';
 
 interface DrinkingPromptProps {
   type: 'everybody-drinks' | 'rock-off';
+  isMovie?: boolean;
   onContinue: () => void;
 }
 
 const GOLD_COLORS = ['#EAB308', '#fbbf24', '#f59e0b', '#d97706', '#ff3355', '#d946ef'];
 
-export default function DrinkingPrompt({ type, onContinue }: DrinkingPromptProps) {
+export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPromptProps) {
   const { playSound } = useAudio();
 
   // Play alert sound on mount
@@ -29,7 +30,9 @@ export default function DrinkingPrompt({ type, onContinue }: DrinkingPromptProps
     },
     'rock-off': {
       title: 'ROCK OFF!',
-      subtitle: 'Song plays — first to buzz in and name the artist assigns a drink!',
+      subtitle: isMovie
+        ? 'Soundtrack plays — first to buzz in and name the movie assigns a drink!'
+        : 'Song plays — first to buzz in and name the artist assigns a drink!',
       color: '#14B8A6',
     },
   };
