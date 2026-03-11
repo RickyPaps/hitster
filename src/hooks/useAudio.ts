@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from 'react';
 
-type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand' | 'surprise';
+type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand' | 'surprise' | 'rankUp' | 'cellBreak';
 
 let audioCtx: AudioContext | null = null;
 
@@ -260,6 +260,84 @@ export function playSpinTick() {
   }
 }
 
+function playRankUp() {
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+
+  // Triumphant ascending power chord: C4 → E4 → G4 → C5 (fast, punchy)
+  const freqs = [261.63, 329.63, 392.0, 523.25];
+  freqs.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+
+    // Add slight detuned layer for thickness
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 1.005;
+
+    const gain = ctx.createGain();
+    const start = now + i * 0.08;
+    gain.gain.setValueAtTime(0.18, start);
+    gain.gain.setValueAtTime(0.18, start + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+
+    osc.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc2.start(start);
+    osc.stop(start + 0.5);
+    osc2.stop(start + 0.5);
+  });
+}
+
+function playCellBreak() {
+  const ctx = getCtx();
+  const now = ctx.currentTime;
+
+  // Crunch noise: short burst of filtered noise + descending tone
+  const bufferSize = Math.floor(ctx.sampleRate * 0.15);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    // Crackling noise with sharp transients
+    data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.8;
+  }
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.setValueAtTime(2000, now);
+  filter.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.35, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+  noise.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(ctx.destination);
+  noise.start(now);
+
+  // Low thud
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 0.12);
+
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.3, now);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+  osc.connect(oscGain);
+  oscGain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
 const players: Record<SoundName, () => void> = {
   whoosh: playWhoosh,
   tick: playTick,
@@ -270,6 +348,8 @@ const players: Record<SoundName, () => void> = {
   bingo: playBingo,
   wheelLand: playWheelLand,
   surprise: playSurprise,
+  rankUp: playRankUp,
+  cellBreak: playCellBreak,
 };
 
 export function useAudio() {
