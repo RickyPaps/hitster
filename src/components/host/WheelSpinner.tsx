@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinAnimation, easeOutQuintic } from '@/lib/wheel/animate-spin';
 import CategoryBadge from '@/components/shared/CategoryBadge';
@@ -13,9 +13,11 @@ interface WheelSpinnerProps {
   isSpinning: boolean;
   resultIndex: number | null;
   swipeVelocity?: number;
+  segments?: WheelSegment[];
 }
 
-export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, swipeVelocity }: WheelSpinnerProps) {
+export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, swipeVelocity, segments: customSegments }: WheelSpinnerProps) {
+  const segments = customSegments ?? WHEEL_SEGMENTS;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const rotationRef = useRef(0);
@@ -32,8 +34,8 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctxRef.current = ctx;
-    drawWheel(ctx, canvas.width, 0);
-  }, []);
+    drawWheel(ctx, canvas.width, 0, segments);
+  }, [segments]);
 
   // Spin animation — draws directly to canvas without React state updates
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
     const { totalRotation, duration } = calculateSpinAnimation(resultIndex, velocity);
     const startTime = performance.now();
     const size = canvas.width;
-    const segmentCount = WHEEL_SEGMENTS.length;
+    const segmentCount = segments.length;
     const arc = (2 * Math.PI) / segmentCount;
 
     rotationRef.current = 0;
@@ -64,7 +66,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
       const currentRotation = progress >= 1 ? totalRotation : totalRotation * eased;
 
       rotationRef.current = currentRotation;
-      drawWheel(ctx, size, currentRotation);
+      drawWheel(ctx, size, currentRotation, segments);
 
       // Segment tick sound
       const normalizedRotation = ((currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
@@ -88,7 +90,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
     };
 
     // Draw initial frame at rotation 0
-    drawWheel(ctx, size, 0);
+    drawWheel(ctx, size, 0, segments);
     animationRef.current = requestAnimationFrame(animate);
 
     return () => {
@@ -129,7 +131,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
           >
-            <CategoryBadge category={WHEEL_SEGMENTS[resultIndex].category} large />
+            <CategoryBadge category={segments[resultIndex].category} large />
           </motion.div>
         )}
       </AnimatePresence>

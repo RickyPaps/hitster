@@ -23,32 +23,42 @@ interface BingoCardProps {
   compact?: boolean;
 }
 
-const CATEGORY_LABELS: Record<GuessCategory, string> = {
+const CATEGORY_LABELS: Partial<Record<GuessCategory, string>> = {
   year: 'YEAR',
   'year-approx': 'YEAR \u00B11',
   artist: 'ARTIST',
   title: 'SONG TITLE',
   album: 'ALBUM',
   decade: 'DECADE',
+  director: 'DIRECTOR',
+  'movie-title': 'MOVIE',
+  genre: 'GENRE',
 };
 
-const CATEGORY_SVG: Record<GuessCategory, ComponentType<BingoIconProps>> = {
+const CATEGORY_SVG: Partial<Record<GuessCategory, ComponentType<BingoIconProps>>> = {
   year: BingoCalendar,
   'year-approx': BingoYearApprox,
   artist: BingoArtist,
   title: BingoSongTitle,
   album: BingoAlbum,
   decade: BingoDecade,
+  // Movie categories reuse closest icons
+  director: BingoArtist,
+  'movie-title': BingoSongTitle,
+  genre: BingoAlbum,
 };
 
 // Compact mode still uses emoji for tiny cards
-const CATEGORY_ICONS_COMPACT: Record<GuessCategory, string> = {
+const CATEGORY_ICONS_COMPACT: Partial<Record<GuessCategory, string>> = {
   year: '\u{1F4C5}',
   'year-approx': '\u{1F570}',
   artist: '\u{1F3A4}',
   title: '\u{1F3B5}',
   album: '\u{1F4BF}',
   decade: '\u{1F4C6}',
+  director: '\u{1F3AC}',
+  'movie-title': '\u{1F3AC}',
+  genre: '\u{1F3AD}',
 };
 
 export default function BingoCard({ cells, compact }: BingoCardProps) {
@@ -258,16 +268,20 @@ export default function BingoCard({ cells, compact }: BingoCardProps) {
 
             {/* Icon */}
             <div className="flex flex-col items-center justify-center gap-1.5">
-              <SvgIcon
-                size={30}
-                color={iconColor}
-                style={{
-                  filter: cell.marked
-                    ? 'drop-shadow(0 0 8px rgba(217, 70, 239, 0.7))'
-                    : 'none',
-                  transition: 'filter 0.3s',
-                }}
-              />
+              {SvgIcon ? (
+                <SvgIcon
+                  size={30}
+                  color={iconColor}
+                  style={{
+                    filter: cell.marked
+                      ? 'drop-shadow(0 0 8px rgba(217, 70, 239, 0.7))'
+                      : 'none',
+                    transition: 'filter 0.3s',
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: 24, color: iconColor }}>{CATEGORY_ICONS_COMPACT[cell.category] ?? '?'}</span>
+              )}
               <span
                 className="text-[9px] font-black tracking-[0.15em] uppercase leading-none"
                 style={{

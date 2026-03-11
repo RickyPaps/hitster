@@ -24,14 +24,20 @@ const DECADE_OPTIONS = [
 export default function GuessInput({ category, disabled, onGuessSubmitted }: GuessInputProps) {
   const [guess, setGuess] = useState('');
 
-  const placeholder = {
+  const placeholder: Record<string, string> = {
+    // Music categories
     year: 'Enter the year (e.g. 2005)',
     artist: 'Who is the artist?',
     title: 'What is the song title?',
     'year-approx': 'Enter the year (e.g. 2005)',
     album: 'What album is this from?',
     decade: '',
-  }[category] || 'Enter your guess...';
+    // Movie categories
+    director: 'Who directed this movie?',
+    'movie-title': 'What is the movie title?',
+    genre: 'What genre is this movie?',
+  };
+  const placeholderText = placeholder[category] || 'Enter your guess...';
 
   const isYear = category === 'year' || category === 'year-approx';
   const isDecade = category === 'decade';
@@ -101,7 +107,7 @@ export default function GuessInput({ category, disabled, onGuessSubmitted }: Gue
           // Ensure input is visible above the keyboard overlay
           setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
         }}
-        placeholder={placeholder}
+        placeholder={placeholderText}
         disabled={disabled}
         autoFocus
         className="w-full py-3.5 px-5 rounded-xl text-center text-lg font-medium disabled:opacity-50 neon-input"

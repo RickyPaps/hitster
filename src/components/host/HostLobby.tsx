@@ -209,10 +209,32 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   </div>
                 </div>
 
+                {/* Content Mode */}
+                <div>
+                  <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
+                    Content
+                  </label>
+                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
+                    {(['music', 'movie', 'mixed'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => updateSetting('contentMode', mode)}
+                        className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                          localSettings.contentMode === mode
+                            ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
+                            : 'hover:bg-fuchsia-500/10 text-gray-300'
+                        }`}
+                      >
+                        {mode === 'music' ? 'Music' : mode === 'movie' ? 'Movies' : 'Mixed'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Music Source */}
                 <div>
                   <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
-                    Music Source
+                    {localSettings.contentMode === 'movie' ? 'Movie Source' : 'Music Source'}
                   </label>
                   <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
                     <button

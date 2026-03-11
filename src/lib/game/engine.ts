@@ -28,7 +28,16 @@ export function createGameEngine(room: RoomState): GameEngine {
     },
 
     doSpin() {
-      const { segment, index } = spinWheel();
+      // Determine media type for wheel segments based on content mode
+      // In mixed mode, use the current track's media type if available, otherwise default to music
+      let mediaType: import('@/types/game').MediaType | undefined;
+      const mode = room.settings.contentMode;
+      if (mode === 'music' || mode === 'movie') {
+        mediaType = mode;
+      } else if (mode === 'mixed' && room.currentTrack?.mediaType) {
+        mediaType = room.currentTrack.mediaType;
+      }
+      const { segment, index } = spinWheel(mediaType);
       room.currentCategory = segment.category;
       // Phase stays SPINNING — client emits HOST_WHEEL_DONE after animation completes
       return { category: segment.category, segmentIndex: index };

@@ -13,7 +13,8 @@ import WinnerScreen from '@/components/host/WinnerScreen';
 import Scoreboard from '@/components/host/Scoreboard';
 import SurpriseEventOverlay from '@/components/host/SurpriseEventOverlay';
 import curatedTracks from '@/data/curated-tracks.json';
-import type { Track, TrackHistoryEntry, SurpriseEventType } from '@/types/game';
+import curatedMovies from '@/data/curated-movies.json';
+import type { Track, TrackHistoryEntry, SurpriseEventType, MusicTrack, MovieTrack } from '@/types/game';
 import { useAudio } from '@/hooks/useAudio';
 
 export default function HostPageContent() {
@@ -104,18 +105,42 @@ export default function HostPageContent() {
   }, [phase]);
 
   const fetchTracks = async (): Promise<Track[]> => {
-    if (settings.musicSource === 'playlist' && settings.playlistUrl) {
-      try {
-        const res = await fetch(`/api/spotify/playlist?url=${encodeURIComponent(settings.playlistUrl)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.tracks && data.tracks.length > 0) return data.tracks;
+    const contentMode = settings.contentMode ?? 'music';
+
+    // Fetch music tracks (from playlist or curated)
+    const fetchMusicTracks = async (): Promise<Track[]> => {
+      if (settings.musicSource === 'playlist' && settings.playlistUrl) {
+        try {
+          const res = await fetch(`/api/spotify/playlist?url=${encodeURIComponent(settings.playlistUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.tracks && data.tracks.length > 0) {
+              // Ensure mediaType is set on playlist tracks
+              return data.tracks.map((t: any) => ({ ...t, mediaType: 'music' as const }));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch playlist:', e);
         }
-      } catch (e) {
-        console.error('Failed to fetch playlist:', e);
       }
+      // Default: curated music tracks (add mediaType if missing)
+      return (curatedTracks as any[]).map((t) => ({ ...t, mediaType: 'music' as const })) as MusicTrack[];
+    };
+
+    // Fetch movie tracks (curated for now)
+    const fetchMovieTracks = (): Track[] => {
+      return curatedMovies as MovieTrack[];
+    };
+
+    if (contentMode === 'music') {
+      return fetchMusicTracks();
     }
-    return curatedTracks as Track[];
+    if (contentMode === 'movie') {
+      return fetchMovieTracks();
+    }
+    // Mixed: combine both sets
+    const [music, movies] = await Promise.all([fetchMusicTracks(), Promise.resolve(fetchMovieTracks())]);
+    return [...music, ...movies];
   };
 
   const handleStartGame = async () => {

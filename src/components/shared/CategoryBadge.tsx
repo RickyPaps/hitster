@@ -1,6 +1,6 @@
 'use client';
 
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { ALL_WHEEL_SEGMENTS } from '@/types/game';
 
 interface CategoryBadgeProps {
   category: string;
@@ -8,7 +8,7 @@ interface CategoryBadgeProps {
 }
 
 export default function CategoryBadge({ category, large }: CategoryBadgeProps) {
-  const segment = WHEEL_SEGMENTS.find((s) => s.category === category);
+  const segment = ALL_WHEEL_SEGMENTS.find((s) => s.category === category);
   if (!segment) return null;
 
   return (

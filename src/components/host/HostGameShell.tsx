@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry } from '@/types/game';
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { ALL_WHEEL_SEGMENTS } from '@/types/game';
 import HostTopNav from './HostTopNav';
 import HostBottomBar from './HostBottomBar';
 import HostLeftSidebar from './HostLeftSidebar';
@@ -240,7 +240,7 @@ function CenterContent({
 
   if (phase === 'PLAYING') {
     const categoryLabel = currentCategory
-      ? WHEEL_SEGMENTS.find((s) => s.category === currentCategory)?.label ?? currentCategory
+      ? ALL_WHEEL_SEGMENTS.find((s) => s.category === currentCategory)?.label ?? currentCategory
       : 'UNKNOWN';
 
     return (

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinFromMomentum, easeOutQuintic } from '@/lib/wheel/animate-spin';
 import CategoryBadge from '@/components/shared/CategoryBadge';
@@ -14,6 +14,7 @@ interface PlayerWheelSpinnerProps {
   resultIndex: number | null;
   swipeVelocity: number | undefined;
   onSpinComplete: () => void;
+  segments?: WheelSegment[];
 }
 
 type SpinState = 'IDLE' | 'DRAGGING' | 'MOMENTUM' | 'SERVER_SPIN' | 'COMPLETE';
@@ -34,7 +35,9 @@ export default function PlayerWheelSpinner({
   resultIndex,
   swipeVelocity,
   onSpinComplete,
+  segments: customSegments,
 }: PlayerWheelSpinnerProps) {
+  const segments = customSegments ?? WHEEL_SEGMENTS;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const rotationRef = useRef(0);
@@ -66,16 +69,16 @@ export default function PlayerWheelSpinner({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctxRef.current = ctx;
-    drawWheel(ctx, canvas.width, 0);
-  }, []);
+    drawWheel(ctx, canvas.width, 0, segments);
+  }, [segments]);
 
   // Redraw helper
   const redraw = useCallback(() => {
     const ctx = ctxRef.current;
     const canvas = canvasRef.current;
     if (!ctx || !canvas) return;
-    drawWheel(ctx, canvas.width, rotationRef.current);
-  }, []);
+    drawWheel(ctx, canvas.width, rotationRef.current, segments);
+  }, [segments]);
 
   // Calculate touch angle relative to wheel center
   const getTouchAngle = useCallback((clientX: number, clientY: number) => {
@@ -123,7 +126,7 @@ export default function PlayerWheelSpinner({
   }, []);
 
   // --- MOMENTUM animation loop ---
-  const segmentCount = WHEEL_SEGMENTS.length;
+  const segmentCount = segments.length;
   const arc = (2 * Math.PI) / segmentCount;
 
   const runMomentum = useCallback(() => {
@@ -519,7 +522,7 @@ export default function PlayerWheelSpinner({
             exit={{ opacity: 0 }}
             className="relative z-10 mt-6 flex flex-col items-center gap-3"
           >
-            <CategoryBadge category={WHEEL_SEGMENTS[resultIndex].category} large />
+            <CategoryBadge category={segments[resultIndex].category} large />
             <p className="text-sm font-bold" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
               Watch the host screen!
             </p>

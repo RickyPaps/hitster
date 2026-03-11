@@ -74,6 +74,7 @@ const initialState = {
   settings: {
     timerDuration: 20,
     winCondition: 1,
+    contentMode: 'music',
     musicSource: 'curated',
     playlistUrl: '',
     drinkOnWrongGuess: true,

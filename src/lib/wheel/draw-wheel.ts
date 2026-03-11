@@ -1,13 +1,14 @@
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 
 export function drawWheel(
   ctx: CanvasRenderingContext2D,
   size: number,
-  currentRotation: number
+  currentRotation: number,
+  customSegments?: WheelSegment[]
 ): void {
   const center = size / 2;
   const radius = center - 12;
-  const segments = WHEEL_SEGMENTS;
+  const segments = customSegments ?? WHEEL_SEGMENTS;
   const arc = (2 * Math.PI) / segments.length;
   const fontSize = Math.max(11, size / 28);
 

@@ -1,29 +1,29 @@
-import type { BingoCell, GuessCategory } from '@/types/game';
+import type { BingoCell, GuessCategory, MediaType } from '@/types/game';
+import { getGuessCategoriesForMode } from '@/types/game';
 
-const GUESS_CATEGORIES: GuessCategory[] = ['year', 'artist', 'title', 'year-approx', 'album', 'decade'];
-
-export function generateBingoCard(): BingoCell[] {
+export function generateBingoCard(contentMode: MediaType | 'mixed' = 'music'): BingoCell[] {
   // 3x3 grid = 9 cells
   // Rules: at least 1 of each category, max 3 of any category
+  const categories = getGuessCategoriesForMode(contentMode);
   const cells: BingoCell[] = [];
-  const counts: Record<GuessCategory, number> = {
-    year: 0, artist: 0, title: 0, 'year-approx': 0, album: 0, decade: 0,
-  };
+  const counts = new Map<GuessCategory, number>();
+  for (const cat of categories) counts.set(cat, 0);
 
-  // First, ensure at least 1 of each (6 cells)
-  const guaranteed = [...GUESS_CATEGORIES];
+  // First, ensure at least 1 of each category
+  const guaranteed = [...categories];
   shuffle(guaranteed);
   for (const cat of guaranteed) {
     cells.push({ category: cat, marked: false });
-    counts[cat]++;
+    counts.set(cat, (counts.get(cat) ?? 0) + 1);
   }
 
-  // Fill remaining 3 cells randomly, respecting max 3
-  for (let i = 0; i < 3; i++) {
-    const available = GUESS_CATEGORIES.filter((c) => counts[c] < 3);
+  // Fill remaining cells randomly (up to 9), respecting max 3
+  const remaining = 9 - cells.length;
+  for (let i = 0; i < remaining; i++) {
+    const available = categories.filter((c) => (counts.get(c) ?? 0) < 3);
     const cat = available[Math.floor(Math.random() * available.length)];
     cells.push({ category: cat, marked: false });
-    counts[cat]++;
+    counts.set(cat, (counts.get(cat) ?? 0) + 1);
   }
 
   // Shuffle the full 9-cell array

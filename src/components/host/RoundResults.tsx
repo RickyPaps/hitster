@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import type { GuessResult, Track, Player } from '@/types/game';
-import { WHEEL_SEGMENTS } from '@/types/game';
+import { ALL_WHEEL_SEGMENTS, isMusicTrack, getMediaTitle, getMediaSubtitle, getMediaDetail } from '@/types/game';
 import CategoryBadge from '@/components/shared/CategoryBadge';
 
 interface RoundResultsProps {
@@ -23,8 +23,9 @@ export default function RoundResults({
   onNextRound,
 }: RoundResultsProps) {
   const categoryLabel = category
-    ? WHEEL_SEGMENTS.find((s) => s.category === category)?.label ?? category
+    ? ALL_WHEEL_SEGMENTS.find((s) => s.category === category)?.label ?? category
     : '';
+  const isMovie = track && !isMusicTrack(track);
 
   // Build player result cards: merge players with their guess data
   const playerResults = players.map((p) => {
@@ -84,7 +85,7 @@ export default function RoundResults({
             border: '1px solid rgba(188, 19, 254, 0.25)',
           }}
         >
-          {/* Album Art */}
+          {/* Album Art / Movie Poster */}
           {track.albumArt && (
             <div
               className="shrink-0 rounded-xl overflow-hidden"
@@ -97,26 +98,26 @@ export default function RoundResults({
             >
               <img
                 src={track.albumArt}
-                alt={track.name}
+                alt={getMediaTitle(track)}
                 className="w-full h-full object-cover"
               />
             </div>
           )}
 
-          {/* Track Info */}
+          {/* Track / Movie Info */}
           <div className="flex flex-col gap-2 min-w-0">
             <h2
               className="text-xl sm:text-2xl md:text-3xl font-black uppercase leading-tight text-white truncate"
               style={{ letterSpacing: '-0.01em' }}
             >
-              {track.name}
+              {getMediaTitle(track)}
             </h2>
             <p className="text-base text-gray-400 font-medium truncate">
-              {track.artist}
+              {isMovie ? 'Dir. ' : ''}{getMediaSubtitle(track)}
             </p>
-            {track.album && (
+            {getMediaDetail(track) && (
               <p className="text-sm text-gray-500 font-medium truncate italic">
-                {track.album}
+                {getMediaDetail(track)}
               </p>
             )}
             <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -128,7 +129,7 @@ export default function RoundResults({
                   color: '#e2e8f0',
                 }}
               >
-                <span style={{ fontSize: '0.75rem' }}>&#9835;</span>
+                <span style={{ fontSize: '0.75rem' }}>{isMovie ? '\u{1F3AC}' : '\u{266B}'}</span>
                 {track.year}
               </span>
               {category && <CategoryBadge category={category} />}
@@ -157,7 +158,7 @@ export default function RoundResults({
           {correctCount > 0 ? 'Correct Guesses' : 'No Correct Guesses'}
           {category && (
             <>
-              : <span style={{ color: WHEEL_SEGMENTS.find((s) => s.category === category)?.color ?? '#bc13fe' }}>
+              : <span style={{ color: ALL_WHEEL_SEGMENTS.find((s) => s.category === category)?.color ?? '#bc13fe' }}>
                 {categoryLabel} Category
               </span>
             </>

@@ -240,7 +240,7 @@ function serializeRoom(room: RoomState) {
     currentTrack: room.phase === 'ROUND_RESULTS' || room.phase === 'GAME_OVER'
       ? room.currentTrack
       : room.currentTrack
-        ? { id: room.currentTrack.id, previewUrl: room.currentTrack.previewUrl }
+        ? { id: room.currentTrack.id, previewUrl: room.currentTrack.previewUrl, mediaType: room.currentTrack.mediaType, albumArt: '' }
         : null,
   };
 }
@@ -731,7 +731,9 @@ export function registerSocketHandlers(io: Server) {
         const player = room.players.find((p) => p.id === socket.id);
         if (!player || !room.currentTrack) return;
 
-        const { correct, similarity } = checkAnswer('artist', guess, room.currentTrack);
+        // Rock Off: for music, guess the artist; for movies, guess the movie title
+        const rockOffCategory = room.currentTrack.mediaType === 'movie' ? 'movie-title' : 'artist';
+        const { correct, similarity } = checkAnswer(rockOffCategory, guess, room.currentTrack);
         const result: GuessResult = {
           playerId: socket.id,
           playerName: player.name,
