@@ -7,6 +7,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useGameStore } from '@/stores/gameStore';
 import { getSocket, disconnectSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
+import { motion, AnimatePresence } from 'framer-motion';
 import HostLobby from '@/components/host/HostLobby';
 import HostGameShell from '@/components/host/HostGameShell';
 import WinnerScreen from '@/components/host/WinnerScreen';
@@ -17,6 +18,7 @@ import curatedMovies from '@/data/curated-movies.json';
 import type { Track, TrackHistoryEntry, SurpriseEventType, MusicTrack, MovieTrack, MediaType } from '@/types/game';
 import { isMovieTrack } from '@/types/game';
 import { useAudio } from '@/hooks/useAudio';
+import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 
 export default function HostPageContent() {
   const params = useParams();
@@ -42,6 +44,9 @@ export default function HostPageContent() {
   const [muted, setMuted] = useState(false);
   const [surpriseEvent, setSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null } | null>(null);
   const { playSound } = useAudio();
+
+  // Background ambient music
+  useBackgroundMusic(phase, timerSeconds, settings.timerDuration, muted, volume);
 
   // Track the previous phase to detect transitions into ROUND_RESULTS
   const prevPhaseRef = useRef(phase);
@@ -248,6 +253,10 @@ export default function HostPageContent() {
       setSwipeVelocity(undefined);
       setWheelMediaType(undefined);
     }
+    // Clear track history when returning to lobby (Play Again)
+    if (phase === 'LOBBY') {
+      setTrackHistory([]);
+    }
   }, [phase]);
 
   // Play win fanfare when game ends with a winner
@@ -278,11 +287,6 @@ export default function HostPageContent() {
     setMuted((m) => !m);
   }, []);
 
-  // ── LOBBY: full-page view (already redesigned) ──
-  if (phase === 'LOBBY') {
-    return <HostLobby onStartGame={handleStartGame} loading={loading} />;
-  }
-
   const handlePlayAgain = () => {
     const socket = getSocket();
     socket.emit(SOCKET_EVENTS.HOST_PLAY_AGAIN);
@@ -295,94 +299,120 @@ export default function HostPageContent() {
     />
   );
 
-  // ── GAME OVER: full-page view with disco atmosphere ──
-  if (phase === 'GAME_OVER') {
-    return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-8 relative overflow-hidden">
-        {surpriseOverlay}
-        {/* Disco background */}
-        <div className="fixed inset-0 z-0 pointer-events-none" style={{ background: '#0d0216' }}>
-          <div className="disco-grid-bg absolute inset-0 opacity-20" />
-          <div
-            className="absolute rounded-full"
-            style={{
-              top: '-10%', left: '-10%', width: '40%', height: '40%',
-              background: 'rgba(188, 19, 254, 0.2)', filter: 'blur(120px)',
-            }}
-          />
-          <div
-            className="absolute rounded-full"
-            style={{
-              bottom: '-10%', right: '-10%', width: '40%', height: '40%',
-              background: 'rgba(188, 19, 254, 0.1)', filter: 'blur(120px)',
-            }}
-          />
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center w-full max-w-lg">
-          {winner ? (
-            <WinnerScreen winner={winner} players={players} onPlayAgain={handlePlayAgain} />
-          ) : (
-            <div className="text-center glass-panel-purple rounded-2xl p-8 w-full">
-              <h2
-                className="text-3xl font-bold mb-2 uppercase tracking-widest"
-                style={{ fontFamily: 'var(--font-display)', color: 'white', textShadow: '0 0 15px rgba(217, 70, 239, 0.6)' }}
-              >
-                No More Tracks!
-              </h2>
-              <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-                All available songs have been played.
-              </p>
-              <button
-                onClick={handlePlayAgain}
-                className="py-3 px-8 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
-                style={{
-                  background: 'linear-gradient(135deg, #ff007f, #bc13fe)',
-                  boxShadow: '0 0 20px rgba(255, 0, 127, 0.4)',
-                }}
-              >
-                Play Again
-              </button>
-            </div>
-          )}
-          <div className="mt-8 w-full">
-            <Scoreboard />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── IN-GAME: three-column master layout ──
   return (
-    <>
-    {surpriseOverlay}
-    <HostGameShell
-      roomCode={roomCode}
-      phase={phase}
-      roundNumber={roundNumber}
-      players={players}
-      currentTrack={currentTrack}
-      currentCategory={currentCategory}
-      roundGuesses={roundGuesses}
-      timerSeconds={timerSeconds}
-      maxTimer={settings.timerDuration}
-      winCondition={settings.winCondition}
-      currentSpinnerName={currentSpinnerName}
-      trackHistory={trackHistory}
-      wheelSpinning={wheelSpinning}
-      wheelResultIndex={wheelResultIndex}
-      swipeVelocity={swipeVelocity}
-      wheelMediaType={wheelMediaType}
-      volume={volume}
-      muted={muted}
-      onSpin={handleSpin}
-      onSpinComplete={handleSpinComplete}
-      onNextRound={handleNextRound}
-      onEndSession={handleEndSession}
-      onVolumeChange={handleVolumeChange}
-      onMuteToggle={handleMuteToggle}
-    />
-    </>
+    <AnimatePresence mode="wait">
+      {/* ── LOBBY ── */}
+      {phase === 'LOBBY' && (
+        <motion.div
+          key="lobby"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: 0.4 } }}
+          exit={{ opacity: 0, transition: { duration: 0.3 } }}
+        >
+          <HostLobby onStartGame={handleStartGame} loading={loading} />
+        </motion.div>
+      )}
+
+      {/* ── GAME OVER ── */}
+      {phase === 'GAME_OVER' && (
+        <motion.div
+          key="game-over"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }}
+          exit={{ opacity: 0, transition: { duration: 0.3 } }}
+        >
+          <div className="min-h-dvh flex flex-col items-center justify-center p-8 relative overflow-hidden">
+            {surpriseOverlay}
+            {/* Disco background */}
+            <div className="fixed inset-0 z-0 pointer-events-none" style={{ background: '#0d0216' }}>
+              <div className="disco-grid-bg absolute inset-0 opacity-20" />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  top: '-10%', left: '-10%', width: '40%', height: '40%',
+                  background: 'rgba(188, 19, 254, 0.2)', filter: 'blur(120px)',
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  bottom: '-10%', right: '-10%', width: '40%', height: '40%',
+                  background: 'rgba(188, 19, 254, 0.1)', filter: 'blur(120px)',
+                }}
+              />
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center w-full max-w-lg">
+              {winner ? (
+                <WinnerScreen winner={winner} players={players} onPlayAgain={handlePlayAgain} />
+              ) : (
+                <div className="text-center glass-panel-purple rounded-2xl p-8 w-full">
+                  <h2
+                    className="text-3xl font-bold mb-2 uppercase tracking-widest"
+                    style={{ fontFamily: 'var(--font-display)', color: 'white', textShadow: '0 0 15px rgba(217, 70, 239, 0.6)' }}
+                  >
+                    No More Tracks!
+                  </h2>
+                  <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
+                    All available songs have been played.
+                  </p>
+                  <button
+                    onClick={handlePlayAgain}
+                    className="py-3 px-8 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
+                    style={{
+                      background: 'linear-gradient(135deg, #ff007f, #bc13fe)',
+                      boxShadow: '0 0 20px rgba(255, 0, 127, 0.4)',
+                    }}
+                  >
+                    Play Again
+                  </button>
+                </div>
+              )}
+              <div className="mt-8 w-full">
+                <Scoreboard />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── IN-GAME ── */}
+      {phase !== 'LOBBY' && phase !== 'GAME_OVER' && (
+        <motion.div
+          key="in-game"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { duration: 0.3 } }}
+          exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.4, ease: 'easeIn' } }}
+        >
+          {surpriseOverlay}
+          <HostGameShell
+            roomCode={roomCode}
+            phase={phase}
+            roundNumber={roundNumber}
+            players={players}
+            currentTrack={currentTrack}
+            currentCategory={currentCategory}
+            roundGuesses={roundGuesses}
+            timerSeconds={timerSeconds}
+            maxTimer={settings.timerDuration}
+            winCondition={settings.winCondition}
+            currentSpinnerName={currentSpinnerName}
+            trackHistory={trackHistory}
+            wheelSpinning={wheelSpinning}
+            wheelResultIndex={wheelResultIndex}
+            swipeVelocity={swipeVelocity}
+            wheelMediaType={wheelMediaType}
+            volume={volume}
+            muted={muted}
+            onSpin={handleSpin}
+            onSpinComplete={handleSpinComplete}
+            onNextRound={handleNextRound}
+            onEndSession={handleEndSession}
+            onVolumeChange={handleVolumeChange}
+            onMuteToggle={handleMuteToggle}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

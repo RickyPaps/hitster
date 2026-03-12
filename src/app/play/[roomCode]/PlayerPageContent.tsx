@@ -19,8 +19,8 @@ import CategoryBadge from '@/components/shared/CategoryBadge';
 import MilestoneReward from '@/components/player/MilestoneReward';
 import StreakCounter from '@/components/animations/StreakCounter';
 import BingoLineCelebration from '@/components/animations/BingoLineCelebration';
-import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { TrophyIcon } from '@/components/animations/SVGIcons';
+import { fireSideCannons } from '@/lib/confetti';
 import { useAudio } from '@/hooks/useAudio';
 import type { MilestoneType, SurpriseEventType, MediaType } from '@/types/game';
 import { getWheelSegments } from '@/types/game';
@@ -86,6 +86,13 @@ export default function PlayerPageContent() {
 
   // Bingo cell pick state
   const [pendingPick, setPendingPick] = useState<{ eligibleIndices: number[]; category: string } | null>(null);
+
+  // Winner confetti
+  useEffect(() => {
+    if (phase === 'GAME_OVER' && winner?.name === playerName) {
+      fireSideCannons(30);
+    }
+  }, [phase, winner, playerName]);
 
   // Bingo line celebration
   const [showBingoCelebration, setShowBingoCelebration] = useState(false);
@@ -528,12 +535,6 @@ export default function PlayerPageContent() {
           <div className="absolute bottom-0 w-full h-[50%] dance-floor-grid" style={{ transform: 'perspective(600px) rotateX(55deg) scale(1.6)', transformOrigin: 'bottom' }} />
         </div>
 
-        {/* Winner confetti */}
-        {isWinner && (
-          <div className="fixed inset-0 pointer-events-none z-20 flex items-center justify-center">
-            <ConfettiBurst active={true} particleCount={30} duration={2} />
-          </div>
-        )}
 
         <div className="relative z-10 flex flex-col items-center">
           {/* Trophy */}

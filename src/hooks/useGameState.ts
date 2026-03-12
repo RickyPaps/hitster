@@ -20,8 +20,8 @@ export function useGameState() {
       store.setRoundNumber(state.roundNumber);
       store.setRoundGuesses(state.roundGuesses);
       store.setTimerSeconds(state.timerSeconds);
-      if (state.winner) store.setWinner(state.winner);
-      if (state.currentTrack) store.setCurrentTrack(state.currentTrack);
+      store.setWinner(state.winner ?? null);
+      store.setCurrentTrack(state.currentTrack ?? null);
       store.setCurrentSpinner(state.currentSpinnerId ?? null, state.currentSpinnerName ?? null);
 
       // Update own bingo card from server state

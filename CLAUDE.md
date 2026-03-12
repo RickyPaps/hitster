@@ -37,7 +37,7 @@ LOBBY → SPINNING → PLAYING → JUDGING (lyrics only) → ROUND_RESULTS → r
                  ↘ DRINKING_SEGMENT (party categories) → repeat     → GAME_OVER
 ```
 
-All game logic lives server-side. The `GameEngine` (src/lib/game/engine.ts) operates directly on mutable `RoomState` objects stored in an in-memory `Map<string, RoomState>` (src/lib/game/room.ts). No persistence — server restart loses all games.
+All game logic lives server-side. The `GameEngine` (src/lib/game/engine.ts) operates directly on mutable `RoomState` objects stored in an in-memory `Map<string, RoomState>` (src/lib/game/room.ts). No persistence — server restart loses all games. Tracks are Fisher-Yates shuffled at game start (`shuffleTracks()` in room.ts) with preview-URL tracks first, then iterated sequentially — ensures even distribution and no perceived repetition.
 
 ### Socket.io Event Flow
 
@@ -67,7 +67,7 @@ Custom canvas-based wheel spinner. The `react-custom-roulette` library is incomp
 - `calculateSpinAnimation()` — from-zero spin for host auto-spin (velocity → spins + duration)
 - `calculateSpinFromMomentum()` — mid-motion spin for player drag interaction (current rotation/velocity → target rotation + duration)
 
-**Host wheel** (`src/components/host/WheelSpinner.tsx`) — auto-spin with random velocity, no user interaction.
+**Host wheel** (`src/components/host/WheelSpinner.tsx`) — auto-spin with random velocity, no user interaction. Multi-stage landing impact sequence (vignette → shockwave → confetti → category reveal, see Animation System section).
 
 **Player wheel** (`src/components/player/PlayerWheelSpinner.tsx`) — drag-to-spin interaction with state machine:
 ```
@@ -183,31 +183,53 @@ Duolingo-style micro-interactions and celebration animations using Framer Motion
 - `StealIcon` — grab hand (2000 pts milestone)
 - `SurpriseIcon` — surprise star (surprise events)
 
+**Confetti** (`src/lib/confetti.ts`) — imperative confetti via `canvas-confetti` library. 6 preset functions, all check `prefers-reduced-motion` and no-op if true:
+- `fireConfetti(opts?)` — standard neon burst (25 particles)
+- `fireSideCannons(count)` — left+right angled cannons (winner/celebration)
+- `fireFireworks(bursts)` — timed bursts at random positions
+- `fireGoldConfetti(opts?)` — gold/amber palette (drinking segments)
+- `fireStars(origin?)` — star-shaped particles (bingo)
+- `fireFromElement(el, opts?)` — confetti from a DOM element's bounding rect
+
 **Core Components:**
-- `ConfettiBurst` — reusable particle explosion (`active`, `particleCount`, `colors`, `duration`, `spread` props). Random shapes from SVG library + circles. Self-removes after animation.
+- `TextReveal` — two-mode text animation: `typewriter` (char-by-char at configurable speed with blinking cursor) and `shimmer` (metallic rainbow gradient sweep via `background-clip: text`). Respects `prefers-reduced-motion`.
+- `AnimatedNumber` — smooth number tweening using Framer Motion `animate()`. Keeps previous value in ref, tweens to new value over 0.6s with easeOut.
 - `FloatingScore` — "+100" text that floats upward and fades. Shows `LightningBolt` when points > 100.
 - `ScreenShake` — wrapper that shakes children on trigger (`light`/`medium`/`heavy` intensity via x-axis keyframes).
 - `StreakCounter` — flame SVG + count, shown when streak >= 2. Pulse intensity scales with streak. "Broken" animation on reset.
-- `BingoLineCelebration` — full-screen overlay with gradient banner ("BINGO LINE!" / "DOUBLE LINE!"), confetti, auto-dismisses after 2s.
-- `SurpriseEventOverlay` (`src/components/host/SurpriseEventOverlay.tsx`) — full-screen host overlay with `EVENT_CONFIG` record, spring animation, confetti for positive events, auto-dismiss.
+- `BingoLineCelebration` — full-screen overlay with gradient banner ("BINGO LINE!" / "DOUBLE LINE!"), confetti via `fireStars()`, auto-dismisses after 2s.
+- `SurpriseEventOverlay` (`src/components/host/SurpriseEventOverlay.tsx`) — full-screen host overlay with `EVENT_CONFIG` record, spring animation, confetti via `fireConfetti()` for positive events, auto-dismiss.
 
 **Store fields** (`gameStore.ts`): `streak` (consecutive correct answers), `prevCompletedRows` (for detecting new bingo line completions), with `incrementStreak()`, `resetStreak()`, `setPrevCompletedRows()` actions.
 
 **Player view integrations:**
-- `RoundFeedback` — confetti burst on correct, floating score, screen shake on wrong, SVG draw-on checkmark (pathLength animation), sparkle on bonus categories
-- `BingoCard` — sparkle overlay on newly marked cells, bingo line flash cascade (CSS `.bingo-line-flash`), mini confetti on line completion, near-bingo pulse glow on unmarked cells one away from completing a line
+- `RoundFeedback` — `fireConfetti()` on correct, floating score, screen shake on wrong, SVG draw-on checkmark (pathLength animation), sparkle on bonus categories
+- `BingoCard` — sparkle overlay on newly marked cells, bingo line flash cascade (CSS `.bingo-line-flash`), `fireStars()` on line completion, near-bingo pulse glow on unmarked cells one away from completing a line
 - `GuessInput` — enhanced button press (`scale: 0.92, rotate: -1`), pulsing boxShadow glow when input non-empty
-- `PlayerPageContent` — streak tracking in GUESS_RESULT handler, StreakCounter in header, BingoLineCelebration overlay on line completion, enhanced GAME_OVER with TrophyIcon + confetti + sequenced reveal
+- `PlayerPageContent` — streak tracking in GUESS_RESULT handler, StreakCounter in header, BingoLineCelebration overlay on line completion, enhanced GAME_OVER with TrophyIcon + `fireSideCannons()` + sequenced reveal
 
 **Host view integrations:**
-- `WinnerScreen` — TrophyIcon SVG replaces emoji, dual ConfettiBursts (left + right, 40 particles each), SparkleIcon sparkles around name, sequenced reveal (trophy → name → stats → button with staggered delays)
-- `Leaderboard` — CrownIcon on 1st place with subtle bob animation, score flash (scale pulse) on score increase, ArrowUp/ArrowDown on rank changes (auto-fade after 3s)
-- `DrinkingPrompt` — gold confetti on "Everybody Drinks", LightningBolt SVGs flanking "ROCK OFF!" with electric flicker opacity animation
+- `WinnerScreen` — TrophyIcon SVG, `fireSideCannons(40)` on mount, SparkleIcon sparkles, `AnimatedNumber` for podium scores, sequenced reveal (trophy → name → stats → button)
+- `Leaderboard` — CrownIcon on 1st place with subtle bob animation, `AnimatedNumber` for score tweening, ArrowUp/ArrowDown on rank changes (auto-fade after 3s)
+- `DrinkingPrompt` — `fireGoldConfetti()` on "Everybody Drinks", LightningBolt SVGs flanking "ROCK OFF!" with electric flicker opacity animation
+- `HostLobby` — player join celebration: `AnimatePresence` + `layout` prop for smooth card shifting, new players get spring entrance (`x: -30, scale: 0.8 → 1`) + fuchsia glow burst ring
 
-**Synthesized sounds** (`useAudio.ts`): `streak` (3 ascending tones: 600/800/1000 Hz, 50ms each), `bingo` (fanfare arpeggio: C5→E5→G5→C6, triangle wave, 120ms spacing with overlap)
+**Wheel landing impact** (`WheelSpinner.tsx`) — multi-stage `landingStage` state machine (`idle → decel → impact → reveal`):
+- **decel**: radial gradient vignette darkening wheel edges (last 15% of spin)
+- **impact**: expanding shockwave ring (scale 0.3→2.5) in landed segment color + `playSound('wheelLand')` + `fireFromElement()` confetti
+- **reveal**: CategoryBadge enters with spring animation (400ms after impact)
+- Total sequence ~2s; `onSpinComplete()` called at 2s
+
+**Results reveal** (`RoundResults.tsx`) — 6-stage cinematic sequence (`flash → spotlight → albumArt → trackInfo → playerCards → done`):
+- **spotlight** (400ms): trapezoid beam via `clipPath: polygon()`, purple gradient, `scaleY: 0→1`
+- **albumArt** (800ms): 3D flip via `rotateY: -90→0` with `perspective: 800px`
+- **trackInfo** (1400ms): `<TextReveal mode="typewriter" speed={30}>` for track name, staggered artist/album slide-up
+- **playerCards** (2200ms): cascade one-by-one (300ms apart), each fires `playSound('ding')` or `playSound('buzzer')`, correct answers also fire `fireConfetti({ particleCount: 8 })`
+- **done**: "Next Round" button fades in
+
+**Synthesized sounds** (`useAudio.ts`): `streak` (3 ascending tones: 600/800/1000 Hz, 50ms each), `bingo` (fanfare arpeggio: C5→E5→G5→C6, triangle wave, 120ms spacing with overlap), `reveal` (whoosh + shimmer chord)
 
 **CSS utilities** (`globals.css`):
-- `.confetti-container` — absolute positioned, pointer-events none, overflow hidden, z-50
 - `.streak-glow` — orange/red drop-shadow filter for flame icon
 - `.bingo-line-flash` — keyframe animation pulsing inset box-shadow 3 times (fuchsia glow)
 - `.surprise-flash` — flash animation for surprise event overlay
@@ -216,7 +238,18 @@ Duolingo-style micro-interactions and celebration animations using Framer Motion
 
 ### Synthesized Audio (src/hooks/useAudio.ts)
 
-All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'surprise' | 'wheelLand'`. The `useAudio()` hook returns `{ playSound }` with 100ms debounce per sound name.
+All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'surprise' | 'wheelLand' | 'reveal'`. The `useAudio()` hook returns `{ playSound }` with 100ms debounce per sound name. Separate `playSpinTick()` function for wheel tick sounds (bypasses debounce).
+
+### Background Music (src/hooks/useBackgroundMusic.ts)
+
+Phase-reactive ambient drone using Web Audio API (separate `AudioContext` from `useAudio.ts`). Three moods mapped to game phases:
+- **idle** (LOBBY, SPINNING): warm C major triad pad (triangle waves, very quiet)
+- **tension** (PLAYING): C minor triad (sawtooth, low-pass filtered, slight detuning)
+- **celebration** (ROUND_RESULTS, DRINKING_SEGMENT, GAME_OVER): bright C major (triangle + sine, higher octave)
+
+Crossfades between moods over 1.5s via `linearRampToValueAtTime`. During PLAYING phase, last 33% of timer ramps lowpass filter cutoff (400→1600 Hz) for urgency. Master volume = 30% of host volume slider. Respects mute toggle and `prefers-reduced-motion`.
+
+Integrated in `HostPageContent.tsx` via `useBackgroundMusic(phase, timerSeconds, settings.timerDuration, muted, volume)`. No additional UI — existing mute/volume controls provide the parameters.
 
 ## Important Patterns
 
@@ -229,10 +262,13 @@ All sounds are Web Audio API synthesized (no audio files). `SoundName` type: `'d
 - Home page uses GSAP for animations; other pages use framer-motion — both coexist
 - GSAP animations on conditionally-rendered elements must NOT use inline `opacity: 0` — use `gsap.fromTo()` in an effect keyed on the condition instead
 - Animation components use `position: absolute; pointer-events: none` to avoid blocking gameplay
-- Confetti/particle counts are capped (15-25 per-round, 80 max game-over) for performance
+- Confetti uses `canvas-confetti` library (imperative calls), not React components — all old `ConfettiBurst` usage replaced
+- Confetti/particle counts are capped (8-30 per-round, 80 max game-over) for performance
 - Streak tracking spans across rounds via Zustand store (not local state)
 - Bingo line detection compares current completed lines against `prevCompletedRows` in store
 - Streak rewards (3/5) are repeatable and event-driven — server emits them on the fly each time the threshold is hit; score milestones use Earned/Used/Active booleans in `PlayerMilestones` and fire once per game
 - Surprise event listeners live in Host/PlayerPageContent (local state + sound), NOT in `useGameState` hook
+- `GAME_STATE_SYNC` handler must always sync nullable fields (winner, currentTrack) unconditionally — using `state.winner ?? null`, not `if (state.winner)` guards — otherwise values persist across PLAY_AGAIN cycles
+- `trackHistory` (host local state) resets when phase returns to LOBBY
 - Bingo cards are re-sent via individual `CARD_UPDATE` events (to each player's socket) on `HOST_START_GAME` and `HOST_PLAY_AGAIN` — this bypasses `GAME_STATE_SYNC` playerId lookup timing issues
 - TrailerPlayer uses `max-w-5xl` (1024px) to fill large host screens; parent containers in HostGameShell use `max-w-4xl` (896px) for both PLAYING and DRINKING_SEGMENT phases

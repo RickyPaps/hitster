@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getSocket, disconnectSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import { useGameStore } from '@/stores/gameStore';
@@ -31,14 +31,21 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
   const [localSettings, setLocalSettings] = useState<LobbySettings>(settings);
   const { playSound } = useAudio();
   const prevPlayerCountRef = useRef(players.length);
+  const [newPlayerId, setNewPlayerId] = useState<string | null>(null);
 
-  // Play join chime when a new player joins
+  // Play join chime + track new player when a new player joins
   useEffect(() => {
     if (players.length > prevPlayerCountRef.current) {
       playSound('playerJoin');
+      const newest = players[players.length - 1];
+      if (newest) {
+        setNewPlayerId(newest.id);
+        const timer = setTimeout(() => setNewPlayerId(null), 1200);
+        return () => clearTimeout(timer);
+      }
     }
     prevPlayerCountRef.current = players.length;
-  }, [players.length, playSound]);
+  }, [players.length, playSound, players]);
 
   const handleBack = () => {
     disconnectSocket();
@@ -112,18 +119,38 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             </div>
 
             <div className="space-y-3">
-              {players.map((p, i) => (
+              <AnimatePresence mode="popLayout">
+              {players.map((p, i) => {
+                const isNew = p.id === newPlayerId;
+                return (
                 <motion.div
                   key={p.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  className={`rounded-xl p-4 flex items-center justify-between ${
+                  layout
+                  initial={isNew ? { opacity: 0, x: -30, scale: 0.8 } : { opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={isNew
+                    ? { type: 'spring', stiffness: 400, damping: 18 }
+                    : { delay: i * 0.08 }
+                  }
+                  className={`relative rounded-xl p-4 flex items-center justify-between ${
                     i === 0
                       ? 'bg-fuchsia-500/15 neon-box-fuchsia'
                       : 'bg-fuchsia-950/40 border border-fuchsia-500/30'
                   }`}
                 >
+                  {/* Glow burst ring on new player */}
+                  {isNew && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0.9 }}
+                      animate={{ scale: 1.4, opacity: 0 }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className="absolute inset-0 rounded-xl pointer-events-none"
+                      style={{
+                        background: 'radial-gradient(ellipse at center, rgba(217, 70, 239, 0.4), transparent 70%)',
+                      }}
+                    />
+                  )}
                   <div className="flex items-center gap-4">
                     <div className={`w-11 h-11 rounded-full ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-base font-bold border-2 border-white/80 shrink-0`}>
                       {getInitials(p.name)}
@@ -152,7 +179,9 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                     )}
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
+              </AnimatePresence>
 
               {players.length === 0 && (
                 <div className="border-2 border-dashed border-fuchsia-900/50 rounded-xl p-4 flex items-center justify-center text-gray-400">

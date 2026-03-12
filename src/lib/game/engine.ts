@@ -2,7 +2,7 @@ import type { RoomState, GamePhase, GuessResult, WheelCategory } from '@/types/g
 import { spinWheel, isGuessCategory, isPartyCategory } from './wheel';
 import { checkAnswer } from './matching';
 import { checkWin, countCompletedLines } from './bingo';
-import { getNextTrack } from './room';
+import { getNextTrack, shuffleTracks } from './room';
 
 export interface GameEngine {
   room: RoomState;
@@ -23,7 +23,7 @@ export function createGameEngine(room: RoomState): GameEngine {
     room,
 
     startGame(tracks) {
-      room.tracks = tracks;
+      room.tracks = shuffleTracks(tracks);
       room.phase = 'SPINNING';
       room.roundNumber = 0;
       room.usedTrackIds = new Set();

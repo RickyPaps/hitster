@@ -275,7 +275,7 @@ body {
 
 /* Center content area */
 .host-center-content {
-  overflow-y: auto;
+  overflow-y: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -565,3 +565,4 @@ body {
 .stamp-ring {
   animation: stamp-ring 0.5s ease-out forwards;
 }
+

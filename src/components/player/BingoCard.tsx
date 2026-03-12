@@ -4,8 +4,8 @@ import { memo, useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { BingoCell, GuessCategory } from '@/types/game';
 import { SparkleIcon, BingoCalendar, BingoArtist, BingoSongTitle, BingoAlbum, BingoYearApprox, BingoDecade } from '@/components/animations/SVGIcons';
-import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import CellDisintegrate from '@/components/animations/CellDisintegrate';
+import { fireStars } from '@/lib/confetti';
 import { useAudio } from '@/hooks/useAudio';
 import type { ComponentType, SVGProps } from 'react';
 
@@ -183,7 +183,6 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
   const prevCellsRef = useRef<BingoCell[]>([]);
   const [newlyMarked, setNewlyMarked] = useState<Set<number>>(new Set());
   const [flashingLines, setFlashingLines] = useState<Set<number>>(new Set());
-  const [showLineConfetti, setShowLineConfetti] = useState(false);
   const [disintegratingCells, setDisintegratingCells] = useState<Set<number>>(new Set());
   const { playSound } = useAudio();
 
@@ -243,10 +242,9 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
           }
         });
         setFlashingLines(newLines);
-        setShowLineConfetti(true);
+        fireStars();
         setTimeout(() => {
           setFlashingLines(new Set());
-          setShowLineConfetti(false);
         }, 1600);
       }
 
@@ -331,13 +329,6 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
   // ── Full-size bingo card ──
   return (
     <div className="relative grid grid-cols-3 gap-2 w-full max-w-[340px]">
-      {/* Mini confetti on line completion */}
-      {showLineConfetti && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <ConfettiBurst active={showLineConfetti} particleCount={12} duration={1.2} />
-        </div>
-      )}
-
       {cells.map((cell, i) => {
         const label = CATEGORY_LABELS[cell.category];
         const SvgIcon = CATEGORY_SVG[cell.category];

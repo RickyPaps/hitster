@@ -189,17 +189,33 @@ export function cleanupAbandonedRooms(): string[] {
   return cleaned;
 }
 
+/** Fisher-Yates shuffle (in-place) */
+function shuffleArray<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Shuffle tracks and put those with preview URLs first.
+ * Called once at game start for even distribution with no repeats.
+ */
+export function shuffleTracks(tracks: Track[]): Track[] {
+  const withPreview = tracks.filter((t) => t.previewUrl);
+  const withoutPreview = tracks.filter((t) => !t.previewUrl);
+  return [...shuffleArray(withPreview), ...shuffleArray(withoutPreview)];
+}
+
 export function getNextTrack(room: RoomState): Track | null {
   const available = room.tracks.filter(
     (t) => !room.usedTrackIds.has(t.id)
   );
   if (available.length === 0) return null;
 
-  // Prefer tracks with audio; fall back to tracks without only when exhausted
-  const withPreview = available.filter((t) => t.previewUrl);
-  const pool = withPreview.length > 0 ? withPreview : available;
-
-  const track = pool[Math.floor(Math.random() * pool.length)];
+  // Tracks are pre-shuffled at game start, so just take the first available
+  const track = available[0];
   room.usedTrackIds.add(track.id);
   return track;
 }

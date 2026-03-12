@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+
 
 interface TrailerPlayerProps {
   videoId: string;
@@ -209,12 +209,10 @@ export default function TrailerPlayer({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4 w-full">
       {/* Video container with cinematic aspect ratio */}
-      <motion.div
-        animate={playing ? { boxShadow: ['0 0 20px rgba(255,0,128,0.3)', '0 0 40px rgba(255,0,128,0.5)', '0 0 20px rgba(255,0,128,0.3)'] } : {}}
-        transition={{ repeat: Infinity, duration: 2 }}
-        className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative"
+      <div
+        className="w-full rounded-2xl overflow-hidden shadow-2xl relative"
         style={{ aspectRatio: '16/9', background: '#000' }}
       >
         <iframe
@@ -242,8 +240,8 @@ export default function TrailerPlayer({
         <div
           className="absolute top-0 left-0 right-0 z-10 pointer-events-none"
           style={{
-            height: '35%',
-            background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.5) 60%, transparent 100%)',
+            height: '18%',
+            background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.6) 70%, transparent 100%)',
           }}
         />
 
@@ -251,11 +249,11 @@ export default function TrailerPlayer({
         <div
           className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none"
           style={{
-            height: '25%',
-            background: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 40%, transparent 100%)',
+            height: '15%',
+            background: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, transparent 100%)',
           }}
         />
-      </motion.div>
+      </div>
 
       {showControls && (
         <button

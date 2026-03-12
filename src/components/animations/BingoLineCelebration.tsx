@@ -2,7 +2,7 @@
 
 import { useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ConfettiBurst from './ConfettiBurst';
+import { fireStars } from '@/lib/confetti';
 
 interface BingoLineCelebrationProps {
   active: boolean;
@@ -10,11 +10,10 @@ interface BingoLineCelebrationProps {
   onComplete: () => void;
 }
 
-const GOLD_COLORS = ['#EAB308', '#d946ef', '#fbbf24', '#f59e0b', '#ff3355', '#bc13fe'];
-
 export default memo(function BingoLineCelebration({ active, lineCount, onComplete }: BingoLineCelebrationProps) {
   useEffect(() => {
     if (active) {
+      fireStars();
       const timer = setTimeout(onComplete, 2000);
       return () => clearTimeout(timer);
     }
@@ -63,11 +62,6 @@ export default memo(function BingoLineCelebration({ active, lineCount, onComplet
               {lineCount > 1 ? 'DOUBLE LINE!' : 'BINGO LINE!'}
             </h2>
           </motion.div>
-
-          {/* Confetti */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <ConfettiBurst active={active} particleCount={25} colors={GOLD_COLORS} duration={1.5} />
-          </div>
         </motion.div>
       )}
     </AnimatePresence>

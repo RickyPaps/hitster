@@ -3,8 +3,8 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAudio } from '@/hooks/useAudio';
-import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { LightningBolt } from '@/components/animations/SVGIcons';
+import { fireGoldConfetti } from '@/lib/confetti';
 
 interface DrinkingPromptProps {
   type: 'everybody-drinks' | 'rock-off';
@@ -12,15 +12,14 @@ interface DrinkingPromptProps {
   onContinue: () => void;
 }
 
-const GOLD_COLORS = ['#EAB308', '#fbbf24', '#f59e0b', '#d97706', '#ff3355', '#d946ef'];
-
 export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPromptProps) {
   const { playSound } = useAudio();
 
-  // Play alert sound on mount
+  // Play alert sound on mount + confetti for everybody-drinks
   useEffect(() => {
     playSound('ding');
-  }, [playSound]);
+    if (type === 'everybody-drinks') fireGoldConfetti();
+  }, [playSound, type]);
 
   const content = {
     'everybody-drinks': {
@@ -45,13 +44,6 @@ export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPr
       animate={{ opacity: 1, scale: 1 }}
       className="relative flex flex-col items-center justify-center gap-6 text-center"
     >
-      {/* Confetti for everybody drinks */}
-      {type === 'everybody-drinks' && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <ConfettiBurst active={true} particleCount={20} colors={GOLD_COLORS} duration={1.5} />
-        </div>
-      )}
-
       <div className="flex items-center gap-3">
         {type === 'rock-off' && (
           <motion.div

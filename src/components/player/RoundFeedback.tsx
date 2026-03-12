@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAudio } from '@/hooks/useAudio';
-import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import FloatingScore from '@/components/animations/FloatingScore';
+import { fireConfetti } from '@/lib/confetti';
 import ScreenShake from '@/components/animations/ScreenShake';
 import DrinkSplash from '@/components/animations/DrinkSplash';
 import { SparkleIcon } from '@/components/animations/SVGIcons';
@@ -20,14 +20,13 @@ interface RoundFeedbackProps {
 
 export default function RoundFeedback({ correct, shouldDrink, noGuess, message, pointsAwarded, bonusCategories }: RoundFeedbackProps) {
   const { playSound } = useAudio();
-  const [showConfetti, setShowConfetti] = useState(false);
   const [showFloatingScore, setShowFloatingScore] = useState(false);
 
   // Play sound + trigger animations on mount
   useEffect(() => {
     if (correct === true) {
       playSound('ding');
-      setShowConfetti(true);
+      fireConfetti({ particleCount: 15 });
       setShowFloatingScore(true);
       const timer = setTimeout(() => setShowFloatingScore(false), 900);
       return () => clearTimeout(timer);
@@ -49,9 +48,6 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
   return (
     <ScreenShake trigger={correct === false} intensity="medium">
       <div className="relative">
-        {/* Confetti on correct */}
-        <ConfettiBurst active={showConfetti} particleCount={15} duration={1} />
-
         {/* Drink splash overlay */}
         <DrinkSplash active={!!shouldDrink} />
 

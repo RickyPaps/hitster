@@ -4,8 +4,9 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Player } from '@/types/game';
 import { TrophyIcon, SparkleIcon, CrownIcon } from '@/components/animations/SVGIcons';
-import ConfettiBurst from '@/components/animations/ConfettiBurst';
+import AnimatedNumber from '@/components/animations/AnimatedNumber';
 import { useAudio } from '@/hooks/useAudio';
+import { fireSideCannons } from '@/lib/confetti';
 
 interface WinnerScreenProps {
   winner: Player;
@@ -24,6 +25,7 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
 
   useEffect(() => {
     playSound('win');
+    fireSideCannons(40);
   }, [playSound]);
 
   // Best streak across all players
@@ -37,14 +39,6 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
       animate={{ opacity: 1 }}
       className="relative flex flex-col items-center justify-center gap-6 text-center w-full"
     >
-      {/* Confetti bursts */}
-      <div className="absolute left-[15%] top-[20%] pointer-events-none">
-        <ConfettiBurst active={true} particleCount={40} duration={2.5} />
-      </div>
-      <div className="absolute right-[15%] top-[20%] pointer-events-none">
-        <ConfettiBurst active={true} particleCount={40} duration={2.5} />
-      </div>
-
       {/* Spotlight beam */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -140,7 +134,7 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
                   {p!.name}
                 </span>
                 <span className="text-xs font-bold mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  {p!.score.toLocaleString()} pts
+                  <AnimatedNumber value={p!.score} /> pts
                 </span>
                 <div
                   className="w-full rounded-t-lg flex items-start justify-center pt-3"

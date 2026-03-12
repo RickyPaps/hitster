@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ConfettiBurst from '@/components/animations/ConfettiBurst';
 import { SurpriseIcon } from '@/components/animations/SVGIcons';
+import { fireConfetti } from '@/lib/confetti';
 import type { SurpriseEventType } from '@/types/game';
 
 interface EventConfig {
@@ -67,6 +67,11 @@ interface SurpriseEventOverlayProps {
 export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEventOverlayProps) {
   useEffect(() => {
     if (event) {
+      const config = EVENT_CONFIG[event.type];
+      if (config.confetti) {
+        fireConfetti({ particleCount: 20, origin: { x: 0.25, y: 0.4 } });
+        fireConfetti({ particleCount: 20, origin: { x: 0.75, y: 0.4 } });
+      }
       const timer = setTimeout(onComplete, 4000);
       return () => clearTimeout(timer);
     }
@@ -94,18 +99,6 @@ export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEven
             transition={{ duration: 0.5 }}
             style={{ background: `rgba(${config.colorRgb}, 0.2)` }}
           />
-
-          {/* Confetti */}
-          {config.confetti && (
-            <>
-              <div className="absolute top-1/3 left-1/4">
-                <ConfettiBurst active={true} particleCount={20} duration={2} />
-              </div>
-              <div className="absolute top-1/3 right-1/4">
-                <ConfettiBurst active={true} particleCount={20} duration={2} />
-              </div>
-            </>
-          )}
 
           {/* Card */}
           <motion.div

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { GamePhase, Player, Track, WheelCategory, GuessResult, TrackHistoryEntry, MediaType } from '@/types/game';
 import { ALL_WHEEL_SEGMENTS, getWheelSegments, isMovieTrack } from '@/types/game';
 import HostTopNav from './HostTopNav';
@@ -15,6 +16,43 @@ import RoundAnnouncer from '@/components/animations/RoundAnnouncer';
 
 const SongPlayer = dynamic(() => import('./SongPlayer'), { ssr: false });
 const TrailerPlayer = dynamic(() => import('./TrailerPlayer'), { ssr: false });
+
+const PHASE_VARIANTS: Record<string, {
+  initial: Record<string, number>;
+  animate: Record<string, number>;
+  exit: Record<string, number>;
+  transition?: object;
+  exitTransition?: object;
+}> = {
+  SPINNING: {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 1 },
+    transition: { duration: 0.3, ease: 'easeOut' },
+    exitTransition: { duration: 0.2, ease: 'easeIn' },
+  },
+  PLAYING: {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 1 },
+    transition: { duration: 0.3, ease: 'easeOut' },
+    exitTransition: { duration: 0.2, ease: 'easeIn' },
+  },
+  ROUND_RESULTS: {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 1 },
+    transition: { duration: 0.4, ease: 'easeOut' },
+    exitTransition: { duration: 0.2, ease: 'easeIn' },
+  },
+  DRINKING_SEGMENT: {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 1 },
+    transition: { duration: 0.3, ease: 'easeOut' },
+    exitTransition: { duration: 0.2, ease: 'easeIn' },
+  },
+};
 
 interface HostGameShellProps {
   roomCode: string;
@@ -125,23 +163,26 @@ export default function HostGameShell(props: HostGameShellProps) {
         />
 
         <div className="flex-1 flex items-center justify-center w-full">
-          <CenterContent
-            phase={phase}
-            currentTrack={currentTrack}
-            currentCategory={currentCategory}
-            roundGuesses={roundGuesses}
-            players={players}
-            roundNumber={roundNumber}
-            currentSpinnerName={currentSpinnerName}
-            wheelSpinning={wheelSpinning}
-            wheelResultIndex={wheelResultIndex}
-            swipeVelocity={swipeVelocity}
-            wheelMediaType={wheelMediaType}
-            timerSeconds={timerSeconds}
-            maxTimer={maxTimer}
-            onSpinComplete={onSpinComplete}
-            onNextRound={onNextRound}
-          />
+          <AnimatePresence mode="wait">
+            <CenterContent
+              phase={phase}
+              currentTrack={currentTrack}
+              currentCategory={currentCategory}
+              roundGuesses={roundGuesses}
+              players={players}
+              roundNumber={roundNumber}
+              currentSpinnerName={currentSpinnerName}
+              wheelSpinning={wheelSpinning}
+              wheelResultIndex={wheelResultIndex}
+              swipeVelocity={swipeVelocity}
+              wheelMediaType={wheelMediaType}
+              timerSeconds={timerSeconds}
+              maxTimer={maxTimer}
+              showRoundAnnounce={showRoundAnnounce}
+              onSpinComplete={onSpinComplete}
+              onNextRound={onNextRound}
+            />
+          </AnimatePresence>
         </div>
       </div>
 
@@ -198,6 +239,7 @@ interface CenterContentProps {
   wheelMediaType?: MediaType;
   timerSeconds: number;
   maxTimer: number;
+  showRoundAnnounce: boolean;
   onSpinComplete: () => void;
   onNextRound: () => void;
 }
@@ -205,7 +247,7 @@ interface CenterContentProps {
 function CenterContent({
   phase, currentTrack, currentCategory, roundGuesses, players, roundNumber,
   currentSpinnerName, wheelSpinning, wheelResultIndex, swipeVelocity, wheelMediaType,
-  timerSeconds, maxTimer,
+  timerSeconds, maxTimer, showRoundAnnounce,
   onSpinComplete, onNextRound,
 }: CenterContentProps) {
   // Memoize startAt per track so re-renders don't restart the video
@@ -214,8 +256,29 @@ function CenterContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentTrack?.id]
   );
+
+  const v = PHASE_VARIANTS[phase] || PHASE_VARIANTS.SPINNING;
+  const announceDelay = showRoundAnnounce && phase === 'PLAYING';
+
+  const wrapPhase = (key: string, children: React.ReactNode) => (
+    <motion.div
+      key={key}
+      initial={v.initial}
+      animate={{
+        ...v.animate,
+        transition: announceDelay
+          ? { ...v.transition, delay: 1.4 }
+          : v.transition,
+      }}
+      exit={{ ...v.exit, transition: v.exitTransition }}
+      style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+    >
+      {children}
+    </motion.div>
+  );
+
   if (phase === 'SPINNING') {
-    return (
+    return wrapPhase('SPINNING',
       <div className="flex flex-col items-center gap-4 relative">
         {/* Pointer above wheel */}
         <div className="flex flex-col items-center">
@@ -265,7 +328,105 @@ function CenterContent({
       ? ALL_WHEEL_SEGMENTS.find((s) => s.category === currentCategory)?.label ?? currentCategory
       : 'UNKNOWN';
 
-    return (
+    const isMovie = currentTrack && isMovieTrack(currentTrack);
+    const hasTrailer = isMovie && currentTrack.trailerVideoId;
+
+    // Movie trailer layout: neon title + hero video with overlapping timer
+    if (hasTrailer) {
+      const timerColor = timerSeconds <= 10 ? '#ff007f' : '#bc13fe';
+      const timerGlow = timerSeconds <= 10
+        ? '0 0 20px rgba(255, 0, 127, 0.6), 0 0 40px rgba(255, 0, 127, 0.3)'
+        : '0 0 20px rgba(188, 19, 254, 0.6), 0 0 40px rgba(188, 19, 254, 0.3)';
+
+      return wrapPhase('PLAYING',
+        <div className="flex flex-col items-center w-full max-w-5xl">
+          {/* Neon category title */}
+          <h1
+            className="text-4xl sm:text-5xl md:text-6xl font-black uppercase italic text-center mb-4"
+            style={{
+              fontFamily: 'var(--font-display), sans-serif',
+              background: 'linear-gradient(90deg, #00f2ff, #ff007f, #bc13fe)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 0 20px rgba(0, 242, 255, 0.4)) drop-shadow(0 0 40px rgba(188, 19, 254, 0.3))',
+            }}
+          >
+            Guess the {categoryLabel}!
+          </h1>
+
+          {/* Guess count */}
+          <p className="text-sm text-gray-400 mb-4">
+            {roundGuesses.length} / {players.length} guesses submitted
+          </p>
+
+          {/* Video frame with neon border + overlapping timer */}
+          <div className="relative w-full">
+            {/* Neon glow behind the frame */}
+            <div
+              className="absolute -inset-1 rounded-2xl"
+              style={{
+                background: 'linear-gradient(135deg, #00f2ff, #ff007f, #bc13fe, #00f2ff)',
+                filter: 'blur(8px)',
+                opacity: 0.6,
+              }}
+            />
+
+            {/* Neon border frame */}
+            <div
+              className="relative rounded-2xl p-[3px]"
+              style={{
+                background: 'linear-gradient(135deg, #00f2ff, #ff007f, #bc13fe, #00f2ff)',
+              }}
+            >
+              <div className="rounded-[13px] overflow-hidden bg-black">
+                <TrailerPlayer
+                  videoId={currentTrack.trailerVideoId!}
+                  startAt={trailerStartAt}
+                  clipDuration={30}
+                  showControls={false}
+                />
+              </div>
+            </div>
+
+            {/* Overlapping timer circle — bottom right */}
+            <div
+              className="absolute -bottom-6 -right-6 z-30 flex items-center justify-center"
+              style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(13, 2, 22, 0.95) 60%, rgba(13, 2, 22, 0.8) 100%)',
+                border: `3px solid ${timerColor}`,
+                boxShadow: timerGlow,
+              }}
+            >
+              <svg width="70" height="70" className="absolute rotate-[-90deg]">
+                <circle cx="35" cy="35" r="30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                <circle
+                  cx="35" cy="35" r="30"
+                  fill="none"
+                  stroke={timerColor}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 30}
+                  strokeDashoffset={2 * Math.PI * 30 * (1 - (maxTimer > 0 ? timerSeconds / maxTimer : 0))}
+                  style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+                />
+              </svg>
+              <span
+                className={`font-black text-lg tabular-nums ${timerSeconds <= 10 ? 'animate-pulse' : ''}`}
+                style={{ color: timerColor }}
+              >
+                0:{timerSeconds.toString().padStart(2, '0')}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Standard music/non-trailer layout
+    return wrapPhase('PLAYING',
       <div className="flex flex-col items-center gap-8 w-full max-w-4xl">
         {/* Glowing challenge card */}
         <div className="w-full relative group">
@@ -288,7 +449,7 @@ function CenterContent({
             </h1>
 
             <p className="text-gray-300 text-lg font-medium max-w-md mb-2">
-              {currentTrack && isMovieTrack(currentTrack) ? 'Listen to the soundtrack' : 'Listen closely to the track'} and identify its {
+              {isMovie ? 'Listen to the soundtrack' : 'Listen closely to the track'} and identify its {
                 currentCategory === 'year' || currentCategory === 'year-approx' ? 'release date'
                 : currentCategory === 'artist' ? 'artist'
                 : currentCategory === 'title' ? 'title'
@@ -343,14 +504,8 @@ function CenterContent({
           </div>
         </div>
 
-        {/* Media player below the card — trailer for movies, audio for music */}
-        {currentTrack && isMovieTrack(currentTrack) && currentTrack.trailerVideoId ? (
-          <TrailerPlayer
-            videoId={currentTrack.trailerVideoId}
-            startAt={trailerStartAt}
-            clipDuration={30}
-          />
-        ) : currentTrack?.previewUrl ? (
+        {/* Media player below the card — audio for music */}
+        {currentTrack?.previewUrl ? (
           <SongPlayer
             previewUrl={currentTrack.previewUrl}
             albumArt={currentTrack.albumArt}
@@ -359,7 +514,7 @@ function CenterContent({
           <div className="text-center p-6 rounded-xl" style={{ background: 'rgba(75, 32, 56, 0.3)', border: '1px solid rgba(0, 242, 255, 0.2)' }}>
             <p className="text-4xl mb-3">&#9835;</p>
             <p className="font-bold text-lg text-white">No audio available</p>
-            <p className="text-sm mt-1 text-gray-400">Play the {currentTrack && isMovieTrack(currentTrack) ? 'soundtrack' : 'song'} from your own device!</p>
+            <p className="text-sm mt-1 text-gray-400">Play the {isMovie ? 'soundtrack' : 'song'} from your own device!</p>
           </div>
         )}
       </div>
@@ -367,7 +522,7 @@ function CenterContent({
   }
 
   if (phase === 'ROUND_RESULTS') {
-    return (
+    return wrapPhase('ROUND_RESULTS',
       <RoundResults
         guesses={roundGuesses}
         track={currentTrack}
@@ -380,7 +535,7 @@ function CenterContent({
   }
 
   if (phase === 'DRINKING_SEGMENT' && currentCategory) {
-    return (
+    return wrapPhase('DRINKING_SEGMENT',
       <div className="flex flex-col items-center gap-6 w-full max-w-4xl">
         <DrinkingPrompt
           type={currentCategory as 'everybody-drinks' | 'rock-off'}

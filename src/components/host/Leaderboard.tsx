@@ -6,6 +6,7 @@ import type { Player } from '@/types/game';
 import { getNearBingoPlayers } from '@/lib/game/bingo-utils';
 import { CrownIcon, ArrowUp, ArrowDown, FlameCrown } from '@/components/animations/SVGIcons';
 import FlameParticles from '@/components/animations/FlameParticles';
+import AnimatedNumber from '@/components/animations/AnimatedNumber';
 import { useAudio } from '@/hooks/useAudio';
 
 interface LeaderboardProps {
@@ -299,7 +300,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   className={`font-black text-right ${isLeader ? 'text-lg italic' : 'text-sm'}`}
                   style={{ color: isLeader ? '#ff007f' : '#d1d5db' }}
                 >
-                  {p.score.toLocaleString()}
+                  <AnimatedNumber value={p.score} />
                 </motion.span>
               </motion.div>
             );
