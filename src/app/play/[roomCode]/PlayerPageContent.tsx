@@ -66,7 +66,7 @@ export default function PlayerPageContent() {
   const [playerWheelSpinning, setPlayerWheelSpinning] = useState(false);
   const [playerWheelResultIndex, setPlayerWheelResultIndex] = useState<number | null>(null);
   const [playerSwipeVelocity, setPlayerSwipeVelocity] = useState<number | undefined>(undefined);
-  const [playerWheelMediaType, setPlayerWheelMediaType] = useState<MediaType | undefined>(undefined);
+  const [playerWheelMediaType, setPlayerWheelMediaType] = useState<MediaType | 'mixed' | undefined>(undefined);
 
   // Milestone state (queue for sequential display)
   const [milestoneQueue, setMilestoneQueue] = useState<{ type: MilestoneType }[]>([]);
@@ -194,7 +194,7 @@ export default function PlayerPageContent() {
   // Listen for GAME_WHEEL_RESULT on spinner's phone
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType }) => {
+    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType | 'mixed' }) => {
       setPlayerWheelResultIndex(data.segmentIndex);
       setPlayerSwipeVelocity(data.swipeVelocity);
       setPlayerWheelMediaType(data.mediaType);
@@ -292,7 +292,7 @@ export default function PlayerPageContent() {
   // Listen for surprise events
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { type: SurpriseEventType; targetName: string | null }) => {
+    const handler = (data: { type: SurpriseEventType; targetName: string | null; targetName2?: string | null }) => {
       playSound('surprise');
       const SURPRISE_MESSAGES: Record<SurpriseEventType, string> = {
         spotlight: `Spotlight! ${data.targetName} drinks!`,
@@ -301,6 +301,10 @@ export default function PlayerPageContent() {
         categoryCurse: `Category Curse! ${data.targetName} lost a cell!`,
         luckyStar: `Lucky Star! ${data.targetName} gets a free cell!`,
         hotSeat: `Hot Seat! ${data.targetName}: 2x drinks if wrong!`,
+        timePressure: 'Time Pressure! Half timer next round!',
+        streakBreaker: `Streak Breaker! ${data.targetName}'s streak shattered!`,
+        scoreSwap: `Score Swap! ${data.targetName} & ${data.targetName2} swapped scores!`,
+        pointThief: `Point Thief! ${data.targetName} stole 150 pts from ${data.targetName2}!`,
       };
       setNotificationQueue((prev) => [...prev, {
         message: SURPRISE_MESSAGES[data.type],
@@ -324,6 +328,8 @@ export default function PlayerPageContent() {
       setPlayerWheelSpinning(false);
       setPlayerWheelResultIndex(null);
       setPlayerSwipeVelocity(undefined);
+      const cm = settings.contentMode;
+      setPlayerWheelMediaType(cm === 'mixed' ? 'mixed' : cm === 'movie' ? 'movie' : undefined);
       setRockOffCanAssign(false);
       setRockOffDrinkAssigned(null);
     }
@@ -823,7 +829,7 @@ export default function PlayerPageContent() {
                     resultIndex={playerWheelResultIndex}
                     swipeVelocity={playerSwipeVelocity}
                     onSpinComplete={handlePlayerSpinComplete}
-                    segments={playerWheelMediaType ? getWheelSegments(playerWheelMediaType) : undefined}
+                    segments={getWheelSegments(playerWheelMediaType ?? (settings.contentMode === 'mixed' ? 'mixed' : settings.contentMode === 'movie' ? 'movie' : 'music'))}
                   />
                 ) : currentSpinnerName ? (
                   <motion.div className="flex flex-col items-center gap-3">

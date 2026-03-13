@@ -39,6 +39,10 @@ export function useGameState() {
       if (phase === 'PLAYING') {
         store.setHasGuessedThisRound(false);
       }
+      if (phase === 'LOBBY') {
+        store.resetStreak();
+        store.setPrevCompletedRows(0);
+      }
     });
 
     socket.on(SOCKET_EVENTS.GAME_TIMER_TICK, (seconds: number) => {

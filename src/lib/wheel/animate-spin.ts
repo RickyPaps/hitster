@@ -1,5 +1,3 @@
-import { WHEEL_SEGMENTS } from '@/types/game';
-
 export function easeOutQuintic(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
@@ -10,9 +8,9 @@ export function easeOutQuintic(t: number): number {
  */
 export function calculateSpinAnimation(
   resultIndex: number,
-  swipeVelocity: number
+  swipeVelocity: number,
+  segmentCount: number
 ): { totalRotation: number; duration: number } {
-  const segmentCount = WHEEL_SEGMENTS.length;
   const arc = (2 * Math.PI) / segmentCount;
 
   // Pointer is at top (-PI/2). We need the center of resultIndex's segment
@@ -43,9 +41,9 @@ export function calculateSpinFromMomentum(
   resultIndex: number,
   currentRotation: number,
   currentVelocity: number,
+  segmentCount: number,
   minExtraSpins: number = 3
 ): { targetRotation: number; duration: number } {
-  const segmentCount = WHEEL_SEGMENTS.length;
   const arc = (2 * Math.PI) / segmentCount;
 
   // Target angle where the pointer (top, -PI/2) aligns with segment center

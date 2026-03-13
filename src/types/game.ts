@@ -32,43 +32,67 @@ export interface WheelSegment {
 
 // Music wheel segments (default)
 export const MUSIC_WHEEL_SEGMENTS: WheelSegment[] = [
-  { category: 'year',             label: 'Year',              color: '#4d9fff', baseColor: '#0a1a3d', accentColor: '#4d9fff' },
-  { category: 'artist',           label: 'Artist',            color: '#ff3355', baseColor: '#3d0a0a', accentColor: '#ff3355' },
-  { category: 'title',            label: 'Song Title',        color: '#33ff77', baseColor: '#0a3d1a', accentColor: '#33ff77' },
-  { category: 'year-approx',      label: 'Year ±1',           color: '#bc4dff', baseColor: '#2a0a3d', accentColor: '#bc4dff' },
-  { category: 'album',            label: 'Album',             color: '#ff8833', baseColor: '#3d1a0a', accentColor: '#ff8833' },
-  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#ffcc00', baseColor: '#3d2e0a', accentColor: '#ffcc00' },
-  { category: 'decade',           label: 'Decade',            color: '#ff4da6', baseColor: '#3d0a2a', accentColor: '#ff4da6' },
-  { category: 'rock-off',         label: 'Rock Off',          color: '#00e6cc', baseColor: '#0a3d35', accentColor: '#00e6cc' },
+  { category: 'year',             label: 'Year',              color: '#2D8CFF', baseColor: '#0D2F5E', accentColor: '#2D8CFF' },
+  { category: 'artist',           label: 'Artist',            color: '#FF2D55', baseColor: '#5E0D1A', accentColor: '#FF2D55' },
+  { category: 'title',            label: 'Song Title',        color: '#00D96B', baseColor: '#0D4D28', accentColor: '#00D96B' },
+  { category: 'year-approx',      label: 'Year ±1',           color: '#9B40FF', baseColor: '#30105E', accentColor: '#9B40FF' },
+  { category: 'album',            label: 'Album',             color: '#FF7A00', baseColor: '#5E2D00', accentColor: '#FF7A00' },
+  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#FFE500', baseColor: '#4D4500', accentColor: '#FFE500' },
+  { category: 'decade',           label: 'Decade',            color: '#FF407A', baseColor: '#5E0D28', accentColor: '#FF407A' },
+  { category: 'rock-off',         label: 'Rock Off',          color: '#00D4AA', baseColor: '#004D3D', accentColor: '#00D4AA' },
 ];
 
 // Movie wheel segments
 export const MOVIE_WHEEL_SEGMENTS: WheelSegment[] = [
-  { category: 'year',             label: 'Year',              color: '#4d9fff', baseColor: '#0a1a3d', accentColor: '#4d9fff' },
-  { category: 'director',         label: 'Director',          color: '#ff3355', baseColor: '#3d0a0a', accentColor: '#ff3355' },
-  { category: 'movie-title',      label: 'Movie Title',       color: '#33ff77', baseColor: '#0a3d1a', accentColor: '#33ff77' },
-  { category: 'year-approx',      label: 'Year ±1',           color: '#bc4dff', baseColor: '#2a0a3d', accentColor: '#bc4dff' },
-  { category: 'genre',            label: 'Genre',             color: '#ff8833', baseColor: '#3d1a0a', accentColor: '#ff8833' },
-  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#ffcc00', baseColor: '#3d2e0a', accentColor: '#ffcc00' },
-  { category: 'decade',           label: 'Decade',            color: '#ff4da6', baseColor: '#3d0a2a', accentColor: '#ff4da6' },
-  { category: 'rock-off',         label: 'Rock Off',          color: '#00e6cc', baseColor: '#0a3d35', accentColor: '#00e6cc' },
+  { category: 'year',             label: 'Year',              color: '#2D8CFF', baseColor: '#0D2F5E', accentColor: '#2D8CFF' },
+  { category: 'director',         label: 'Director',          color: '#FF2D55', baseColor: '#5E0D1A', accentColor: '#FF2D55' },
+  { category: 'movie-title',      label: 'Movie Title',       color: '#00D96B', baseColor: '#0D4D28', accentColor: '#00D96B' },
+  { category: 'year-approx',      label: 'Year ±1',           color: '#9B40FF', baseColor: '#30105E', accentColor: '#9B40FF' },
+  { category: 'genre',            label: 'Genre',             color: '#FF7A00', baseColor: '#5E2D00', accentColor: '#FF7A00' },
+  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#FFE500', baseColor: '#4D4500', accentColor: '#FFE500' },
+  { category: 'decade',           label: 'Decade',            color: '#FF407A', baseColor: '#5E0D28', accentColor: '#FF407A' },
+  { category: 'rock-off',         label: 'Rock Off',          color: '#00D4AA', baseColor: '#004D3D', accentColor: '#00D4AA' },
+];
+
+// Mixed wheel segments (all unique guess categories + party) — used in mixed content mode
+export const MIXED_WHEEL_SEGMENTS: WheelSegment[] = [
+  { category: 'year',             label: 'Year',              color: '#2D8CFF', baseColor: '#0D2F5E', accentColor: '#2D8CFF' },
+  { category: 'artist',           label: 'Artist',            color: '#FF2D55', baseColor: '#5E0D1A', accentColor: '#FF2D55' },
+  { category: 'title',            label: 'Song Title',        color: '#00D96B', baseColor: '#0D4D28', accentColor: '#00D96B' },
+  { category: 'year-approx',      label: 'Year ±1',           color: '#9B40FF', baseColor: '#30105E', accentColor: '#9B40FF' },
+  { category: 'album',            label: 'Album',             color: '#FF7A00', baseColor: '#5E2D00', accentColor: '#FF7A00' },
+  { category: 'director',         label: 'Director',          color: '#00C4D4', baseColor: '#004D56', accentColor: '#00C4D4' },
+  { category: 'movie-title',      label: 'Movie Title',       color: '#E040FB', baseColor: '#4D1058', accentColor: '#E040FB' },
+  { category: 'genre',            label: 'Genre',             color: '#8AE600', baseColor: '#2D4D00', accentColor: '#8AE600' },
+  { category: 'decade',           label: 'Decade',            color: '#FF407A', baseColor: '#5E0D28', accentColor: '#FF407A' },
+  { category: 'everybody-drinks', label: 'Everybody Drinks!', color: '#FFE500', baseColor: '#4D4500', accentColor: '#FFE500' },
+  { category: 'rock-off',         label: 'Rock Off',          color: '#00D4AA', baseColor: '#004D3D', accentColor: '#00D4AA' },
 ];
 
 // Backwards-compatible alias — resolves to music segments by default
 export const WHEEL_SEGMENTS = MUSIC_WHEEL_SEGMENTS;
 
-// Get wheel segments for a given media type
-export function getWheelSegments(mediaType: MediaType): WheelSegment[] {
+// Get wheel segments for a given media type (or 'mixed' for combined wheel)
+export function getWheelSegments(mediaType: MediaType | 'mixed'): WheelSegment[] {
+  if (mediaType === 'mixed') return MIXED_WHEEL_SEGMENTS;
   return mediaType === 'movie' ? MOVIE_WHEEL_SEGMENTS : MUSIC_WHEEL_SEGMENTS;
 }
 
 // Get ALL segments (union) for looking up any category label/color
 export const ALL_WHEEL_SEGMENTS: WheelSegment[] = [
   ...MUSIC_WHEEL_SEGMENTS,
-  ...MOVIE_WHEEL_SEGMENTS.filter(
-    (ms) => !MUSIC_WHEEL_SEGMENTS.some((ws) => ws.category === ms.category)
-  ),
+  // Movie-only categories with distinct colors for mixed-mode visibility
+  { category: 'director',    label: 'Director',    color: '#00C4D4', baseColor: '#004D56', accentColor: '#00C4D4' },
+  { category: 'movie-title', label: 'Movie Title', color: '#E040FB', baseColor: '#4D1058', accentColor: '#E040FB' },
+  { category: 'genre',       label: 'Genre',       color: '#8AE600', baseColor: '#2D4D00', accentColor: '#8AE600' },
 ];
+
+/** Music-only categories → 'music', movie-only → 'movie', shared/party → null */
+export function getCategoryMediaType(category: WheelCategory): MediaType | null {
+  if (['artist', 'title', 'album'].includes(category)) return 'music';
+  if (['director', 'movie-title', 'genre'].includes(category)) return 'movie';
+  return null;
+}
 
 // ── Media Item Types ──
 
@@ -147,11 +171,16 @@ export type SurpriseEventType =
   | 'everybodyCheers'
   | 'categoryCurse'
   | 'luckyStar'
-  | 'hotSeat';
+  | 'hotSeat'
+  | 'timePressure'
+  | 'scoreSwap'
+  | 'streakBreaker'
+  | 'pointThief';
 
 export interface SurpriseModifiers {
   doublePoints: boolean;
   hotSeatPlayerId: string | null;
+  halfTimer: boolean;
 }
 
 export interface PlayerMilestones {
@@ -217,7 +246,7 @@ export interface RoomState {
   winner: Player | null;
   currentSpinnerId: string | null;
   currentSpinnerName: string | null;
-  pendingSpinResult: { category: WheelCategory; segmentIndex: number; mediaType?: MediaType } | null;
+  pendingSpinResult: { category: WheelCategory; segmentIndex: number; mediaType?: MediaType | 'mixed' } | null;
   lastActivityAt: number;
   surpriseModifiers: SurpriseModifiers;
 }

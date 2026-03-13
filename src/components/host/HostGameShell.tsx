@@ -70,7 +70,7 @@ interface HostGameShellProps {
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
-  wheelMediaType?: MediaType;
+  wheelMediaType?: MediaType | 'mixed';
   volume: number;
   muted: boolean;
   onSpin: () => void;
@@ -236,7 +236,7 @@ interface CenterContentProps {
   wheelSpinning: boolean;
   wheelResultIndex: number | null;
   swipeVelocity?: number;
-  wheelMediaType?: MediaType;
+  wheelMediaType?: MediaType | 'mixed';
   timerSeconds: number;
   maxTimer: number;
   showRoundAnnounce: boolean;

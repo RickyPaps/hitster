@@ -8,7 +8,7 @@ import type { SurpriseEventType } from '@/types/game';
 
 interface EventConfig {
   title: string;
-  getSubtitle: (name: string | null) => string;
+  getSubtitle: (name: string | null, name2?: string | null) => string;
   color: string;
   colorRgb: string;
   confetti: boolean;
@@ -57,10 +57,38 @@ const EVENT_CONFIG: Record<SurpriseEventType, EventConfig> = {
     colorRgb: '239, 68, 68',
     confetti: false,
   },
+  timePressure: {
+    title: 'TIME PRESSURE!',
+    getSubtitle: () => 'Half the time next round — think fast!',
+    color: '#f59e0b',
+    colorRgb: '245, 158, 11',
+    confetti: false,
+  },
+  streakBreaker: {
+    title: 'STREAK BREAKER!',
+    getSubtitle: (name) => `${name ?? 'A player'}'s streak has been shattered!`,
+    color: '#f97316',
+    colorRgb: '249, 115, 22',
+    confetti: false,
+  },
+  scoreSwap: {
+    title: 'SCORE SWAP!',
+    getSubtitle: (name, name2) => `${name ?? 'A player'} and ${name2 ?? 'another player'} swap scores!`,
+    color: '#a855f7',
+    colorRgb: '168, 85, 247',
+    confetti: true,
+  },
+  pointThief: {
+    title: 'POINT THIEF!',
+    getSubtitle: (name, name2) => `${name ?? 'A player'} steals 150 pts from ${name2 ?? 'another player'}!`,
+    color: '#dc2626',
+    colorRgb: '220, 38, 38',
+    confetti: false,
+  },
 };
 
 interface SurpriseEventOverlayProps {
-  event: { type: SurpriseEventType; targetName: string | null } | null;
+  event: { type: SurpriseEventType; targetName: string | null; targetName2?: string | null } | null;
   onComplete: () => void;
 }
 
@@ -135,7 +163,7 @@ export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEven
               className="text-lg font-semibold"
               style={{ color: 'rgba(255, 255, 255, 0.85)' }}
             >
-              {config.getSubtitle(event.targetName)}
+              {config.getSubtitle(event.targetName, event.targetName2)}
             </p>
           </motion.div>
         </motion.div>

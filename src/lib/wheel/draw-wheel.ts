@@ -2,25 +2,26 @@ import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 
 // Cache for gradients that don't change with rotation
 let cachedSize = 0;
+let cachedSegments: WheelSegment[] = [];
 let cachedSegmentGrads: CanvasGradient[] = [];
 let cachedHubGrad: CanvasGradient | null = null;
 let cachedPointerGrad: CanvasGradient | null = null;
 
-function ensureGradientCache(ctx: CanvasRenderingContext2D, size: number): void {
-  if (cachedSize === size && cachedSegmentGrads.length > 0) return;
+function ensureGradientCache(ctx: CanvasRenderingContext2D, size: number, segments: WheelSegment[]): void {
+  if (cachedSize === size && cachedSegments === segments && cachedSegmentGrads.length > 0) return;
 
   const center = size / 2;
   const radius = center - 12;
-  const segments = WHEEL_SEGMENTS;
 
-  // Segment radial gradients
+  // Segment radial gradients — color visible from 30% outward
   cachedSegmentGrads = segments.map(seg => {
     const grad = ctx.createRadialGradient(center, center, 0, center, center, radius);
     grad.addColorStop(0, seg.baseColor);
-    grad.addColorStop(0.6, seg.baseColor);
+    grad.addColorStop(0.3, seg.baseColor);
     grad.addColorStop(1, seg.accentColor);
     return grad;
   });
+  cachedSegments = segments;
 
   // Hub gradient
   const hubRadius = Math.max(20, size / 16);
@@ -53,7 +54,7 @@ export function drawWheel(
 
   ctx.clearRect(0, 0, size, size);
 
-  ensureGradientCache(ctx, size);
+  ensureGradientCache(ctx, size, segments);
 
   // --- Segments with cached radial gradients ---
   for (let i = 0; i < segments.length; i++) {
@@ -104,21 +105,30 @@ export function drawWheel(
   ctx.stroke();
   ctx.restore();
 
-  // --- Text labels: uppercase, bold, white glow ---
+  // --- Text labels: uppercase, bold, dark outline for readability ---
   ctx.save();
   ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff';
-  ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-  ctx.shadowBlur = 6;
 
   for (let i = 0; i < segments.length; i++) {
     const startAngle = i * arc + currentRotation;
+    const label = segments[i].label.toUpperCase();
     ctx.save();
     ctx.translate(center, center);
     ctx.rotate(startAngle + arc / 2);
-    ctx.fillText(segments[i].label.toUpperCase(), radius - 20, 0);
+    // Dark stroke outline
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 4;
+    ctx.strokeText(label, radius - 20, 0);
+    // White fill on top
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 2;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, radius - 20, 0);
     ctx.restore();
   }
   ctx.restore();

@@ -71,7 +71,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
     prevSegmentRef.current = -1;
 
     const velocity = swipeVelocity ?? (0.8 + Math.random() * 0.7);
-    const { totalRotation, duration } = calculateSpinAnimation(resultIndex, velocity);
+    const { totalRotation, duration } = calculateSpinAnimation(resultIndex, velocity, segments.length);
     const startTime = performance.now();
     const size = canvas.width;
     const segmentCount = segments.length;
@@ -167,47 +167,49 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
             }}
           />
 
-          {/* Deceleration vignette overlay */}
-          <AnimatePresence>
-            {showVignette && !landed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-0 rounded-full pointer-events-none z-10"
-                style={{
-                  background: 'radial-gradient(circle at center, transparent 40%, rgba(13, 2, 22, 0.8) 100%)',
-                }}
-              />
-            )}
-          </AnimatePresence>
+          <div className="relative overflow-hidden rounded-full">
+            {/* Deceleration vignette overlay */}
+            <AnimatePresence>
+              {showVignette && !landed && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.6 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-0 rounded-full pointer-events-none z-10"
+                  style={{
+                    background: 'radial-gradient(circle at center, transparent 40%, rgba(13, 2, 22, 0.8) 100%)',
+                  }}
+                />
+              )}
+            </AnimatePresence>
 
-          {/* Impact shockwave ring */}
-          <AnimatePresence>
-            {landingStage === 'impact' && landedColor && (
-              <motion.div
-                key="shockwave"
-                initial={{ scale: 0.3, opacity: 0.9 }}
-                animate={{ scale: 2.5, opacity: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="absolute inset-0 rounded-full pointer-events-none z-20"
-                style={{
-                  border: `3px solid ${landedColor}`,
-                  boxShadow: `0 0 30px ${landedColor}, 0 0 60px ${landedColor}60`,
-                }}
-              />
-            )}
-          </AnimatePresence>
+            {/* Impact shockwave ring */}
+            <AnimatePresence>
+              {landingStage === 'impact' && landedColor && (
+                <motion.div
+                  key="shockwave"
+                  initial={{ scale: 0.3, opacity: 0.9 }}
+                  animate={{ scale: 2.5, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="absolute inset-0 rounded-full pointer-events-none z-20"
+                  style={{
+                    border: `3px solid ${landedColor}`,
+                    boxShadow: `0 0 30px ${landedColor}, 0 0 60px ${landedColor}60`,
+                  }}
+                />
+              )}
+            </AnimatePresence>
 
-          <canvas
-            ref={canvasRef}
-            width={400}
-            height={400}
-            className="max-w-full w-full h-auto relative"
-            style={{ filter: spinning ? 'brightness(1.1)' : 'brightness(1)' }}
-          />
+            <canvas
+              ref={canvasRef}
+              width={400}
+              height={400}
+              className="max-w-full w-full h-auto relative"
+              style={{ filter: spinning ? 'brightness(1.1)' : 'brightness(1)' }}
+            />
+          </div>
         </div>
 
         {/* Category badge reveal */}

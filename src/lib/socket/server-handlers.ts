@@ -123,11 +123,16 @@ function fireSurpriseEvent(io: Server, roomCode: string) {
   const connectedPlayers = room.players.filter((p) => p.connected);
   if (connectedPlayers.length === 0) return;
 
-  const EVENTS: SurpriseEventType[] = ['spotlight', 'doubleRound', 'everybodyCheers', 'categoryCurse', 'luckyStar', 'hotSeat'];
+  // Build available events — some require 2+ players
+  const ALL_EVENTS: SurpriseEventType[] = ['spotlight', 'doubleRound', 'everybodyCheers', 'categoryCurse', 'luckyStar', 'hotSeat', 'timePressure', 'streakBreaker', 'scoreSwap', 'pointThief'];
+  const EVENTS = connectedPlayers.length >= 2
+    ? ALL_EVENTS
+    : ALL_EVENTS.filter((e) => e !== 'scoreSwap' && e !== 'pointThief');
   const eventType = EVENTS[Math.floor(Math.random() * EVENTS.length)];
   const randomPlayer = connectedPlayers[Math.floor(Math.random() * connectedPlayers.length)];
 
   let targetName: string | null = null;
+  let targetName2: string | null = null;
 
   switch (eventType) {
     case 'spotlight':
@@ -172,11 +177,39 @@ function fireSurpriseEvent(io: Server, roomCode: string) {
       room.surpriseModifiers.hotSeatPlayerId = randomPlayer.id;
       targetName = randomPlayer.name;
       break;
+    case 'timePressure':
+      room.surpriseModifiers.halfTimer = true;
+      break;
+    case 'streakBreaker':
+      randomPlayer.streak = 0;
+      targetName = randomPlayer.name;
+      break;
+    case 'scoreSwap': {
+      const others = connectedPlayers.filter((p) => p.id !== randomPlayer.id);
+      const other = others[Math.floor(Math.random() * others.length)];
+      const tmp = randomPlayer.score;
+      randomPlayer.score = other.score;
+      other.score = tmp;
+      targetName = randomPlayer.name;
+      targetName2 = other.name;
+      break;
+    }
+    case 'pointThief': {
+      const victims = connectedPlayers.filter((p) => p.id !== randomPlayer.id);
+      const victim = victims[Math.floor(Math.random() * victims.length)];
+      const stolen = Math.min(150, victim.score);
+      victim.score -= stolen;
+      randomPlayer.score += stolen;
+      targetName = randomPlayer.name;
+      targetName2 = victim.name;
+      break;
+    }
   }
 
   io.to(roomCode).emit(SOCKET_EVENTS.SURPRISE_EVENT, {
     type: eventType,
     targetName,
+    targetName2,
   });
 
   syncRoom(io, room);
@@ -248,6 +281,12 @@ function handleWheelAnimationComplete(io: Server, roomCode: string) {
       io.to(roomCode).emit(SOCKET_EVENTS.GAME_PHASE_CHANGE, 'GAME_OVER');
       syncRoom(io, room);
       return;
+    }
+
+    // Apply half-timer surprise modifier
+    if (room.surpriseModifiers.halfTimer) {
+      room.timerSeconds = Math.ceil(room.timerSeconds / 2);
+      room.surpriseModifiers.halfTimer = false;
     }
 
     io.to(roomCode).emit(SOCKET_EVENTS.GAME_ROUND_START, {

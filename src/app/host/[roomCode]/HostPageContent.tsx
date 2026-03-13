@@ -37,12 +37,12 @@ export default function HostPageContent() {
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [wheelResultIndex, setWheelResultIndex] = useState<number | null>(null);
   const [swipeVelocity, setSwipeVelocity] = useState<number | undefined>(undefined);
-  const [wheelMediaType, setWheelMediaType] = useState<MediaType | undefined>(undefined);
+  const [wheelMediaType, setWheelMediaType] = useState<MediaType | 'mixed' | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [trackHistory, setTrackHistory] = useState<TrackHistoryEntry[]>([]);
   const [volume, setVolume] = useState(70);
   const [muted, setMuted] = useState(false);
-  const [surpriseEvent, setSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null } | null>(null);
+  const [surpriseEvent, setSurpriseEvent] = useState<{ type: SurpriseEventType; targetName: string | null; targetName2?: string | null } | null>(null);
   const { playSound } = useAudio();
 
   // Background ambient music
@@ -62,7 +62,7 @@ export default function HostPageContent() {
   // Persistent listener for GAME_WHEEL_RESULT
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType }) => {
+    const handler = (data: { category: string; segmentIndex: number; swipeVelocity?: number; mediaType?: MediaType | 'mixed' }) => {
       setWheelResultIndex(data.segmentIndex);
       setSwipeVelocity(data.swipeVelocity);
       setWheelMediaType(data.mediaType);
@@ -77,7 +77,7 @@ export default function HostPageContent() {
   // Listen for surprise events
   useEffect(() => {
     const socket = getSocket();
-    const handler = (data: { type: SurpriseEventType; targetName: string | null }) => {
+    const handler = (data: { type: SurpriseEventType; targetName: string | null; targetName2?: string | null }) => {
       playSound('surprise');
       setSurpriseEvent(data);
     };
@@ -128,9 +128,12 @@ export default function HostPageContent() {
       return (curatedTracks as any[]).map((t) => ({ ...t, mediaType: 'music' as const })) as MusicTrack[];
     };
 
-    // Fetch movie tracks (curated for now, skip entries without Spotify IDs)
+    // Fetch movie tracks (curated) — generate unique IDs for entries without Spotify IDs
     const fetchMovieTracks = (): Track[] => {
-      return (curatedMovies as MovieTrack[]).filter((m) => m.id);
+      return (curatedMovies as MovieTrack[]).map((m, i) => ({
+        ...m,
+        id: m.id || `movie-${i}`,
+      }));
     };
 
     if (contentMode === 'music') {
@@ -149,7 +152,7 @@ export default function HostPageContent() {
     const gameTracks = await fetchTracks();
 
     const needPreview = gameTracks.filter(
-      (t) => (!t.previewUrl || !t.albumArt) && t.id && !t.id.startsWith('c')
+      (t) => (!t.previewUrl || !t.albumArt) && t.id && !t.id.startsWith('c') && !t.id.startsWith('movie-') && t.mediaType !== 'movie'
     );
     if (needPreview.length > 0) {
       try {
@@ -230,8 +233,13 @@ export default function HostPageContent() {
       }
     }
 
+    // Remove movies that have no playable trailer (broken YouTube IDs get stripped above)
+    const playableTracks = gameTracks.filter(
+      (t) => t.mediaType !== 'movie' || (isMovieTrack(t) && t.trailerVideoId)
+    );
+
     const socket = getSocket();
-    socket.emit(SOCKET_EVENTS.HOST_START_GAME, { tracks: gameTracks });
+    socket.emit(SOCKET_EVENTS.HOST_START_GAME, { tracks: playableTracks });
     setLoading(false);
   };
 
@@ -251,7 +259,8 @@ export default function HostPageContent() {
       setWheelSpinning(false);
       setWheelResultIndex(null);
       setSwipeVelocity(undefined);
-      setWheelMediaType(undefined);
+      const cm = settings.contentMode;
+      setWheelMediaType(cm === 'mixed' ? 'mixed' : cm === 'movie' ? 'movie' : undefined);
     }
     // Clear track history when returning to lobby (Play Again)
     if (phase === 'LOBBY') {
@@ -401,7 +410,7 @@ export default function HostPageContent() {
             wheelSpinning={wheelSpinning}
             wheelResultIndex={wheelResultIndex}
             swipeVelocity={swipeVelocity}
-            wheelMediaType={wheelMediaType}
+            wheelMediaType={wheelMediaType ?? (settings.contentMode === 'mixed' ? 'mixed' : settings.contentMode === 'movie' ? 'movie' : undefined)}
             volume={volume}
             muted={muted}
             onSpin={handleSpin}

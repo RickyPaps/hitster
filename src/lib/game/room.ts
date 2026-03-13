@@ -1,4 +1,4 @@
-import type { RoomState, Player, LobbySettings, Track } from '@/types/game';
+import type { RoomState, Player, LobbySettings, Track, MediaType } from '@/types/game';
 import { generateBingoCard } from './bingo';
 
 const rooms = new Map<string, RoomState>();
@@ -44,7 +44,7 @@ export function createRoom(hostId: string, settings?: Partial<LobbySettings>): R
     currentSpinnerName: null,
     pendingSpinResult: null,
     lastActivityAt: Date.now(),
-    surpriseModifiers: { doublePoints: false, hotSeatPlayerId: null },
+    surpriseModifiers: { doublePoints: false, hotSeatPlayerId: null, halfTimer: false },
   };
   rooms.set(roomCode, room);
   return room;
@@ -145,7 +145,7 @@ export function resetRoomToLobby(roomCode: string): RoomState | null {
   room.currentSpinnerName = null;
   room.pendingSpinResult = null;
   room.lastActivityAt = Date.now();
-  room.surpriseModifiers = { doublePoints: false, hotSeatPlayerId: null };
+  room.surpriseModifiers = { doublePoints: false, hotSeatPlayerId: null, halfTimer: false };
 
   // Reset all players
   for (const player of room.players) {
@@ -199,13 +199,14 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 /**
- * Shuffle tracks and put those with preview URLs first.
+ * Shuffle tracks and put music tracks with preview URLs first (so audio plays reliably).
+ * Movies are never prioritized by previewUrl — they use YouTube trailers.
  * Called once at game start for even distribution with no repeats.
  */
 export function shuffleTracks(tracks: Track[]): Track[] {
-  const withPreview = tracks.filter((t) => t.previewUrl);
-  const withoutPreview = tracks.filter((t) => !t.previewUrl);
-  return [...shuffleArray(withPreview), ...shuffleArray(withoutPreview)];
+  const musicWithPreview = tracks.filter((t) => t.mediaType !== 'movie' && t.previewUrl);
+  const rest = tracks.filter((t) => t.mediaType === 'movie' || !t.previewUrl);
+  return [...shuffleArray(musicWithPreview), ...shuffleArray(rest)];
 }
 
 export function getNextTrack(room: RoomState): Track | null {
@@ -215,6 +216,17 @@ export function getNextTrack(room: RoomState): Track | null {
   if (available.length === 0) return null;
 
   // Tracks are pre-shuffled at game start, so just take the first available
+  const track = available[0];
+  room.usedTrackIds.add(track.id);
+  return track;
+}
+
+/** Get next unused track of a specific media type (for mixed mode). */
+export function getNextTrackByMediaType(room: RoomState, mediaType: MediaType): Track | null {
+  const available = room.tracks.filter(
+    (t) => !room.usedTrackIds.has(t.id) && t.mediaType === mediaType
+  );
+  if (available.length === 0) return null;
   const track = available[0];
   room.usedTrackIds.add(track.id);
   return track;

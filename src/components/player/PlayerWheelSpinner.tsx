@@ -179,6 +179,7 @@ export default function PlayerWheelSpinner({
       resultIndex,
       currentRotation,
       currentVelocity,
+      segments.length,
       3
     );
 

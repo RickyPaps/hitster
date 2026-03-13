@@ -1,6 +1,6 @@
 import { WHEEL_SEGMENTS, getWheelSegments, type WheelSegment, type MediaType } from '@/types/game';
 
-export function spinWheel(mediaType?: MediaType): { segment: WheelSegment; index: number; mediaType?: MediaType } {
+export function spinWheel(mediaType?: MediaType | 'mixed'): { segment: WheelSegment; index: number; mediaType?: MediaType | 'mixed' } {
   const segments = mediaType ? getWheelSegments(mediaType) : WHEEL_SEGMENTS;
   const index = Math.floor(Math.random() * segments.length);
   return { segment: segments[index], index, mediaType };

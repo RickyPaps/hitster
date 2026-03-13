@@ -16,7 +16,17 @@
       "Bash(cd \"C:/Users/ricky/Desktop/Work/Hitster\" && export PATH=\"/c/nvm-symlink:$PATH\" && npx next build 2>&1)",
       "Bash(cygpath:*)",
       "Bash(grep:*)",
-      "Bash(cd \"C:/Users/ricky/Desktop/Work/Hitster\" && export PATH=\"/c/nvm-symlink:$PATH\" && npx tsx scripts/expand-music.ts 2>&1)"
+      "Bash(cd \"C:/Users/ricky/Desktop/Work/Hitster\" && export PATH=\"/c/nvm-symlink:$PATH\" && npx tsx scripts/expand-music.ts 2>&1)",
+      "Bash(nslookup:*)",
+      "Bash(git config:*)",
+      "Bash(cd C:\\\\Users\\\\ricky\\\\Desktop\\\\Work\\\\Hitster:*)",
+      "Bash(export:*)",
+      "WebFetch(domain:www.youtube.com)",
+      "WebFetch(domain:www.themoviedb.org)",
+      "WebFetch(domain:api.themoviedb.org)",
+      "WebFetch(domain:www.imdb.com)",
+      "WebFetch(domain:www.whatsafterthemovie.com)",
+      "WebFetch(domain:letterboxd.com)"
     ]
   }
 }

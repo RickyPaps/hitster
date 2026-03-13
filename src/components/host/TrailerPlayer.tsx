@@ -240,8 +240,8 @@ export default function TrailerPlayer({
         <div
           className="absolute top-0 left-0 right-0 z-10 pointer-events-none"
           style={{
-            height: '18%',
-            background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.6) 70%, transparent 100%)',
+            height: '25%',
+            background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 30%, rgba(0,0,0,0.95) 55%, rgba(0,0,0,0.6) 80%, transparent 100%)',
           }}
         />
 
