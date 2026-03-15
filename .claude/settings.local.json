@@ -26,7 +26,10 @@
       "WebFetch(domain:api.themoviedb.org)",
       "WebFetch(domain:www.imdb.com)",
       "WebFetch(domain:www.whatsafterthemovie.com)",
-      "WebFetch(domain:letterboxd.com)"
+      "WebFetch(domain:letterboxd.com)",
+      "Bash(cd /c/Users/ricky/Desktop/Work/Hitster && PATH=\"/c/nvm-symlink:$PATH\" npx next build 2>&1)",
+      "Bash(find:*)",
+      "Bash(python3:*)"
     ]
   }
 }

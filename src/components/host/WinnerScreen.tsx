@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Player } from '@/types/game';
 import { TrophyIcon, SparkleIcon, CrownIcon } from '@/components/animations/SVGIcons';
@@ -16,12 +16,17 @@ interface WinnerScreenProps {
 
 const PODIUM_COLORS = ['#EAB308', '#94a3b8', '#cd7f32']; // gold, silver, bronze
 const PODIUM_HEIGHTS = [160, 120, 90];
+const VICTORY_MSGS = ['WINS!', 'TAKES IT!', 'IS THE CHAMPION!', 'REIGNS SUPREME!', 'CLAIMS VICTORY!'];
+const PLAY_AGAIN_MSGS = ['Play Again', 'Rematch!', 'Another Round?', 'Run It Back'];
 
 export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScreenProps) {
   const { playSound } = useAudio();
   const sorted = players
     ? [...players].sort((a, b) => b.score - a.score).slice(0, 3)
     : [winner];
+
+  const victoryMsg = useMemo(() => VICTORY_MSGS[Math.floor(Math.random() * VICTORY_MSGS.length)], []);
+  const playAgainMsg = useMemo(() => PLAY_AGAIN_MSGS[Math.floor(Math.random() * PLAY_AGAIN_MSGS.length)], []);
 
   useEffect(() => {
     playSound('win');
@@ -85,7 +90,7 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
             textShadow: '0 0 20px rgba(255, 0, 127, 0.5)',
           }}
         >
-          {winner.name} WINS!
+          {winner.name} {victoryMsg}
         </h1>
         <motion.div
           initial={{ scale: 0 }}
@@ -185,7 +190,7 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
             boxShadow: '0 0 30px rgba(255, 0, 127, 0.5), 0 0 60px rgba(188, 19, 254, 0.2)',
           }}
         >
-          Play Again
+          {playAgainMsg}
         </motion.button>
       )}
     </motion.div>

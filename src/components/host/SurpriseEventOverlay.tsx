@@ -117,6 +117,8 @@ export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEven
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          role="alert"
+          aria-live="assertive"
           className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
         >
           {/* Backdrop flash */}
@@ -147,7 +149,7 @@ export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEven
               transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
               className="mb-3 flex justify-center"
             >
-              <SurpriseIcon size={48} color={config.color} />
+              <SurpriseIcon size={48} color={config.color} aria-hidden="true" />
             </motion.div>
             <h2
               className="text-3xl font-black uppercase tracking-wider mb-2"

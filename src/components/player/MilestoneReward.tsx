@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
@@ -123,12 +123,55 @@ type Step = 'announce' | 'selectPlayer' | 'selectCell' | 'selectOwnCell';
 export default function MilestoneReward({ milestone, players, myPlayerId, myBingoCard, onDismiss }: MilestoneRewardProps) {
   const [step, setStep] = useState<Step>('announce');
   const [targetPlayer, setTargetPlayer] = useState<Player | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Reset step when milestone changes
   useEffect(() => {
     setStep('announce');
     setTargetPlayer(null);
   }, [milestone?.type]);
+
+  // Focus trap + Escape key
+  useEffect(() => {
+    if (!milestone) return;
+    const el = modalRef.current;
+    if (!el) return;
+
+    // Focus first focusable element
+    const focusFirst = () => {
+      const focusable = el.querySelectorAll<HTMLElement>('button, [tabindex]:not([tabindex="-1"])');
+      focusable[0]?.focus();
+    };
+    // Small delay to let animation render
+    const t = setTimeout(focusFirst, 100);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onDismiss();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusable = el.querySelectorAll<HTMLElement>('button, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [milestone, step, onDismiss]);
 
   const handleAnnounceAction = useCallback(() => {
     if (!milestone) return;
@@ -195,6 +238,10 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
         exit={{ opacity: 0, scale: 0.9 }}
         className="fixed inset-0 z-[60] flex items-center justify-center p-4"
         style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="milestone-title"
+        ref={modalRef}
       >
         <div
           className="max-w-sm w-full rounded-2xl p-5"
@@ -353,6 +400,7 @@ function AutoDismissAnnounce({
     <div className="text-center">
       <div className="flex justify-center mb-3">{config.icon}</div>
       <h3
+        id="milestone-title"
         className="text-xl font-black uppercase mb-1"
         style={{
           color: config.color,

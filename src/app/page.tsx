@@ -198,6 +198,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="ROOM CODE"
+              aria-label="Room code"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               maxLength={4}
@@ -213,6 +214,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="Your Name"
+              aria-label="Player name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               maxLength={20}
@@ -225,7 +227,7 @@ export default function Home() {
               }}
             />
             {error && (
-              <p className="text-center text-sm" style={{ color: 'var(--error)' }}>
+              <p className="text-center text-sm" role="alert" style={{ color: 'var(--error)' }}>
                 {error}
               </p>
             )}
@@ -257,7 +259,7 @@ export default function Home() {
 
         {/* Error for menu mode */}
         {mode === 'menu' && error && (
-          <p className="text-center text-sm mt-4" style={{ color: 'var(--error)' }}>
+          <p className="text-center text-sm mt-4" role="alert" style={{ color: 'var(--error)' }}>
             {error}
           </p>
         )}

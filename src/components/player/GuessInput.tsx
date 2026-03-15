@@ -82,7 +82,8 @@ export default function GuessInput({ category, disabled, onGuessSubmitted, timer
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
             disabled={disabled || locked}
-            className="w-full py-3.5 px-5 rounded-xl text-center text-lg font-medium disabled:opacity-50 neon-input appearance-none cursor-pointer"
+            aria-label="Select a decade"
+            className="w-full py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl text-center text-base sm:text-lg font-medium disabled:opacity-50 neon-input appearance-none cursor-pointer"
             style={{
               background: 'rgba(20, 12, 50, 0.85)',
               color: guess ? '#e2e8f0' : 'rgba(148, 163, 184, 0.6)',
@@ -148,9 +149,10 @@ export default function GuessInput({ category, disabled, onGuessSubmitted, timer
             setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
           }}
           placeholder={placeholderText}
+          aria-label={placeholderText}
           disabled={disabled || locked}
           autoFocus
-          className="w-full py-3.5 px-5 rounded-xl text-center text-lg font-medium disabled:opacity-50 neon-input"
+          className="w-full py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl text-center text-base sm:text-lg font-medium disabled:opacity-50 neon-input"
           style={{
             background: 'rgba(20, 12, 50, 0.85)',
             color: '#e2e8f0',

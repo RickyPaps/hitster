@@ -1,8 +1,18 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '@/stores/gameStore';
 import BingoCard from './BingoCard';
+
+const WAITING_MSGS = [
+  'Waiting for host to start the game...',
+  'Get ready to rock...',
+  'Warming up the playlist...',
+  'Preparing the disco ball...',
+  'Shuffling the tracks...',
+  'Almost party time...',
+];
 
 const AVATAR_COLORS = [
   'bg-fuchsia-400', 'bg-teal-400', 'bg-indigo-500', 'bg-pink-500',
@@ -17,6 +27,12 @@ function getInitials(name: string): string {
 
 export default function PlayerLobby() {
   const { roomCode, playerName, players, bingoCard } = useGameStore();
+  const [waitIdx, setWaitIdx] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setWaitIdx((i) => (i + 1) % WAITING_MSGS.length), 3000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="min-h-dvh text-white relative overflow-hidden">
@@ -40,7 +56,7 @@ export default function PlayerLobby() {
           >
             Hitster
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-cyan-300/60">
             Welcome, <span className="font-bold text-fuchsia-300">{playerName}</span>
           </p>
         </div>
@@ -120,12 +136,14 @@ export default function PlayerLobby() {
 
         {/* Waiting message */}
         <motion.p
+          key={waitIdx}
+          initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: [0.4, 0.9, 0.4] }}
           transition={{ repeat: Infinity, duration: 2.5 }}
           className="text-sm font-medium"
           style={{ color: 'rgba(217, 70, 239, 0.6)' }}
         >
-          Waiting for host to start the game...
+          {WAITING_MSGS[waitIdx]}
         </motion.p>
       </div>
     </div>

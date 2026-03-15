@@ -328,7 +328,7 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
 
   // ── Full-size bingo card ──
   return (
-    <div className="relative grid grid-cols-3 gap-2 w-full max-w-[340px]">
+    <div className="relative grid grid-cols-3 gap-1.5 sm:gap-2 w-full max-w-[340px]" role="grid" aria-label="Bingo card">
       {cells.map((cell, i) => {
         const label = CATEGORY_LABELS[cell.category];
         const SvgIcon = CATEGORY_SVG[cell.category];
@@ -371,7 +371,11 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
             }
             transition={{ duration: isDisintegrating ? 0.3 : 0.4 }}
             onClick={isPickable ? () => onCellPick?.(i) : undefined}
-            className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center overflow-hidden ${isFlashing ? 'bingo-line-flash' : ''} ${isPickable ? 'cursor-pointer' : ''}`}
+            onKeyDown={isPickable ? (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellPick?.(i); } } : undefined}
+            role={isPickable ? 'button' : 'gridcell'}
+            tabIndex={isPickable ? 0 : -1}
+            aria-label={`${label ?? cell.category}${cell.marked ? ', marked' : ''}${isPickable ? ', tap to select' : ''}${isNearBingo ? ', near bingo' : ''}`}
+            className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center overflow-hidden ${isFlashing ? 'bingo-line-flash' : ''} ${isPickable ? 'cursor-pointer' : ''} ${isPickable ? 'focus:outline-2 focus:outline-fuchsia-400 focus:outline-offset-2' : ''}`}
             style={{
               background: isDisintegrating
                 ? 'linear-gradient(145deg, rgba(239, 68, 68, 0.2), rgba(30, 15, 50, 0.8))'
@@ -409,7 +413,7 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
               >
                 <span
                   className="absolute bottom-1.5 left-0 right-0 text-center text-[8px] font-black uppercase tracking-widest"
-                  style={{ color: '#d946ef', textShadow: '0 0 6px rgba(217, 70, 239, 0.6)' }}
+                  style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 6px rgba(217, 70, 239, 0.6)' }}
                 >
                   TAP
                 </span>

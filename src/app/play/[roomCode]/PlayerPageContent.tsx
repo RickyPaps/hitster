@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
@@ -53,6 +53,18 @@ export default function PlayerPageContent() {
   const { playSound } = useAudio();
 
   const [lastResult, setLastResult] = useState<{ correct: boolean; shouldDrink?: boolean; noGuess?: boolean; pointsAwarded?: number; bonusCategories?: string[] } | null>(null);
+
+  // Varied waiting messages — pick randomly each phase transition
+  const roundEndMsg = useMemo(() => {
+    const msgs = ['Waiting for the round to end...', 'Results incoming...', 'Fingers crossed...', 'Let\u2019s see how you did...'];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+  const nextRoundMsg = useMemo(() => {
+    const msgs = ['Waiting for next round...', 'Get ready...', 'Next track loading...', 'Stay sharp...'];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
   // Pre-read stored name so first render shows "Rejoining..." instead of the join form
   const storedNameForRoom = useRef(
     (() => { try { return sessionStorage.getItem(`hitster_room_${roomCode.toUpperCase()}`); } catch { return null; } })()
@@ -439,7 +451,7 @@ export default function PlayerPageContent() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center">
         <div className="text-5xl mb-4">&#x26A0;&#xFE0F;</div>
-        <h1 className="text-2xl font-bold mb-2" style={{ color: '#ef4444' }}>Room Unavailable</h1>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--error)' }}>Room Unavailable</h1>
         <p className="text-base mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>{roomError}</p>
         <button
           onClick={() => { try { sessionStorage.removeItem(`hitster_room_${roomCode.toUpperCase()}`); } catch {} reset(); router.push('/'); }}
@@ -465,7 +477,7 @@ export default function PlayerPageContent() {
             animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ repeat: Infinity, duration: 1.5 }}
             className="text-lg font-semibold"
-            style={{ color: '#d946ef', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
+            style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
           >
             Rejoining game...
           </motion.p>
@@ -488,7 +500,7 @@ export default function PlayerPageContent() {
             Hitster
           </h1>
           <p className="text-sm mb-6" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-            Room <span className="font-bold tracking-widest" style={{ color: '#d946ef' }}>{roomCode}</span>
+            Room <span className="font-bold tracking-widest" style={{ color: 'var(--game-fuchsia)' }}>{roomCode}</span>
           </p>
           <div className="flex flex-col gap-3 w-full">
             <input
@@ -510,7 +522,7 @@ export default function PlayerPageContent() {
               autoFocus
             />
             {joinError && (
-              <p className="text-sm" style={{ color: '#ef4444' }}>{joinError}</p>
+              <p className="text-sm" style={{ color: 'var(--error)' }}>{joinError}</p>
             )}
             <button
               onClick={handleDirectJoin}
@@ -796,20 +808,20 @@ export default function PlayerPageContent() {
               boxShadow: '0 0 12px rgba(217, 70, 239, 0.2)',
             }}
           >
-            <p className="text-sm font-bold" style={{ color: '#d946ef', textShadow: '0 0 8px rgba(217, 70, 239, 0.4)' }}>
+            <p className="text-sm font-bold" style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 8px rgba(217, 70, 239, 0.4)' }}>
               Pick a cell to mark!
             </p>
           </motion.div>
         )}
 
-        {/* Bingo Card */}
-        <div className="flex justify-center mb-3">
+        {/* Bingo Card — hide when player is actively spinning the wheel */}
+        {!(phase === 'SPINNING' && isSpinner) && <div className="flex justify-center mb-3">
           <BingoCard
             cells={bingoCard}
             pickableIndices={pendingPick ? new Set(pendingPick.eligibleIndices) : undefined}
             onCellPick={pendingPick ? handleBingoCellPick : undefined}
           />
-        </div>
+        </div>}
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col items-center justify-start gap-4 pb-6">
@@ -837,7 +849,7 @@ export default function PlayerPageContent() {
                       animate={{ scale: [1, 1.05, 1] }}
                       transition={{ repeat: Infinity, duration: 1.5 }}
                       className="text-2xl font-bold"
-                      style={{ color: '#d946ef', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}
+                      style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}
                     >
                       {currentSpinnerName} is spinning...
                     </motion.p>
@@ -850,7 +862,7 @@ export default function PlayerPageContent() {
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ repeat: Infinity, duration: 1.5 }}
                     className="text-2xl font-bold"
-                    style={{ color: '#d946ef', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}
+                    style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}
                   >
                     Spinning the wheel...
                   </motion.p>
@@ -887,12 +899,12 @@ export default function PlayerPageContent() {
                       animate={{ opacity: [0.5, 1, 0.5] }}
                       transition={{ repeat: Infinity, duration: 2 }}
                       className="text-lg font-semibold"
-                      style={{ color: '#d946ef', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
+                      style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
                     >
                       Guess locked in!
                     </motion.p>
                     <p className="text-sm mt-1" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                      Waiting for the round to end...
+                      {roundEndMsg}
                     </p>
                   </motion.div>
                 )}
@@ -922,7 +934,7 @@ export default function PlayerPageContent() {
                   className="mt-4 text-sm"
                   style={{ color: 'rgba(148, 163, 184, 0.6)' }}
                 >
-                  Waiting for next round...
+                  {nextRoundMsg}
                 </motion.p>
               </motion.div>
             )}
@@ -942,7 +954,7 @@ export default function PlayerPageContent() {
                       animate={{ scale: [1, 1.05, 1] }}
                       transition={{ repeat: Infinity, duration: 1.5 }}
                       className="text-3xl font-black"
-                      style={{ color: '#EAB308', textShadow: '0 0 20px rgba(234, 179, 8, 0.5)' }}
+                      style={{ color: 'var(--game-gold)', textShadow: '0 0 20px rgba(234, 179, 8, 0.5)' }}
                     >
                       EVERYBODY DRINKS!
                     </motion.p>
@@ -998,7 +1010,7 @@ export default function PlayerPageContent() {
                               className="text-sm font-bold px-2.5 py-0.5 rounded-full"
                               style={{
                                 background: 'rgba(255,255,255,0.1)',
-                                color: '#d946ef',
+                                color: 'var(--game-fuchsia)',
                               }}
                             >
                               {myPosition}{positionSuffix(myPosition!)}
@@ -1032,7 +1044,7 @@ export default function PlayerPageContent() {
                             >
                               <p
                                 className="text-sm font-black uppercase tracking-wider mb-2"
-                                style={{ color: '#EAB308', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
+                                style={{ color: 'var(--game-gold)', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
                               >
                                 &#x1F37A; Assign a drink!
                               </p>
@@ -1063,7 +1075,7 @@ export default function PlayerPageContent() {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               className="mt-3 text-sm font-bold"
-                              style={{ color: '#EAB308', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
+                              style={{ color: 'var(--game-gold)', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
                             >
                               &#x1F37B; Drink assigned to {rockOffDrinkAssigned}!
                             </motion.p>
@@ -1077,7 +1089,7 @@ export default function PlayerPageContent() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="text-lg font-bold text-center"
-                          style={{ color: '#EAB308', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}
+                          style={{ color: 'var(--game-gold)', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}
                         >
                           &#x1F3C6; {winner.playerName === playerName ? 'You win' : `${winner.playerName} wins`} the Rock Off!
                         </motion.p>
@@ -1100,7 +1112,7 @@ export default function PlayerPageContent() {
                             >
                               <span
                                 className="text-xs font-bold shrink-0 w-7 text-center px-1.5 py-0.5 rounded-full"
-                                style={{ background: 'rgba(255,255,255,0.08)', color: '#d946ef' }}
+                                style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--game-fuchsia)' }}
                               >
                                 {i + 1}{positionSuffix(i + 1)}
                               </span>

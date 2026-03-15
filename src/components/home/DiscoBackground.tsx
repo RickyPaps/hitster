@@ -3,15 +3,15 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 
-const TILE_COLORS = ['#ff2d95', '#b829ff', '#00f0ff', '#ff6bcb', '#f59e0b', '#22c55e'];
+const TILE_COLORS = ['#ff2d95', '#bc13fe', '#00f2ff', '#ff6bcb', '#f59e0b', '#22c55e'];
 const FLOOR_COLS = 12;
 const FLOOR_ROWS = 8;
 const FLOOR_COLS_MOBILE = 8;
 const FLOOR_ROWS_MOBILE = 6;
 
 const SPOTLIGHT_CONFIGS = [
-  { color: '#b829ff', left: '15%', rotation: -15, targetRotation: 15 },
-  { color: '#00f0ff', left: '40%', rotation: 10, targetRotation: -10 },
+  { color: '#bc13fe', left: '15%', rotation: -15, targetRotation: 15 },
+  { color: '#00f2ff', left: '40%', rotation: 10, targetRotation: -10 },
   { color: '#ff2d95', left: '65%', rotation: -8, targetRotation: 12 },
   { color: '#fffbe6', left: '85%', rotation: 5, targetRotation: -15 },
 ];

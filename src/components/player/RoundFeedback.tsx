@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAudio } from '@/hooks/useAudio';
 import FloatingScore from '@/components/animations/FloatingScore';
@@ -18,9 +18,20 @@ interface RoundFeedbackProps {
   bonusCategories?: string[];
 }
 
+const CORRECT_MSGS = ['Correct!', 'Nailed it!', 'You got it!', 'Spot on!', 'Boom!', 'Nice one!'];
+const WRONG_MSGS = ['Wrong!', 'Not quite!', 'Nope!', 'Nice try!', 'So close!'];
+const NO_GUESS_MSGS = ['No Guess!', 'Too slow!', "Time's up!"];
+const DRINK_MSGS = ['Take a Drink!', 'Bottoms up!', 'Sip time!', 'Cheers!', 'Down the hatch!'];
+
+const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
 export default function RoundFeedback({ correct, shouldDrink, noGuess, message, pointsAwarded, bonusCategories }: RoundFeedbackProps) {
   const { playSound } = useAudio();
   const [showFloatingScore, setShowFloatingScore] = useState(false);
+
+  // Pick random messages once on mount
+  const feedbackMsg = useMemo(() => pick(correct ? CORRECT_MSGS : noGuess ? NO_GUESS_MSGS : WRONG_MSGS), [correct, noGuess]);
+  const drinkMsg = useMemo(() => pick(DRINK_MSGS), []);
 
   // Play sound + trigger animations on mount
   useEffect(() => {
@@ -108,13 +119,13 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
           <p
             className="font-bold text-lg"
             style={{
-              color: correct ? '#22c55e' : '#ef4444',
+              color: correct ? 'var(--success)' : 'var(--error)',
               textShadow: correct
                 ? '0 0 10px rgba(34, 197, 94, 0.5)'
                 : '0 0 10px rgba(239, 68, 68, 0.5)',
             }}
           >
-            {correct ? 'Correct!' : noGuess ? 'No Guess!' : 'Wrong!'}
+            {feedbackMsg}
           </p>
 
           {/* Drink prompt */}
@@ -131,11 +142,11 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
                 transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
                 className="text-2xl font-black uppercase italic"
                 style={{
-                  color: '#EAB308',
+                  color: 'var(--game-gold)',
                   textShadow: '0 0 15px rgba(234, 179, 8, 0.6), 0 0 30px rgba(234, 179, 8, 0.3)',
                 }}
               >
-                Take a Drink!
+                {drinkMsg}
               </motion.p>
               <p className="text-3xl mt-1">&#x1F37A;</p>
             </motion.div>
@@ -148,7 +159,7 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               className="mt-3 text-sm font-bold"
-              style={{ color: '#00f2ff', textShadow: '0 0 8px rgba(0, 242, 255, 0.4)' }}
+              style={{ color: 'var(--game-cyan)', textShadow: '0 0 8px rgba(0, 242, 255, 0.4)' }}
             >
               +{pointsAwarded ?? 100} points!
             </motion.p>
@@ -171,7 +182,7 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
               </motion.div>
               <span
                 className="text-xs font-semibold"
-                style={{ color: '#d946ef', textShadow: '0 0 6px rgba(217, 70, 239, 0.4)' }}
+                style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 6px rgba(217, 70, 239, 0.4)' }}
               >
                 Bonus! Also marked: {bonusCategories.join(', ')}
               </span>

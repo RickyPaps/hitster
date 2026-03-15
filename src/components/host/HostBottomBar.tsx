@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import type { GamePhase, Track } from '@/types/game';
 import { getMediaTitle, getMediaSubtitle } from '@/types/game';
 
@@ -35,7 +36,7 @@ export default function HostBottomBar({
         <div className="min-w-0">
           <p
             className="text-[10px] font-black uppercase mb-1"
-            style={{ color: '#ff007f', letterSpacing: '0.4em' }}
+            style={{ color: 'var(--game-pink)', letterSpacing: '0.4em' }}
           >
             Playing Now
           </p>
@@ -52,26 +53,27 @@ export default function HostBottomBar({
           <div
             className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full timer-ring-pink"
           >
-            <span style={{ color: '#ff007f', fontSize: '0.9rem' }}>&#9201;</span>
+            <span style={{ color: 'var(--game-pink)', fontSize: '0.9rem' }}>&#9201;</span>
             <span
               className="font-black text-lg sm:text-2xl tabular-nums italic"
-              style={{ color: '#ff007f' }}
+              style={{ color: 'var(--game-pink)' }}
             >
               {timerDisplay}
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-3 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
-            <span className="text-xs font-bold text-gray-400 uppercase" style={{ letterSpacing: '0.1em' }}>
+          <div className="flex items-center gap-3 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full" style={{ background: 'rgba(188, 19, 254, 0.1)', border: '1px solid rgba(188, 19, 254, 0.2)' }}>
+            <span className="text-xs font-bold uppercase" style={{ letterSpacing: '0.1em', color: 'rgba(188, 19, 254, 0.8)' }}>
               Round {roundNumber}
             </span>
           </div>
         )}
 
         {/* Volume */}
-        <button
+        <motion.button
+          whileTap={{ scale: 0.85 }}
           onClick={onMuteToggle}
-          className="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer"
+          className="w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer"
           style={{
             background: 'rgba(75, 32, 56, 0.3)',
             backdropFilter: 'blur(12px)',
@@ -82,9 +84,9 @@ export default function HostBottomBar({
           {muted ? (
             <span style={{ color: 'rgba(0, 242, 255, 0.5)' }}>&#128263;</span>
           ) : (
-            <span style={{ color: '#00f2ff' }}>&#128266;</span>
+            <span style={{ color: 'var(--game-cyan)' }}>&#128266;</span>
           )}
-        </button>
+        </motion.button>
         <input
           type="range"
           min="0"

@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import type { GamePhase, TrackHistoryEntry } from '@/types/game';
 import { ALL_WHEEL_SEGMENTS } from '@/types/game';
 
@@ -40,7 +41,7 @@ export default function HostLeftSidebar({
             <span style={{ color: '#bc13fe', fontSize: '1.2rem' }}>&#8634;</span>
           </div>
           <div>
-            <p className="text-[10px] text-gray-400 uppercase font-bold">Current Phase</p>
+            <p className="text-[10px] uppercase font-bold" style={{ color: 'rgba(188, 19, 254, 0.7)' }}>Current Phase</p>
             <h3 className="text-sm font-bold text-white uppercase tracking-wide">
               {PHASE_DISPLAY[phase] ?? phase}
             </h3>
@@ -50,7 +51,9 @@ export default function HostLeftSidebar({
         {/* Action buttons */}
         <div className="space-y-2">
           {/* Spin Wheel — always visible, disabled when not SPINNING */}
-          <button
+          <motion.button
+            whileHover={phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning ? { scale: 1.02 } : {}}
+            whileTap={phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning ? { scale: 0.95 } : {}}
             onClick={phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning ? onSpin : undefined}
             className={`w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all gradient-spin-btn ${
               phase !== 'SPINNING' || currentSpinnerName || wheelSpinning ? 'opacity-30 pointer-events-none' : 'cursor-pointer'
@@ -58,37 +61,43 @@ export default function HostLeftSidebar({
           >
             <span className="text-lg">&#8635;</span>
             <span className="text-sm">Spin Wheel</span>
-          </button>
+          </motion.button>
 
           {/* Phase-specific primary action */}
           {phase === 'PLAYING' && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all cursor-pointer gradient-spin-btn"
             >
               <span className="text-sm">&#9989;</span>
               <span className="text-sm">Reveal Answer</span>
-            </button>
+            </motion.button>
           )}
 
           {phase === 'ROUND_RESULTS' && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all cursor-pointer gradient-spin-btn"
             >
               <span className="text-sm">&#9654;</span>
               <span className="text-sm">Next Round</span>
-            </button>
+            </motion.button>
           )}
 
           {phase === 'DRINKING_SEGMENT' && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all cursor-pointer gradient-spin-btn"
             >
               <span className="text-sm">&#9654;</span>
               <span className="text-sm">Continue</span>
-            </button>
+            </motion.button>
           )}
 
           {phase === 'SPINNING' && currentSpinnerName && !wheelSpinning && (
@@ -101,31 +110,33 @@ export default function HostLeftSidebar({
 
           {/* Skip / secondary action */}
           {(phase === 'SPINNING' || phase === 'PLAYING') && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onNextRound}
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-gray-300 font-bold transition-all cursor-pointer"
-              style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl font-bold transition-all cursor-pointer"
+              style={{ background: 'rgba(0, 242, 255, 0.06)', border: '1px solid rgba(0, 242, 255, 0.15)', color: 'rgba(0, 242, 255, 0.7)' }}
             >
               <span className="text-sm">&#9197;</span>
               <span className="text-sm">{phase === 'PLAYING' ? 'Skip Track' : 'Skip Turn'}</span>
-            </button>
+            </motion.button>
           )}
         </div>
 
         {/* Recent Results — compact inline style */}
         {trackHistory.length > 0 && (
-          <div className="mt-2 pt-4 border-t border-white/10">
-            <p className="text-[10px] text-gray-400 uppercase font-bold mb-3">Recent Results</p>
-            <div className="space-y-2 opacity-60">
+          <div className="mt-2 pt-4 border-t border-fuchsia-500/15">
+            <p className="text-[10px] uppercase font-bold mb-3" style={{ color: 'rgba(217, 70, 239, 0.7)' }}>Recent Results</p>
+            <div className="space-y-2">
               {trackHistory.slice(0, 3).map((entry) => {
                 const segment = ALL_WHEEL_SEGMENTS.find((s) => s.category === entry.category);
                 return (
                   <div
                     key={`${entry.track.id}-${entry.roundNumber}`}
                     className="flex items-center justify-between text-[11px] p-2 rounded-lg"
-                    style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+                    style={{ background: 'rgba(188, 19, 254, 0.08)', border: '1px solid rgba(188, 19, 254, 0.12)' }}
                   >
-                    <span className="text-gray-300">{segment?.label ?? entry.category}</span>
+                    <span style={{ color: 'rgba(217, 70, 239, 0.65)' }}>{segment?.label ?? entry.category}</span>
                     <span className="font-bold" style={{ color: '#ff007f' }}>
                       {entry.correctCount}/{entry.totalGuesses}
                     </span>

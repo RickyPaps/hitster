@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import type { GamePhase } from '@/types/game';
 
 interface MobileActionBarProps {
@@ -56,54 +57,59 @@ export default function MobileActionBar({
 
       {/* Phase-specific primary action */}
       {phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning && (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={onSpin}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#8635;</span>
           <span>Spin</span>
-        </button>
+        </motion.button>
       )}
 
       {phase === 'PLAYING' && (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={onNextRound}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#9989;</span>
           <span>Reveal</span>
-        </button>
+        </motion.button>
       )}
 
       {phase === 'ROUND_RESULTS' && (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={onNextRound}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#9654;</span>
           <span>Next</span>
-        </button>
+        </motion.button>
       )}
 
       {phase === 'DRINKING_SEGMENT' && (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={onNextRound}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#9654;</span>
           <span>Continue</span>
-        </button>
+        </motion.button>
       )}
 
       {/* Skip — secondary action */}
       {(phase === 'SPINNING' || phase === 'PLAYING') && (
-        <button
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={onNextRound}
-          className="shrink-0 text-[10px] font-bold uppercase px-2 py-1.5 rounded-lg text-gray-400 cursor-pointer"
-          style={{ background: 'rgba(255, 255, 255, 0.05)' }}
+          className="shrink-0 text-[10px] font-bold uppercase px-2 py-1.5 rounded-lg cursor-pointer"
+          style={{ background: 'rgba(0, 242, 255, 0.08)', color: 'rgba(0, 242, 255, 0.6)', border: '1px solid rgba(0, 242, 255, 0.15)' }}
         >
           Skip
-        </button>
+        </motion.button>
       )}
     </div>
   );

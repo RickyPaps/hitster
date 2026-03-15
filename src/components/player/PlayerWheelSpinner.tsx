@@ -46,6 +46,7 @@ export default function PlayerWheelSpinner({
   const spinStateRef = useRef<SpinState>('IDLE');
   const hasFiredSwipeRef = useRef(false);
   const prevSegmentRef = useRef(-1);
+  const displaySizeRef = useRef(300);
 
   // Drag tracking
   const lastAngleRef = useRef(0);
@@ -55,6 +56,7 @@ export default function PlayerWheelSpinner({
   const [spinState, setSpinState] = useState<SpinState>('IDLE');
   const [showResult, setShowResult] = useState(false);
   const { playSound } = useAudio();
+  const wheelSize = Math.min(300, typeof window !== 'undefined' ? window.innerWidth - 60 : 300);
 
   // Keep ref in sync with state for use in rAF callbacks
   const updateSpinState = useCallback((s: SpinState) => {
@@ -62,22 +64,26 @@ export default function PlayerWheelSpinner({
     setSpinState(s);
   }, []);
 
-  // Cache canvas context and draw initial wheel
+  // Cache canvas context and draw initial wheel (DPI-aware)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    displaySizeRef.current = wheelSize;
+    canvas.width = wheelSize * dpr;
+    canvas.height = wheelSize * dpr;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctxRef.current = ctx;
-    drawWheel(ctx, canvas.width, 0, segments);
-  }, [segments]);
+    drawWheel(ctx, wheelSize, 0, segments);
+  }, [segments, wheelSize]);
 
   // Redraw helper
   const redraw = useCallback(() => {
     const ctx = ctxRef.current;
-    const canvas = canvasRef.current;
-    if (!ctx || !canvas) return;
-    drawWheel(ctx, canvas.width, rotationRef.current, segments);
+    if (!ctx) return;
+    drawWheel(ctx, displaySizeRef.current, rotationRef.current, segments);
   }, [segments]);
 
   // Calculate touch angle relative to wheel center
@@ -371,13 +377,11 @@ export default function PlayerWheelSpinner({
     };
   }, []);
 
-  const wheelSize = Math.min(300, typeof window !== 'undefined' ? window.innerWidth - 60 : 300);
-
   const isInteractive = spinState === 'IDLE' && !hasFiredSwipeRef.current;
   const isAnimating = spinState === 'MOMENTUM' || spinState === 'SERVER_SPIN';
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden touch-none" style={{ background: '#0d0216', overscrollBehavior: 'none' }}>
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden touch-none" style={{ background: 'var(--bg-deep)', overscrollBehavior: 'none' }}>
       {/* Background atmosphere */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 opacity-15 disco-grid-bg" />
@@ -455,7 +459,7 @@ export default function PlayerWheelSpinner({
           width={wheelSize}
           height={wheelSize}
           className="max-w-full touch-none relative select-none"
-          style={{ willChange: 'auto' }}
+          style={{ width: wheelSize, height: wheelSize, willChange: 'auto' }}
         />
       </div>
 
@@ -473,7 +477,7 @@ export default function PlayerWheelSpinner({
               transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
               className="flex flex-col items-center"
             >
-              <span className="text-3xl" style={{ color: '#00f2ff' }}>
+              <span className="text-3xl" style={{ color: 'var(--game-cyan)' }}>
                 &#8635;
               </span>
             </motion.div>
@@ -506,7 +510,7 @@ export default function PlayerWheelSpinner({
               animate={{ opacity: [0.5, 1, 0.5] }}
               transition={{ repeat: Infinity, duration: 1.2 }}
               className="text-lg font-bold uppercase"
-              style={{ color: '#bc13fe', letterSpacing: '0.2em' }}
+              style={{ color: 'var(--game-purple)', letterSpacing: '0.2em' }}
             >
               Spinning...
             </motion.p>

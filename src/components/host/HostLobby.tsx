@@ -9,6 +9,15 @@ import { useGameStore } from '@/stores/gameStore';
 import { useAudio } from '@/hooks/useAudio';
 import type { LobbySettings } from '@/types/game';
 
+const LOADING_MSGS = [
+  'Warming up the turntables...',
+  'Polishing the disco ball...',
+  'Cueing up the hits...',
+  'Shuffling the playlist...',
+  'Getting the party ready...',
+  'Tuning the speakers...',
+];
+
 interface HostLobbyProps {
   onStartGame: () => void;
   loading?: boolean;
@@ -32,6 +41,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
   const { playSound } = useAudio();
   const prevPlayerCountRef = useRef(players.length);
   const [newPlayerId, setNewPlayerId] = useState<string | null>(null);
+  const [loadMsgIdx, setLoadMsgIdx] = useState(0);
 
   // Play join chime + track new player when a new player joins
   useEffect(() => {
@@ -46,6 +56,13 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
     }
     prevPlayerCountRef.current = players.length;
   }, [players.length, playSound, players]);
+
+  // Cycle loading messages while loading
+  useEffect(() => {
+    if (!loading) return;
+    const id = setInterval(() => setLoadMsgIdx((i) => (i + 1) % LOADING_MSGS.length), 2000);
+    return () => clearInterval(id);
+  }, [loading]);
 
   const handleBack = () => {
     disconnectSocket();
@@ -85,7 +102,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
           >
             Hitster
           </h1>
-          <h2 className="text-lg md:text-xl font-bold text-gray-300 mb-6">
+          <h2 className="text-lg md:text-xl font-bold text-fuchsia-200/70 mb-6">
             {localSettings.contentMode === 'movie' ? 'Movie' : localSettings.contentMode === 'mixed' ? 'Mixed' : 'Music'} Bingo Party Game
           </h2>
 
@@ -110,7 +127,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
           <section className="bg-purple-950/40 backdrop-blur-md border border-fuchsia-900/50 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold neon-text-fuchsia flex items-center gap-2" style={{ color: 'white' }}>
-                <span className="text-2xl">👥</span>
+                <span className="text-2xl" aria-hidden="true">👥</span>
                 Players Joined
               </h3>
               <span className="bg-fuchsia-500/20 text-fuchsia-300 px-3 py-1 rounded-full text-sm font-bold neon-box-fuchsia">
@@ -164,17 +181,17 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   </div>
                   <div className="flex items-center gap-3">
                     {p.connected ? (
-                      <span className="text-green-400 text-xl">✓</span>
+                      <span className="text-green-400 text-xl" aria-label="Connected" title="Connected">✓</span>
                     ) : (
-                      <span className="text-gray-400 text-sm animate-spin inline-block">↻</span>
+                      <span className="text-cyan-400/60 text-sm animate-spin inline-block" aria-label="Reconnecting" title="Reconnecting">↻</span>
                     )}
                     {i > 0 && (
                       <button
                         onClick={() => handleKick(p.id)}
-                        className="text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/15 rounded-full w-8 h-8 flex items-center justify-center transition-all text-sm cursor-pointer"
-                        title={`Remove ${p.name}`}
+                        className="text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/15 rounded-full w-10 h-10 flex items-center justify-center transition-all text-sm cursor-pointer"
+                        aria-label={`Remove ${p.name}`}
                       >
-                        ✕
+                        <span aria-hidden="true">✕</span>
                       </button>
                     )}
                   </div>
@@ -184,12 +201,12 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
               </AnimatePresence>
 
               {players.length === 0 && (
-                <div className="border-2 border-dashed border-fuchsia-900/50 rounded-xl p-4 flex items-center justify-center text-gray-400">
+                <div className="border-2 border-dashed border-fuchsia-900/50 rounded-xl p-4 flex items-center justify-center text-purple-300/50">
                   Waiting for players to join...
                 </div>
               )}
               {players.length > 0 && players.length < 8 && (
-                <div className="border-2 border-dashed border-fuchsia-900/50 rounded-xl p-4 flex items-center justify-center text-gray-500 text-sm">
+                <div className="border-2 border-dashed border-fuchsia-900/50 rounded-xl p-4 flex items-center justify-center text-purple-300/40 text-sm">
                   Waiting for more players...
                 </div>
               )}
@@ -200,7 +217,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
           <section className="space-y-6">
             <div className="bg-purple-950/40 backdrop-blur-md border border-fuchsia-900/50 rounded-2xl p-6 shadow-2xl">
               <h3 className="text-xl font-bold neon-text-fuchsia flex items-center gap-2 mb-6" style={{ color: 'white' }}>
-                <span className="text-2xl">⚙</span>
+                <span className="text-2xl" aria-hidden="true">⚙</span>
                 Game Settings
               </h3>
 
@@ -210,12 +227,14 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
                     Timer Duration
                   </label>
-                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
+                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden" role="radiogroup" aria-label="Timer duration">
                     {([10, 20, 30] as const).map((t) => (
                       <button
                         key={t}
                         onClick={() => updateSetting('timerDuration', t)}
-                        className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                        role="radio"
+                        aria-checked={localSettings.timerDuration === t}
+                        className={`flex-1 py-3 px-4 text-center transition-all font-medium cursor-pointer active:scale-[0.97] ${
                           localSettings.timerDuration === t
                             ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
                             : 'hover:bg-fuchsia-500/10 text-gray-300'
@@ -232,12 +251,14 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
                     Win Condition
                   </label>
-                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
+                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden" role="radiogroup" aria-label="Win condition">
                     {([1, 2, 9] as const).map((w) => (
                       <button
                         key={w}
                         onClick={() => updateSetting('winCondition', w)}
-                        className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                        role="radio"
+                        aria-checked={localSettings.winCondition === w}
+                        className={`flex-1 py-3 px-4 text-center transition-all font-medium cursor-pointer active:scale-[0.97] ${
                           localSettings.winCondition === w
                             ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
                             : 'hover:bg-fuchsia-500/10 text-gray-300'
@@ -254,12 +275,14 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
                     Content
                   </label>
-                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
+                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden" role="radiogroup" aria-label="Content type">
                     {(['music', 'movie', 'mixed'] as const).map((mode) => (
                       <button
                         key={mode}
                         onClick={() => updateSetting('contentMode', mode)}
-                        className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                        role="radio"
+                        aria-checked={localSettings.contentMode === mode}
+                        className={`flex-1 py-3 px-4 text-center transition-all font-medium cursor-pointer active:scale-[0.97] ${
                           localSettings.contentMode === mode
                             ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
                             : 'hover:bg-fuchsia-500/10 text-gray-300'
@@ -276,10 +299,12 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                   <label className="block text-sm font-semibold text-fuchsia-200 mb-2 uppercase tracking-wider">
                     {localSettings.contentMode === 'movie' ? 'Movie Source' : 'Music Source'}
                   </label>
-                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden">
+                  <div className="flex bg-indigo-950/80 border border-fuchsia-500/40 rounded-lg overflow-hidden" role="radiogroup" aria-label="Music source">
                     <button
                       onClick={() => updateSetting('musicSource', 'curated')}
-                      className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                      role="radio"
+                      aria-checked={localSettings.musicSource === 'curated'}
+                      className={`flex-1 py-3 px-4 text-center transition-all font-medium cursor-pointer active:scale-[0.97] ${
                         localSettings.musicSource === 'curated'
                           ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
                           : 'hover:bg-fuchsia-500/10 text-gray-300'
@@ -289,7 +314,9 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                     </button>
                     <button
                       onClick={() => updateSetting('musicSource', 'playlist')}
-                      className={`flex-1 py-3 px-4 text-center transition-all font-medium ${
+                      role="radio"
+                      aria-checked={localSettings.musicSource === 'playlist'}
+                      className={`flex-1 py-3 px-4 text-center transition-all font-medium cursor-pointer active:scale-[0.97] ${
                         localSettings.musicSource === 'playlist'
                           ? 'bg-fuchsia-500/30 neon-box-fuchsia text-white font-bold border-0'
                           : 'hover:bg-fuchsia-500/10 text-gray-300'
@@ -302,6 +329,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                     <input
                       type="text"
                       placeholder="Spotify Playlist URL"
+                      aria-label="Spotify playlist URL"
                       value={localSettings.playlistUrl}
                       onChange={(e) => updateSetting('playlistUrl', e.target.value)}
                       className="w-full mt-3 py-3 px-4 rounded-lg text-sm bg-indigo-950/80 border border-fuchsia-500/40 text-white placeholder-gray-500 neon-input"
@@ -313,12 +341,14 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                 <div className="flex items-center justify-between bg-indigo-950/60 p-4 rounded-lg border border-fuchsia-900/40">
                   <div>
                     <p className="font-semibold text-white">Drink on Wrong Guess</p>
-                    <p className="text-sm text-gray-400">Wrong answer = take a sip</p>
+                    <p className="text-sm text-fuchsia-300/60">Wrong answer = take a sip</p>
                   </div>
                   <button
                     onClick={() => updateSetting('drinkOnWrongGuess', !localSettings.drinkOnWrongGuess)}
                     className={`disco-toggle ${localSettings.drinkOnWrongGuess ? 'active' : ''}`}
-                    aria-label="Toggle drink on wrong guess"
+                    role="switch"
+                    aria-checked={localSettings.drinkOnWrongGuess}
+                    aria-label="Drink on wrong guess"
                   />
                 </div>
 
@@ -326,12 +356,14 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                 <div className="flex items-center justify-between bg-indigo-950/60 p-4 rounded-lg border border-fuchsia-900/40">
                   <div>
                     <p className="font-semibold text-white">Drink on Row Complete</p>
-                    <p className="text-sm text-gray-400">Others drink when someone completes a row</p>
+                    <p className="text-sm text-fuchsia-300/60">Others drink when someone completes a row</p>
                   </div>
                   <button
                     onClick={() => updateSetting('drinkOnRowComplete', !localSettings.drinkOnRowComplete)}
                     className={`disco-toggle ${localSettings.drinkOnRowComplete ? 'active' : ''}`}
-                    aria-label="Toggle drink on row complete"
+                    role="switch"
+                    aria-checked={localSettings.drinkOnRowComplete}
+                    aria-label="Drink on row complete"
                   />
                 </div>
               </div>
@@ -360,7 +392,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             {loading ? (
               <span className="flex items-center justify-center gap-3">
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {localSettings.contentMode === 'movie' ? 'Loading Movies...' : localSettings.contentMode === 'mixed' ? 'Loading Content...' : 'Loading Songs...'}
+                {LOADING_MSGS[loadMsgIdx]}
               </span>
             ) : (
               'Start Game'

@@ -7,8 +7,16 @@ let cachedSegmentGrads: CanvasGradient[] = [];
 let cachedHubGrad: CanvasGradient | null = null;
 let cachedPointerGrad: CanvasGradient | null = null;
 
+function segmentsMatch(a: WheelSegment[], b: WheelSegment[]): boolean {
+  if (a.length !== b.length) return false;
+  // Quick identity check first (covers the common WHEEL_SEGMENTS constant case)
+  if (a === b) return true;
+  // Compare first and last segment colors as a cheap hash
+  return a[0]?.accentColor === b[0]?.accentColor && a[a.length - 1]?.accentColor === b[b.length - 1]?.accentColor;
+}
+
 function ensureGradientCache(ctx: CanvasRenderingContext2D, size: number, segments: WheelSegment[]): void {
-  if (cachedSize === size && cachedSegments === segments && cachedSegmentGrads.length > 0) return;
+  if (cachedSize === size && cachedSegmentGrads.length > 0 && segmentsMatch(cachedSegments, segments)) return;
 
   const center = size / 2;
   const radius = center - 12;

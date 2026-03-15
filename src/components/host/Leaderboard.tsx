@@ -81,7 +81,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
       setNewLeaderName(sorted[0].name);
       playSound('rankUp');
     }
-  });
+  }, [sorted, prevRankings, playSound]);
 
   // Auto-dismiss takeover banner (separate effect so re-renders don't cancel the timer)
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
       {/* Leaderboard header */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <span style={{ color: '#ff007f', fontSize: '1.1rem' }}>&#127942;</span>
+          <span style={{ color: 'var(--game-pink)', fontSize: '1.1rem' }}>&#127942;</span>
           <h3 className="font-black text-base uppercase text-white" style={{ letterSpacing: '0.12em' }}>
             Leaderboard
           </h3>
@@ -116,7 +116,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
           className="text-[10px] font-black uppercase px-2 py-1 rounded-full"
           style={{
             background: 'rgba(0, 242, 255, 0.2)',
-            color: '#00f2ff',
+            color: 'var(--game-cyan)',
             border: '1px solid rgba(0, 242, 255, 0.3)',
           }}
         >
@@ -163,7 +163,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                 exit={{ opacity: 0, x: 20 }}
                 className="relative flex items-center justify-between px-4 py-3"
                 style={{
-                  borderTop: i > 0 ? '1px solid rgba(255, 255, 255, 0.05)' : undefined,
+                  borderTop: i > 0 ? '1px solid rgba(217, 70, 239, 0.1)' : undefined,
                   background: isTakeover
                     ? 'linear-gradient(90deg, rgba(255, 107, 0, 0.15), rgba(234, 179, 8, 0.08), transparent)'
                     : undefined,
@@ -176,7 +176,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   <div className="flex items-center gap-3">
                     <span
                       className="font-black w-4 text-sm"
-                      style={{ color: isLeader ? '#00f2ff' : '#6b7280' }}
+                      style={{ color: isLeader ? '#00f2ff' : 'rgba(217, 70, 239, 0.5)' }}
                     >
                       {i + 1}
                     </span>
@@ -241,8 +241,8 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   {nearBingo.some((nb) => nb.id === p.id) && (
                     <div className="mt-1 ml-7">
                       <span
-                        className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(255, 0, 127, 0.2)', color: '#ff007f' }}
+                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                        style={{ background: 'rgba(255, 0, 127, 0.2)', color: 'var(--game-pink)' }}
                       >
                         Near Bingo!
                       </span>
@@ -251,8 +251,8 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   {p.completedRows > 0 && !nearBingo.some((nb) => nb.id === p.id) && (
                     <div className="mt-1 ml-7">
                       <span
-                        className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(188, 19, 254, 0.2)', color: '#bc13fe' }}
+                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                        style={{ background: 'rgba(188, 19, 254, 0.2)', color: 'var(--game-purple)' }}
                       >
                         {p.completedRows} Line{p.completedRows > 1 ? 's' : ''}
                       </span>
@@ -261,8 +261,8 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   {p.milestones && (p.milestones.drinks500Earned && !p.milestones.drinks500Used) && (
                     <div className="mt-1 ml-7">
                       <span
-                        className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#EAB308' }}
+                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                        style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--game-gold)' }}
                       >
                         &#127866; Drink Ready
                       </span>
@@ -271,8 +271,8 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   {p.milestones && (p.milestones.block1000Earned && !p.milestones.block1000Used) && (
                     <div className="mt-1 ml-7">
                       <span
-                        className="px-2 py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
+                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error)' }}
                       >
                         &#128737; Block Ready
                       </span>
@@ -280,7 +280,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                   )}
                   {!p.connected && (
                     <div className="mt-1 ml-7">
-                      <span className="text-[10px] text-gray-600">Disconnected</span>
+                      <span className="text-[10px] text-red-400/70">Disconnected</span>
                     </div>
                   )}
                 </div>
@@ -315,6 +315,8 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              role="status"
+              aria-live="polite"
               className="absolute top-12 left-2 right-2 z-40 flex items-center justify-center py-2 px-3 rounded-lg"
               style={{
                 background: 'linear-gradient(135deg, rgba(255, 107, 0, 0.9), rgba(234, 179, 8, 0.85))',
@@ -345,9 +347,9 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
             boxShadow: '0 0 20px rgba(255, 0, 127, 0.5)',
           }}
         >
-          <span style={{ color: '#ff007f', fontSize: '1.1rem' }}>&#128276;</span>
+          <span style={{ color: 'var(--game-pink)', fontSize: '1.1rem' }}>&#128276;</span>
           <div>
-            <p className="font-black text-sm uppercase" style={{ color: '#ff007f' }}>
+            <p className="font-black text-sm uppercase" style={{ color: 'var(--game-pink)' }}>
               Alert: {nearBingo[0].name}
             </p>
             <p className="text-xs text-gray-200">
@@ -366,7 +368,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
         <>
           <div className="flex items-center justify-between mt-2 mb-1">
             <div className="flex items-center gap-2">
-              <span style={{ color: '#EAB308', fontSize: '1.1rem' }}>&#127866;</span>
+              <span style={{ color: 'var(--game-gold)', fontSize: '1.1rem' }}>&#127866;</span>
               <h3 className="font-black text-base uppercase text-white" style={{ letterSpacing: '0.12em' }}>
                 Drink Tracker
               </h3>
@@ -375,7 +377,7 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
               className="text-[10px] font-black uppercase px-2 py-1 rounded-full"
               style={{
                 background: 'rgba(234, 179, 8, 0.2)',
-                color: '#EAB308',
+                color: 'var(--game-gold)',
                 border: '1px solid rgba(234, 179, 8, 0.3)',
               }}
             >

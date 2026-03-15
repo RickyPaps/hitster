@@ -84,6 +84,17 @@ export default memo(function StreakCounter({ streak, broken }: StreakCounterProp
           >
             {streak}
           </motion.span>
+          {streak >= 3 && (
+            <motion.span
+              key={`label-${streak >= 8 ? 8 : streak >= 5 ? 5 : 3}`}
+              initial={{ opacity: 0, x: -5 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-[10px] font-black uppercase tracking-wider"
+              style={{ color: textColor, opacity: 0.8 }}
+            >
+              {streak >= 8 ? 'LEGENDARY' : streak >= 5 ? 'UNSTOPPABLE' : 'ON FIRE'}
+            </motion.span>
+          )}
         </motion.div>
       ) : null}
     </AnimatePresence>

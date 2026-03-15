@@ -79,6 +79,7 @@ export default function RoundResults({
     if (stage !== 'playerCards') return;
 
     let idx = 0;
+    let doneTimer: ReturnType<typeof setTimeout> | null = null;
     revealIntervalRef.current = setInterval(() => {
       if (idx < playerResults.length) {
         setRevealedPlayerIndex(idx);
@@ -90,12 +91,13 @@ export default function RoundResults({
         idx++;
       } else {
         if (revealIntervalRef.current) clearInterval(revealIntervalRef.current);
-        setTimeout(() => setStage('done'), 500);
+        doneTimer = setTimeout(() => setStage('done'), 500);
       }
     }, 300);
 
     return () => {
       if (revealIntervalRef.current) clearInterval(revealIntervalRef.current);
+      if (doneTimer) clearTimeout(doneTimer);
     };
   }, [stage]);
 
@@ -139,7 +141,7 @@ export default function RoundResults({
         className="text-4xl md:text-5xl font-black uppercase tracking-wide text-center"
         style={{
           fontFamily: 'var(--font-display)',
-          color: '#ff007f',
+          color: 'var(--game-pink)',
           textShadow: '0 0 20px rgba(255, 0, 127, 0.6), 0 0 60px rgba(255, 0, 127, 0.3)',
         }}
       >
@@ -151,7 +153,7 @@ export default function RoundResults({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
         className="text-xs font-bold uppercase mt-2 mb-8"
-        style={{ color: '#00f2ff', letterSpacing: '0.3em' }}
+        style={{ color: 'var(--game-cyan)', letterSpacing: '0.3em' }}
       >
         Neon Disco Edition &middot; Round {roundNumber}
       </motion.p>
@@ -200,6 +202,7 @@ export default function RoundResults({
                 src={track.albumArt}
                 alt={getMediaTitle(track)}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
             </motion.div>
           )}
@@ -218,7 +221,7 @@ export default function RoundResults({
                   initial={{ x: 20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.4, duration: 0.3 }}
-                  className="text-base text-gray-400 font-medium truncate"
+                  className="text-base font-medium truncate" style={{ color: 'rgba(0, 242, 255, 0.6)' }}
                 >
                   {isMovie ? 'Dir. ' : ''}{getMediaSubtitle(track)}
                 </motion.p>
@@ -239,11 +242,11 @@ export default function RoundResults({
                   className="flex items-center gap-2 flex-wrap mt-1"
                 >
                   <span
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold"
                     style={{
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: '#e2e8f0',
+                      color: 'var(--text-primary)',
                     }}
                   >
                     <span style={{ fontSize: '0.75rem' }}>{isMovie ? '\u{1F3AC}' : '\u{266B}'}</span>
@@ -280,8 +283,8 @@ export default function RoundResults({
           transition={{ duration: 0.3 }}
           className="flex items-center gap-2 mb-5"
         >
-          <span style={{ color: '#00f2ff' }}>&#10003;</span>
-          <span className="text-sm font-bold uppercase tracking-widest text-gray-400">
+          <span style={{ color: 'var(--game-cyan)' }}>&#10003;</span>
+          <span className="text-sm font-bold uppercase tracking-widest" style={{ color: 'rgba(217, 70, 239, 0.7)' }}>
             {correctCount > 0 ? 'Correct Guesses' : 'No Correct Guesses'}
             {category && (
               <>
@@ -296,7 +299,7 @@ export default function RoundResults({
 
       {/* Player Result Cards — cascade one-by-one with sounds */}
       {stageAtLeast(stage, 'playerCards') && (
-        <div className="w-full flex flex-wrap justify-center gap-3 mb-8">
+        <div className="w-full flex flex-wrap justify-center gap-2 sm:gap-3 mb-8">
           <AnimatePresence>
             {playerResults.map((p, i) => (
               i <= revealedPlayerIndex && (
@@ -305,7 +308,7 @@ export default function RoundResults({
                   initial={{ opacity: 0, y: 20, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  className="flex flex-col items-center gap-1 rounded-xl px-5 py-3 min-w-[100px]"
+                  className="flex flex-col items-center gap-1 rounded-xl px-3 sm:px-5 py-2.5 sm:py-3 min-w-[80px] sm:min-w-[100px]"
                   style={{
                     background: p.correct
                       ? 'rgba(0, 242, 255, 0.08)'

@@ -19,26 +19,29 @@ export default function AnimatedNumber({
   style,
 }: AnimatedNumberProps) {
   const prevRef = useRef(value);
+  const formatRef = useRef(format);
+  formatRef.current = format;
   const [display, setDisplay] = useState(format(value));
 
   useEffect(() => {
     const from = prevRef.current;
     const to = value;
+    const fmt = formatRef.current;
     prevRef.current = value;
 
     if (from === to) {
-      setDisplay(format(to));
+      setDisplay(fmt(to));
       return;
     }
 
     const controls = animate(from, to, {
       duration,
       ease: 'easeOut',
-      onUpdate: (latest) => setDisplay(format(latest)),
+      onUpdate: (latest) => setDisplay(formatRef.current(latest)),
     });
 
     return () => controls.stop();
-  }, [value, duration, format]);
+  }, [value, duration]);
 
   return (
     <span className={className} style={style}>

@@ -70,12 +70,12 @@ export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPr
           </motion.div>
         )}
       </div>
-      <p className="text-xl max-w-md" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-base sm:text-xl max-w-md px-4" style={{ color: 'var(--text-secondary)' }}>
         {c.subtitle}
       </p>
       <button
         onClick={onContinue}
-        className="mt-4 py-3 px-8 rounded-xl font-bold text-white cursor-pointer"
+        className="mt-4 py-2.5 sm:py-3 px-6 sm:px-8 rounded-xl font-bold text-white cursor-pointer"
         style={{
           background: 'linear-gradient(135deg, #ff007f, #bc13fe)',
           boxShadow: '0 0 20px rgba(255, 0, 127, 0.4)',

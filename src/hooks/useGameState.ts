@@ -14,24 +14,23 @@ export function useGameState() {
     if (!socket) return;
 
     socket.on(SOCKET_EVENTS.GAME_STATE_SYNC, (state: any) => {
-      store.setPlayers(state.players);
-      store.setPhase(state.phase);
-      store.setCurrentCategory(state.currentCategory);
-      store.setRoundNumber(state.roundNumber);
-      store.setRoundGuesses(state.roundGuesses);
-      store.setTimerSeconds(state.timerSeconds);
-      store.setWinner(state.winner ?? null);
-      store.setCurrentTrack(state.currentTrack ?? null);
-      store.setCurrentSpinner(state.currentSpinnerId ?? null, state.currentSpinnerName ?? null);
-
-      // Update own bingo card from server state
+      // Batch all state updates into a single setState call to avoid cascading re-renders
       const { playerId } = useGameStore.getState();
-      if (playerId) {
-        const me = state.players.find((p: Player) => p.id === playerId);
-        if (me) {
-          store.setBingoCard(me.bingoCard);
-        }
-      }
+      const me = playerId ? state.players.find((p: Player) => p.id === playerId) : null;
+
+      useGameStore.setState({
+        players: state.players,
+        phase: state.phase,
+        currentCategory: state.currentCategory,
+        roundNumber: state.roundNumber,
+        roundGuesses: state.roundGuesses,
+        timerSeconds: state.timerSeconds,
+        winner: state.winner ?? null,
+        currentTrack: state.currentTrack ?? null,
+        currentSpinnerId: state.currentSpinnerId ?? null,
+        currentSpinnerName: state.currentSpinnerName ?? null,
+        ...(me ? { bingoCard: me.bingoCard } : {}),
+      });
     });
 
     socket.on(SOCKET_EVENTS.GAME_PHASE_CHANGE, (phase: GamePhase) => {

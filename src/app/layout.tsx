@@ -27,7 +27,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={monoton.variable} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
-        {children}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-fuchsia-600 focus:text-white focus:text-sm focus:font-bold"
+        >
+          Skip to content
+        </a>
+        <main id="main-content">
+          {children}
+        </main>
       </body>
     </html>
   );

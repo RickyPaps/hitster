@@ -10,6 +10,8 @@ import ScreenShake from '@/components/animations/ScreenShake';
 import { useAudio, playSpinTick } from '@/hooks/useAudio';
 import { fireFromElement } from '@/lib/confetti';
 
+const WHEEL_DISPLAY_SIZE = 400;
+
 interface WheelSpinnerProps {
   onSpinComplete: () => void;
   isSpinning: boolean;
@@ -35,14 +37,18 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
   const [showVignette, setShowVignette] = useState(false);
   const { playSound } = useAudio();
 
-  // Cache canvas context and draw initial wheel
+  // Cache canvas context and draw initial wheel (DPI-aware)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = WHEEL_DISPLAY_SIZE * dpr;
+    canvas.height = WHEEL_DISPLAY_SIZE * dpr;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctxRef.current = ctx;
-    drawWheel(ctx, canvas.width, 0, segments);
+    drawWheel(ctx, WHEEL_DISPLAY_SIZE, 0, segments);
   }, [segments]);
 
   // Reset landing state when a new spin starts
@@ -73,7 +79,7 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
     const velocity = swipeVelocity ?? (0.8 + Math.random() * 0.7);
     const { totalRotation, duration } = calculateSpinAnimation(resultIndex, velocity, segments.length);
     const startTime = performance.now();
-    const size = canvas.width;
+    const size = WHEEL_DISPLAY_SIZE;
     const segmentCount = segments.length;
     const arc = (2 * Math.PI) / segmentCount;
 

@@ -200,17 +200,17 @@ export default function HostGameShell(props: HostGameShellProps) {
           />
           {/* Panel */}
           <div
-            className="absolute top-0 right-0 h-full w-80 max-w-[85vw] overflow-y-auto mobile-leaderboard-panel"
+            className="absolute top-0 right-0 h-full w-72 sm:w-80 max-w-[85vw] overflow-y-auto mobile-leaderboard-panel"
             style={{ background: '#0d0216' }}
           >
             <div className="flex items-center justify-between p-3 border-b border-white/10">
               <span className="text-sm font-bold text-white uppercase tracking-wide">Leaderboard</span>
               <button
                 onClick={() => setShowMobileLeaderboard(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer"
-                style={{ background: 'rgba(255, 255, 255, 0.1)' }}
+                className="w-10 h-10 flex items-center justify-center rounded-full cursor-pointer"
+                style={{ background: 'rgba(217, 70, 239, 0.15)', border: '1px solid rgba(217, 70, 239, 0.25)' }}
               >
-                <span className="text-gray-300">&#10005;</span>
+                <span style={{ color: 'rgba(217, 70, 239, 0.8)' }}>&#10005;</span>
               </button>
             </div>
             <Leaderboard players={players} winCondition={winCondition} />
@@ -284,7 +284,7 @@ function CenterContent({
         <div className="flex flex-col items-center">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: 'white', boxShadow: '0 0 30px rgba(255, 255, 255, 0.8)' }}
+            style={{ background: 'white', boxShadow: '0 0 30px rgba(0, 242, 255, 0.6), 0 0 60px rgba(255, 0, 127, 0.3)' }}
           >
             <span className="text-xl font-black" style={{ color: '#0d0216' }}>&#9660;</span>
           </div>
@@ -355,7 +355,7 @@ function CenterContent({
           </h1>
 
           {/* Guess count */}
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="text-sm mb-4" style={{ color: 'rgba(0, 242, 255, 0.6)' }}>
             {roundGuesses.length} / {players.length} guesses submitted
           </p>
 
@@ -470,7 +470,7 @@ function CenterContent({
                   <circle
                     cx="36" cy="36" r="30"
                     fill="none"
-                    stroke="rgba(255, 255, 255, 0.08)"
+                    stroke="rgba(217, 70, 239, 0.15)"
                     strokeWidth="4"
                   />
                   <circle
@@ -498,7 +498,7 @@ function CenterContent({
               </div>
             </div>
 
-            <div className="text-sm text-gray-400 mt-2">
+            <div className="text-sm mt-2" style={{ color: 'rgba(0, 242, 255, 0.6)' }}>
               {roundGuesses.length} / {players.length} guesses submitted
             </div>
           </div>
@@ -514,7 +514,7 @@ function CenterContent({
           <div className="text-center p-6 rounded-xl" style={{ background: 'rgba(75, 32, 56, 0.3)', border: '1px solid rgba(0, 242, 255, 0.2)' }}>
             <p className="text-4xl mb-3">&#9835;</p>
             <p className="font-bold text-lg text-white">No audio available</p>
-            <p className="text-sm mt-1 text-gray-400">Play the {isMovie ? 'soundtrack' : 'song'} from your own device!</p>
+            <p className="text-sm mt-1" style={{ color: 'rgba(0, 242, 255, 0.6)' }}>Play the {isMovie ? 'soundtrack' : 'song'} from your own device!</p>
           </div>
         )}
       </div>
