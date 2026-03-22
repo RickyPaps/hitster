@@ -52,12 +52,14 @@ function autoPickBingoCell(io: Server, roomCode: string, playerId: string) {
 
     // Recalculate completed rows and award row bonuses
     const prevRows = player.completedRows;
+    const prevScoreAuto = player.score;
     player.completedRows = countCompletedLines(player.bingoCard);
     if (player.completedRows > prevRows) {
       player.score += 250 * (player.completedRows - prevRows);
       if (room.settings.drinkOnRowComplete) {
         player.drinks += (player.completedRows - prevRows);
       }
+      checkMilestoneThresholds(io, player, prevScoreAuto);
     }
 
     const ps = io.sockets.sockets.get(playerId);
@@ -341,6 +343,11 @@ function serializeRoom(room: RoomState) {
     players: room.players.map((p) => ({
       ...p,
       bingoCard: p.bingoCard,
+      // Hide active shop items from broadcast — each player only sees their own
+      shopState: {
+        purchaseCount: p.shopState.purchaseCount,
+        activeItems: [], // stripped — sent individually via GAME_STATE_SYNC per-player
+      },
     })),
     phase: room.phase,
     settings: room.settings,
@@ -453,22 +460,14 @@ function handleTimerEnd(io: Server, roomCode: string) {
       const basePoints = Math.round((guess.similarity ?? 0) * 100);
       let pointsAwarded = basePoints;
 
-      // Bonus round 750 milestone: 1.5x points for next 2 rounds
+      // Bonus round 750 milestone: 1.5x points (remaining decremented at round end)
       if (player.milestones.bonusRound750Active) {
         pointsAwarded = Math.round(pointsAwarded * 1.5);
-        player.milestones.bonusRound750Remaining -= 1;
-        if (player.milestones.bonusRound750Remaining <= 0) {
-          player.milestones.bonusRound750Active = false;
-        }
       }
 
-      // Point surge 1500 milestone: +50 bonus per correct for 3 rounds
+      // Point surge 1500 milestone: +50 bonus (remaining decremented at round end)
       if (player.milestones.pointSurge1500Active) {
         pointsAwarded += 50;
-        player.milestones.pointSurge1500Remaining -= 1;
-        if (player.milestones.pointSurge1500Remaining <= 0) {
-          player.milestones.pointSurge1500Active = false;
-        }
       }
 
       // Double points from surprise event (room-wide)
@@ -620,12 +619,29 @@ function handleTimerEnd(io: Server, roomCode: string) {
         player.streak = 0;
       }
     } else {
-      // Streak saver blocks one streak break
-      if (player.milestones.streakSaver250Active) {
+      // Streak saver blocks one streak break (only if there's a streak to save)
+      if (player.milestones.streakSaver250Active && player.streak > 0) {
         player.milestones.streakSaver250Active = false;
         // Streak is preserved
       } else {
         player.streak = 0;
+      }
+    }
+  }
+
+  // Decrement round-based milestone counters (regardless of correct/wrong)
+  for (const player of room.players) {
+    if (!player.connected) continue;
+    if (player.milestones.bonusRound750Active) {
+      player.milestones.bonusRound750Remaining -= 1;
+      if (player.milestones.bonusRound750Remaining <= 0) {
+        player.milestones.bonusRound750Active = false;
+      }
+    }
+    if (player.milestones.pointSurge1500Active) {
+      player.milestones.pointSurge1500Remaining -= 1;
+      if (player.milestones.pointSurge1500Remaining <= 0) {
+        player.milestones.pointSurge1500Active = false;
       }
     }
   }
@@ -1209,12 +1225,14 @@ export function registerSocketHandlers(io: Server) {
           }
           player.bingoCard[cellIndex].marked = true;
           const prevRows = player.completedRows;
+          const prevScoreFM = player.score;
           player.completedRows = countCompletedLines(player.bingoCard);
           if (player.completedRows > prevRows) {
             player.score += 250 * (player.completedRows - prevRows);
             if (room.settings.drinkOnRowComplete) {
               player.drinks += (player.completedRows - prevRows);
             }
+            checkMilestoneThresholds(io, player, prevScoreFM);
           }
           socket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
           socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score });
@@ -1236,9 +1254,10 @@ export function registerSocketHandlers(io: Server) {
             socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid cell' });
             return;
           }
-          // Check if target has a shield
-          if (target.shopState.activeItems.includes('shield')) {
-            target.shopState.activeItems = target.shopState.activeItems.filter((i) => i !== 'shield');
+          // Check if target has a shield (remove only one)
+          const shieldIdx = target.shopState.activeItems.indexOf('shield');
+          if (shieldIdx !== -1) {
+            target.shopState.activeItems.splice(shieldIdx, 1);
             socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score, blocked: true });
             const targetSocket = io.sockets.sockets.get(target.id);
             if (targetSocket) targetSocket.emit(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, { fromPlayer: player.name, itemId: 'stealCell', blocked: true });
@@ -1263,13 +1282,21 @@ export function registerSocketHandlers(io: Server) {
             socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid target' });
             return;
           }
-          // Check if target has a shield
-          if (target.shopState.activeItems.includes('shield')) {
-            target.shopState.activeItems = target.shopState.activeItems.filter((i) => i !== 'shield');
+          // Check if target has a shield (remove only one)
+          const scrambleShieldIdx = target.shopState.activeItems.indexOf('shield');
+          if (scrambleShieldIdx !== -1) {
+            target.shopState.activeItems.splice(scrambleShieldIdx, 1);
             socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score, blocked: true });
             const targetSocket = io.sockets.sockets.get(target.id);
             if (targetSocket) targetSocket.emit(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, { fromPlayer: player.name, itemId: 'scramble', blocked: true });
             break;
+          }
+          // Validate target has unmarked cells
+          if (!target.bingoCard.some(c => !c.marked)) {
+            player.score += itemDef.cost;
+            player.shopState.purchaseCount[itemId] -= 1;
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Target has no unmarked cells' });
+            return;
           }
           shuffleUnmarkedCategories(target.bingoCard);
           const targetSocket = io.sockets.sockets.get(target.id);
@@ -1341,12 +1368,14 @@ export function registerSocketHandlers(io: Server) {
 
       // Recalculate completed rows and award row bonuses
       const prevRows = player.completedRows;
+      const prevScorePick = player.score;
       player.completedRows = countCompletedLines(player.bingoCard);
       if (player.completedRows > prevRows) {
         player.score += 250 * (player.completedRows - prevRows);
         if (room.settings.drinkOnRowComplete) {
           player.drinks += (player.completedRows - prevRows);
         }
+        checkMilestoneThresholds(io, player, prevScorePick);
       }
 
       socket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
