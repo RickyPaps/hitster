@@ -17,6 +17,7 @@ import RoundFeedback from '@/components/player/RoundFeedback';
 import PlayerWheelSpinner from '@/components/player/PlayerWheelSpinner';
 import CategoryBadge from '@/components/shared/CategoryBadge';
 import MilestoneReward from '@/components/player/MilestoneReward';
+import Shop from '@/components/player/Shop';
 import StreakCounter from '@/components/animations/StreakCounter';
 import BingoLineCelebration from '@/components/animations/BingoLineCelebration';
 import { TrophyIcon } from '@/components/animations/SVGIcons';
@@ -241,36 +242,24 @@ export default function PlayerPageContent() {
     const drinksReceivedHandler = (data: { fromPlayer: string }) => {
       pushNotification(`${data.fromPlayer} assigned you a drink!`, '#EAB308', '234, 179, 8', '\u{1F37A}');
     };
-    const blockReceivedHandler = (data: { fromPlayer: string }) => {
-      pushNotification(`${data.fromPlayer} blocked one of your cells!`, '#ef4444', '239, 68, 68', '\u{1F6E1}');
-    };
-    const swapReceivedHandler = (data: { fromPlayer: string }) => {
-      pushNotification(`${data.fromPlayer} swapped one of your cells!`, '#33ff77', '51, 255, 119', '\u{1F500}');
-    };
-    const stealReceivedHandler = (data: { fromPlayer: string; amount: number }) => {
-      pushNotification(`${data.fromPlayer} stole ${data.amount} points from you!`, '#ef4444', '239, 68, 68', '\u{1F4B0}');
-    };
-    const shieldConsumedHandler = () => {
-      pushNotification('Shield activated! Drink penalty blocked!', '#4d9fff', '77, 159, 255', '\u{1F6E1}');
-    };
-    const doubleConsumedHandler = () => {
-      pushNotification('Double points activated! 2x score this round!', '#ff8833', '255, 136, 51', '\u{2728}');
-    };
     socket.on(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
     socket.on(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
-    socket.on(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, blockReceivedHandler);
-    socket.on(SOCKET_EVENTS.MILESTONE_SWAP_RECEIVED, swapReceivedHandler);
-    socket.on(SOCKET_EVENTS.MILESTONE_STEAL_RECEIVED, stealReceivedHandler);
-    socket.on(SOCKET_EVENTS.MILESTONE_SHIELD_CONSUMED, shieldConsumedHandler);
-    socket.on(SOCKET_EVENTS.MILESTONE_DOUBLE_CONSUMED, doubleConsumedHandler);
+
+    // Shop item received notifications
+    const shopReceivedHandler = (data: { fromPlayer: string; itemId: string }) => {
+      const itemNames: Record<string, string> = {
+        stealCell: 'stole one of your cells',
+        scramble: 'scrambled your card',
+      };
+      const action = itemNames[data.itemId] ?? `used ${data.itemId} on you`;
+      pushNotification(`${data.fromPlayer} ${action}!`, '#ef4444', '239, 68, 68', '\u{1F5E1}');
+    };
+    socket.on(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, shopReceivedHandler);
+
     return () => {
       socket.off(SOCKET_EVENTS.MILESTONE_EARNED, earnedHandler);
       socket.off(SOCKET_EVENTS.MILESTONE_DRINKS_RECEIVED, drinksReceivedHandler);
-      socket.off(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, blockReceivedHandler);
-      socket.off(SOCKET_EVENTS.MILESTONE_SWAP_RECEIVED, swapReceivedHandler);
-      socket.off(SOCKET_EVENTS.MILESTONE_STEAL_RECEIVED, stealReceivedHandler);
-      socket.off(SOCKET_EVENTS.MILESTONE_SHIELD_CONSUMED, shieldConsumedHandler);
-      socket.off(SOCKET_EVENTS.MILESTONE_DOUBLE_CONSUMED, doubleConsumedHandler);
+      socket.off(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, shopReceivedHandler);
     };
   }, [playerName]);
 
@@ -668,6 +657,11 @@ export default function PlayerPageContent() {
             {currentCategory && phase !== 'SPINNING' && (
               <CategoryBadge category={currentCategory} />
             )}
+            {/* Shop */}
+            {playerId && (() => {
+              const me = players.find(p => p.id === playerId);
+              return me ? <Shop player={me} players={players} phase={phase} bingoCard={bingoCard} /> : null;
+            })()}
             <button
               onClick={toggleMute}
               className="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer transition-colors"

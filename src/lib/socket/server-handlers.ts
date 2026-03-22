@@ -1,12 +1,12 @@
 import type { Server, Socket } from 'socket.io';
 import { SOCKET_EVENTS } from './events';
 import { createRoom, getRoom, addPlayer, removePlayer, kickPlayer, deleteRoom, getNextTrack, touchRoom, getAllRoomCodes, resetRoomToLobby, cleanupAbandonedRooms } from '../game/room';
-import { countCompletedLines, generateBingoCard } from '../game/bingo';
+import { countCompletedLines, generateBingoCard, shuffleUnmarkedCategories } from '../game/bingo';
 import { createGameEngine } from '../game/engine';
 import { clearRoomTimer, startRoundTimer } from '../game/timer';
 import { checkAnswer } from '../game/matching';
-import type { LobbySettings, Track, RoomState, GuessResult, SurpriseEventType, Player } from '@/types/game';
-import { isMovieTrack } from '@/types/game';
+import type { LobbySettings, Track, RoomState, GuessResult, SurpriseEventType, Player, ShopItemId } from '@/types/game';
+import { isMovieTrack, isMusicTrack, getMediaTitle, getMediaSubtitle, getMediaDetail, SHOP_ITEMS } from '@/types/game';
 import { isGuessCategory, isPartyCategory } from '../game/wheel';
 
 const ROOM_CODE_RE = /^[A-Z2-9]{4}$/;
@@ -295,6 +295,31 @@ function handleWheelAnimationComplete(io: Server, roomCode: string) {
       category,
     });
     io.to(roomCode).emit(SOCKET_EVENTS.GAME_PHASE_CHANGE, 'PLAYING');
+
+    // Hint delivery: if a player has used hint1000, send first letter of the answer
+    if (track && category) {
+      for (const player of room.players) {
+        if (player.milestones.hint1000Earned && !player.milestones.hint1000Used) {
+          player.milestones.hint1000Used = true;
+          let answer = '';
+          if (category === 'year' || category === 'year-approx' || category === 'decade') {
+            answer = String(track.year);
+          } else if (isMusicTrack(track)) {
+            if (category === 'artist') answer = track.artist;
+            else if (category === 'title') answer = track.name;
+            else if (category === 'album') answer = track.album;
+          } else if (isMovieTrack(track)) {
+            if (category === 'director') answer = track.director;
+            else if (category === 'movie-title') answer = track.title;
+            else if (category === 'genre') answer = track.genre;
+          }
+          const hint = answer ? answer.charAt(0).toUpperCase() : '?';
+          const ps = io.sockets.sockets.get(player.id);
+          if (ps) ps.emit(SOCKET_EVENTS.HINT_REVEAL, { hint });
+        }
+      }
+    }
+
     syncRoom(io, room);
     startRoundTimer(io, roomCode, (rc) => handleTimerEnd(io, rc));
   }
@@ -365,42 +390,40 @@ function emitMilestone(io: Server, playerId: string, type: string) {
 function checkMilestoneThresholds(io: Server, player: Player, prevScore: number) {
   const ms = player.milestones;
   const score = player.score;
-  if (!ms.shield250Earned && score >= 250 && prevScore < 250) {
-    ms.shield250Earned = true;
-    ms.shield250Active = true;
-    emitMilestone(io, player.id, 'shield250');
+  if (!ms.streakSaver250Earned && score >= 250 && prevScore < 250) {
+    ms.streakSaver250Earned = true;
+    ms.streakSaver250Active = true;
+    emitMilestone(io, player.id, 'streakSaver250');
   }
   if (!ms.drinks500Earned && score >= 500 && prevScore < 500) {
     ms.drinks500Earned = true;
     emitMilestone(io, player.id, 'drinks500');
   }
-  if (!ms.swap750Earned && score >= 750 && prevScore < 750) {
-    ms.swap750Earned = true;
-    emitMilestone(io, player.id, 'swap750');
+  if (!ms.bonusRound750Earned && score >= 750 && prevScore < 750) {
+    ms.bonusRound750Earned = true;
+    ms.bonusRound750Active = true;
+    ms.bonusRound750Remaining = 2;
+    emitMilestone(io, player.id, 'bonusRound750');
   }
-  if (!ms.block1000Earned && score >= 1000 && prevScore < 1000) {
-    ms.block1000Earned = true;
-    emitMilestone(io, player.id, 'block1000');
+  if (!ms.hint1000Earned && score >= 1000 && prevScore < 1000) {
+    ms.hint1000Earned = true;
+    emitMilestone(io, player.id, 'hint1000');
   }
-  if (!ms.doublePts1500Earned && score >= 1500 && prevScore < 1500) {
-    ms.doublePts1500Earned = true;
-    ms.doublePts1500Active = true;
-    emitMilestone(io, player.id, 'doublePts1500');
+  if (!ms.pointSurge1500Earned && score >= 1500 && prevScore < 1500) {
+    ms.pointSurge1500Earned = true;
+    ms.pointSurge1500Active = true;
+    ms.pointSurge1500Remaining = 3;
+    emitMilestone(io, player.id, 'pointSurge1500');
   }
-  if (!ms.steal2000Earned && score >= 2000 && prevScore < 2000) {
-    ms.steal2000Earned = true;
-    emitMilestone(io, player.id, 'steal2000');
+  if (!ms.jackpot2000Earned && score >= 2000 && prevScore < 2000) {
+    ms.jackpot2000Earned = true;
+    ms.jackpot2000Used = true;
+    player.score += 300;
+    emitMilestone(io, player.id, 'jackpot2000');
   }
 }
 
 function applyDrinkPenalty(io: Server, player: Player, room: RoomState, amount: number) {
-  // Shield blocks the entire penalty
-  if (player.milestones.shield250Active) {
-    player.milestones.shield250Active = false;
-    const ps = io.sockets.sockets.get(player.id);
-    if (ps) ps.emit(SOCKET_EVENTS.MILESTONE_SHIELD_CONSUMED);
-    return;
-  }
   player.drinks += amount;
 }
 
@@ -430,12 +453,22 @@ function handleTimerEnd(io: Server, roomCode: string) {
       const basePoints = Math.round((guess.similarity ?? 0) * 100);
       let pointsAwarded = basePoints;
 
-      // Double points from doublePts1500 (per-player)
-      if (player.milestones.doublePts1500Active) {
-        pointsAwarded *= 2;
-        player.milestones.doublePts1500Active = false;
-        const ps = io.sockets.sockets.get(player.id);
-        if (ps) ps.emit(SOCKET_EVENTS.MILESTONE_DOUBLE_CONSUMED);
+      // Bonus round 750 milestone: 1.5x points for next 2 rounds
+      if (player.milestones.bonusRound750Active) {
+        pointsAwarded = Math.round(pointsAwarded * 1.5);
+        player.milestones.bonusRound750Remaining -= 1;
+        if (player.milestones.bonusRound750Remaining <= 0) {
+          player.milestones.bonusRound750Active = false;
+        }
+      }
+
+      // Point surge 1500 milestone: +50 bonus per correct for 3 rounds
+      if (player.milestones.pointSurge1500Active) {
+        pointsAwarded += 50;
+        player.milestones.pointSurge1500Remaining -= 1;
+        if (player.milestones.pointSurge1500Remaining <= 0) {
+          player.milestones.pointSurge1500Active = false;
+        }
       }
 
       // Double points from surprise event (room-wide)
@@ -495,10 +528,50 @@ function handleTimerEnd(io: Server, roomCode: string) {
         // If 2+ eligible cells, defer marking — player will pick
       }
 
+      // DoubleMark shop item: correct answer marks an extra cell
+      if (player.shopState.activeItems.includes('doubleMark') && room.currentCategory) {
+        player.shopState.activeItems = player.shopState.activeItems.filter((i) => i !== 'doubleMark');
+        // Find any unmarked cell (any category) to mark as bonus
+        const extraIndex = player.bingoCard.findIndex((cell) => !cell.marked);
+        if (extraIndex !== -1) {
+          player.bingoCard[extraIndex].marked = true;
+          const prevRowsExtra = player.completedRows;
+          player.completedRows = countCompletedLines(player.bingoCard);
+          if (player.completedRows > prevRowsExtra) {
+            player.score += 250 * (player.completedRows - prevRowsExtra);
+            if (room.settings.drinkOnRowComplete) {
+              player.drinks += (player.completedRows - prevRowsExtra);
+            }
+          }
+        }
+      }
+
       // Check milestone thresholds
       checkMilestoneThresholds(io, player, prevScore);
     } else {
       guess.pointsAwarded = 0;
+
+      // Lifeline shop item: wrong answer still marks a cell
+      if (player.shopState.activeItems.includes('lifeline') && room.currentCategory) {
+        player.shopState.activeItems = player.shopState.activeItems.filter((i) => i !== 'lifeline');
+        const lifelineIndex = player.bingoCard.findIndex(
+          (cell) => cell.category === room.currentCategory && !cell.marked
+        );
+        if (lifelineIndex !== -1) {
+          player.bingoCard[lifelineIndex].marked = true;
+          const prevRows = player.completedRows;
+          player.completedRows = countCompletedLines(player.bingoCard);
+          if (player.completedRows > prevRows) {
+            player.score += 250 * (player.completedRows - prevRows);
+            if (room.settings.drinkOnRowComplete) {
+              player.drinks += (player.completedRows - prevRows);
+            }
+          }
+          const ps = io.sockets.sockets.get(player.id);
+          if (ps) ps.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+        }
+      }
+
       // Wrong answer — drink penalty (hot seat doubles it)
       if (room.settings.drinkOnWrongGuess) {
         const isHotSeat = room.surpriseModifiers.hotSeatPlayerId === player.id;
@@ -547,7 +620,13 @@ function handleTimerEnd(io: Server, roomCode: string) {
         player.streak = 0;
       }
     } else {
-      player.streak = 0;
+      // Streak saver blocks one streak break
+      if (player.milestones.streakSaver250Active) {
+        player.milestones.streakSaver250Active = false;
+        // Streak is preserved
+      } else {
+        player.streak = 0;
+      }
     }
   }
 
@@ -1044,117 +1123,6 @@ export function registerSocketHandlers(io: Server) {
       syncRoom(io, room);
     });
 
-    // MILESTONE: Use Block (unmark a cell on another player's bingo card)
-    socket.on(SOCKET_EVENTS.MILESTONE_USE_BLOCK, (data: { targetPlayerId: string; cellIndex: number }) => {
-      if (!currentRoom) return;
-      const room = getRoom(currentRoom);
-      if (!room) return;
-
-      const player = room.players.find((p) => p.id === socket.id);
-      if (!player) return;
-
-      // Validate milestone availability
-      if (!player.milestones.block1000Earned || player.milestones.block1000Used) return;
-
-      const target = room.players.find((p) => p.id === data.targetPlayerId);
-      if (!target || target.id === player.id) return;
-
-      const cellIndex = data.cellIndex;
-      if (cellIndex < 0 || cellIndex >= 9) return;
-      if (!target.bingoCard[cellIndex]?.marked) return;
-
-      player.milestones.block1000Used = true;
-      target.bingoCard[cellIndex].marked = false;
-      target.completedRows = countCompletedLines(target.bingoCard);
-
-      // Notify target
-      const targetSocket = io.sockets.sockets.get(target.id);
-      if (targetSocket) {
-        targetSocket.emit(SOCKET_EVENTS.MILESTONE_BLOCK_RECEIVED, {
-          fromPlayer: player.name,
-          cellIndex,
-        });
-        targetSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: target.bingoCard });
-      }
-      syncRoom(io, room);
-    });
-
-    // MILESTONE: Use Swap (swap a bingo cell with opponent)
-    socket.on(SOCKET_EVENTS.MILESTONE_USE_SWAP, (data: { targetPlayerId: string }) => {
-      if (!currentRoom) return;
-      const room = getRoom(currentRoom);
-      if (!room) return;
-
-      const player = room.players.find((p) => p.id === socket.id);
-      if (!player) return;
-
-      if (!player.milestones.swap750Earned || player.milestones.swap750Used) return;
-
-      const target = room.players.find((p) => p.id === data.targetPlayerId);
-      if (!target || target.id === player.id) return;
-
-      // Pick random marked cell from target
-      const targetMarked = target.bingoCard
-        .map((c, i) => ({ c, i }))
-        .filter(({ c }) => c.marked);
-      if (targetMarked.length === 0) return;
-
-      // Pick random unmarked cell from self
-      const selfUnmarked = player.bingoCard
-        .map((c, i) => ({ c, i }))
-        .filter(({ c }) => !c.marked);
-      if (selfUnmarked.length === 0) return;
-
-      const targetPick = targetMarked[Math.floor(Math.random() * targetMarked.length)];
-      const selfPick = selfUnmarked[Math.floor(Math.random() * selfUnmarked.length)];
-
-      // Swap: unmark target cell, mark own cell
-      target.bingoCard[targetPick.i].marked = false;
-      player.bingoCard[selfPick.i].marked = true;
-
-      target.completedRows = countCompletedLines(target.bingoCard);
-      player.completedRows = countCompletedLines(player.bingoCard);
-      player.milestones.swap750Used = true;
-
-      // Notify both
-      socket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
-      const targetSocket = io.sockets.sockets.get(target.id);
-      if (targetSocket) {
-        targetSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: target.bingoCard });
-        targetSocket.emit(SOCKET_EVENTS.MILESTONE_SWAP_RECEIVED, { fromPlayer: player.name });
-      }
-      syncRoom(io, room);
-    });
-
-    // MILESTONE: Use Steal (steal 200 points from opponent)
-    socket.on(SOCKET_EVENTS.MILESTONE_USE_STEAL, (data: { targetPlayerId: string }) => {
-      if (!currentRoom) return;
-      const room = getRoom(currentRoom);
-      if (!room) return;
-
-      const player = room.players.find((p) => p.id === socket.id);
-      if (!player) return;
-
-      if (!player.milestones.steal2000Earned || player.milestones.steal2000Used) return;
-
-      const target = room.players.find((p) => p.id === data.targetPlayerId);
-      if (!target || target.id === player.id) return;
-
-      const stolen = Math.min(200, target.score);
-      target.score -= stolen;
-      player.score += stolen;
-      player.milestones.steal2000Used = true;
-
-      const targetSocket = io.sockets.sockets.get(target.id);
-      if (targetSocket) {
-        targetSocket.emit(SOCKET_EVENTS.MILESTONE_STEAL_RECEIVED, {
-          fromPlayer: player.name,
-          amount: stolen,
-        });
-      }
-      syncRoom(io, room);
-    });
-
     // MILESTONE: Use Free Mark (streak reward — mark unmarked cell on own card)
     socket.on(SOCKET_EVENTS.MILESTONE_USE_FREE_MARK, (data: { cellIndex: number }) => {
       if (!currentRoom) return;
@@ -1172,6 +1140,175 @@ export function registerSocketHandlers(io: Server) {
       player.completedRows = countCompletedLines(player.bingoCard);
 
       socket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+      syncRoom(io, room);
+    });
+
+    // SHOP: Purchase an item
+    socket.on(SOCKET_EVENTS.SHOP_PURCHASE, (data: { itemId: string; targetPlayerId?: string; cellIndex?: number }) => {
+      if (!currentRoom) return;
+      const room = getRoom(currentRoom);
+      if (!room) return;
+
+      const player = room.players.find((p) => p.id === socket.id);
+      if (!player) return;
+
+      // Can only buy between rounds
+      if (room.phase !== 'SPINNING' && room.phase !== 'ROUND_RESULTS') {
+        socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Can only purchase between rounds' });
+        return;
+      }
+
+      const itemDef = SHOP_ITEMS.find((i) => i.id === data.itemId);
+      if (!itemDef) {
+        socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid item' });
+        return;
+      }
+      const itemId = itemDef.id;
+
+      // Check cost
+      if (player.score < itemDef.cost) {
+        socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Not enough points' });
+        return;
+      }
+
+      // Check purchase limit
+      if (itemDef.maxPerGame > 0 && (player.shopState.purchaseCount[itemId] ?? 0) >= itemDef.maxPerGame) {
+        socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Purchase limit reached' });
+        return;
+      }
+
+      // Deduct cost
+      player.score -= itemDef.cost;
+      player.shopState.purchaseCount[itemId] = (player.shopState.purchaseCount[itemId] ?? 0) + 1;
+
+      // Execute item effect
+      switch (itemId) {
+        case 'shield':
+        case 'lifeline':
+        case 'doubleMark': {
+          // Passive items: add to activeItems
+          player.shopState.activeItems.push(itemId);
+          socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score });
+          break;
+        }
+
+        case 'freeMark': {
+          const cellIndex = data.cellIndex;
+          if (cellIndex === undefined || cellIndex < 0 || cellIndex >= 9) {
+            // Refund
+            player.score += itemDef.cost;
+            player.shopState.purchaseCount[itemId] -= 1;
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid cell index' });
+            return;
+          }
+          if (player.bingoCard[cellIndex]?.marked) {
+            player.score += itemDef.cost;
+            player.shopState.purchaseCount[itemId] -= 1;
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Cell already marked' });
+            return;
+          }
+          player.bingoCard[cellIndex].marked = true;
+          const prevRows = player.completedRows;
+          player.completedRows = countCompletedLines(player.bingoCard);
+          if (player.completedRows > prevRows) {
+            player.score += 250 * (player.completedRows - prevRows);
+            if (room.settings.drinkOnRowComplete) {
+              player.drinks += (player.completedRows - prevRows);
+            }
+          }
+          socket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: player.bingoCard });
+          socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score });
+          break;
+        }
+
+        case 'stealCell': {
+          const target = room.players.find((p) => p.id === data.targetPlayerId);
+          if (!target || target.id === player.id) {
+            player.score += itemDef.cost;
+            player.shopState.purchaseCount[itemId] -= 1;
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid target' });
+            return;
+          }
+          const cellIndex = data.cellIndex;
+          if (cellIndex === undefined || cellIndex < 0 || cellIndex >= 9 || !target.bingoCard[cellIndex]?.marked) {
+            player.score += itemDef.cost;
+            player.shopState.purchaseCount[itemId] -= 1;
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid cell' });
+            return;
+          }
+          // Check if target has a shield
+          if (target.shopState.activeItems.includes('shield')) {
+            target.shopState.activeItems = target.shopState.activeItems.filter((i) => i !== 'shield');
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score, blocked: true });
+            const targetSocket = io.sockets.sockets.get(target.id);
+            if (targetSocket) targetSocket.emit(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, { fromPlayer: player.name, itemId: 'stealCell', blocked: true });
+            break;
+          }
+          target.bingoCard[cellIndex].marked = false;
+          target.completedRows = countCompletedLines(target.bingoCard);
+          const targetSocket = io.sockets.sockets.get(target.id);
+          if (targetSocket) {
+            targetSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: target.bingoCard });
+            targetSocket.emit(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, { fromPlayer: player.name, itemId: 'stealCell' });
+          }
+          socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score });
+          break;
+        }
+
+        case 'scramble': {
+          const target = room.players.find((p) => p.id === data.targetPlayerId);
+          if (!target || target.id === player.id) {
+            player.score += itemDef.cost;
+            player.shopState.purchaseCount[itemId] -= 1;
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: false, error: 'Invalid target' });
+            return;
+          }
+          // Check if target has a shield
+          if (target.shopState.activeItems.includes('shield')) {
+            target.shopState.activeItems = target.shopState.activeItems.filter((i) => i !== 'shield');
+            socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score, blocked: true });
+            const targetSocket = io.sockets.sockets.get(target.id);
+            if (targetSocket) targetSocket.emit(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, { fromPlayer: player.name, itemId: 'scramble', blocked: true });
+            break;
+          }
+          shuffleUnmarkedCategories(target.bingoCard);
+          const targetSocket = io.sockets.sockets.get(target.id);
+          if (targetSocket) {
+            targetSocket.emit(SOCKET_EVENTS.CARD_UPDATE, { bingoCard: target.bingoCard });
+            targetSocket.emit(SOCKET_EVENTS.SHOP_ITEM_RECEIVED, { fromPlayer: player.name, itemId: 'scramble' });
+          }
+          socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score });
+          break;
+        }
+
+        case 'cardPeek': {
+          // Calculate near-complete lines for all opponents
+          const lines = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6],
+          ];
+          const peekPlayers = room.players
+            .filter((p) => p.id !== player.id && p.connected)
+            .map((p) => {
+              const nearLines: number[][] = [];
+              for (const line of lines) {
+                const markedCount = line.filter((i) => p.bingoCard[i]?.marked).length;
+                if (markedCount === 2) {
+                  // Near-complete: show which cell index is missing
+                  const missingIdx = line.find((i) => !p.bingoCard[i]?.marked);
+                  nearLines.push([...line, missingIdx!]);
+                }
+              }
+              return { name: p.name, nearLines };
+            });
+          socket.emit(SOCKET_EVENTS.SHOP_PEEK_RESULT, { players: peekPlayers });
+          socket.emit(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, { success: true, item: itemId, newScore: player.score });
+          break;
+        }
+
+      }
+
       syncRoom(io, room);
     });
 

@@ -67,3 +67,21 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return arr;
 }
+
+/**
+ * Shuffle the category values among unmarked cells only.
+ * Marked cells keep their categories unchanged.
+ */
+export function shuffleUnmarkedCategories(card: BingoCell[]): void {
+  const unmarkedIndices = card
+    .map((cell, i) => ({ cell, i }))
+    .filter(({ cell }) => !cell.marked)
+    .map(({ i }) => i);
+
+  // Collect categories from unmarked cells, shuffle them, reassign
+  const categories = unmarkedIndices.map((i) => card[i].category);
+  shuffle(categories);
+  for (let k = 0; k < unmarkedIndices.length; k++) {
+    card[unmarkedIndices[k]].category = categories[k];
+  }
+}

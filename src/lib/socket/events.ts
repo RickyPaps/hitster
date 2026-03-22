@@ -47,16 +47,17 @@ export const SOCKET_EVENTS = {
   // Milestone events
   MILESTONE_EARNED: 'milestone:earned',
   MILESTONE_USE_DRINKS: 'milestone:use-drinks',
-  MILESTONE_USE_BLOCK: 'milestone:use-block',
-  MILESTONE_USE_SWAP: 'milestone:use-swap',
-  MILESTONE_USE_STEAL: 'milestone:use-steal',
   MILESTONE_USE_FREE_MARK: 'milestone:use-free-mark',
   MILESTONE_DRINKS_RECEIVED: 'milestone:drinks-received',
-  MILESTONE_BLOCK_RECEIVED: 'milestone:block-received',
-  MILESTONE_SWAP_RECEIVED: 'milestone:swap-received',
-  MILESTONE_STEAL_RECEIVED: 'milestone:steal-received',
-  MILESTONE_SHIELD_CONSUMED: 'milestone:shield-consumed',
-  MILESTONE_DOUBLE_CONSUMED: 'milestone:double-consumed',
+
+  // Shop events
+  SHOP_PURCHASE: 'shop:purchase',
+  SHOP_PURCHASE_RESULT: 'shop:result',
+  SHOP_ITEM_RECEIVED: 'shop:received',
+  SHOP_PEEK_RESULT: 'shop:peek',
+
+  // Hint events
+  HINT_REVEAL: 'hint:reveal',
 
   // Surprise events
   SURPRISE_EVENT: 'surprise:event',

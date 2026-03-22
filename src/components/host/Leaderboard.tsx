@@ -383,13 +383,13 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
                     </span>
                   </div>
                 )}
-                {p.milestones && (p.milestones.block1000Earned && !p.milestones.block1000Used) && (
+                {p.milestones && (p.milestones.hint1000Earned && !p.milestones.hint1000Used) && (
                   <div className="mt-1 ml-7">
                     <span
                       className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
-                      style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error)' }}
+                      style={{ background: 'rgba(0, 242, 255, 0.2)', color: '#00f2ff' }}
                     >
-                      &#128737; Block Ready
+                      &#128269; Hint Ready
                     </span>
                   </div>
                 )}

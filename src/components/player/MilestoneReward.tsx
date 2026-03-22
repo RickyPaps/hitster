@@ -5,7 +5,7 @@ import gsap from 'gsap';
 import { getSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import type { Player, BingoCell, MilestoneType } from '@/types/game';
-import { ShieldIcon, SwapIcon, DoublePtsIcon, StealIcon, SparkleIcon, StreakFlame } from '@/components/animations/SVGIcons';
+import { ShieldIcon, SparkleIcon, StreakFlame, LightningBolt } from '@/components/animations/SVGIcons';
 
 interface MilestoneConfig {
   title: string;
@@ -20,9 +20,9 @@ interface MilestoneConfig {
 }
 
 const MILESTONE_CONFIG: Record<MilestoneType, MilestoneConfig> = {
-  shield250: {
-    title: 'Shield Activated!',
-    description: 'You\'re immune to your next drink penalty!',
+  streakSaver250: {
+    title: 'Streak Saver!',
+    description: 'Your next wrong answer won\'t break your streak!',
     buttonLabel: 'Got it!',
     color: '#4d9fff',
     colorRgb: '77, 159, 255',
@@ -42,49 +42,49 @@ const MILESTONE_CONFIG: Record<MilestoneType, MilestoneConfig> = {
     needsOwnCell: false,
     autoApplied: false,
   },
-  swap750: {
-    title: 'Bingo Swap!',
-    description: 'Swap a bingo cell — you gain a mark, they lose one!',
-    buttonLabel: 'Pick Target',
+  bonusRound750: {
+    title: 'Bonus Round!',
+    description: 'Earn 1.5x points for the next 2 rounds!',
+    buttonLabel: 'Got it!',
     color: '#33ff77',
     colorRgb: '51, 255, 119',
-    icon: <SwapIcon size={32} color="#33ff77" />,
-    needsTarget: true,
-    needsOwnCell: false,
-    autoApplied: false,
-  },
-  block1000: {
-    title: 'Milestone: 1000 pts!',
-    description: 'Block a cell on another player\'s bingo card!',
-    buttonLabel: 'Block Cell',
-    color: '#ef4444',
-    colorRgb: '239, 68, 68',
-    icon: <span className="text-3xl">{'\u{1F6E1}'}</span>,
-    needsTarget: true,
-    needsOwnCell: false,
-    autoApplied: false,
-  },
-  doublePts1500: {
-    title: 'Double Down!',
-    description: 'Your next correct answer earns 2x points!',
-    buttonLabel: 'Got it!',
-    color: '#ff8833',
-    colorRgb: '255, 136, 51',
-    icon: <DoublePtsIcon size={32} color="#ff8833" />,
+    icon: <LightningBolt size={32} color="#33ff77" />,
     needsTarget: false,
     needsOwnCell: false,
     autoApplied: true,
   },
-  steal2000: {
-    title: 'Point Heist!',
-    description: 'Steal 200 points from any opponent!',
-    buttonLabel: 'Pick Target',
-    color: '#ef4444',
-    colorRgb: '239, 68, 68',
-    icon: <StealIcon size={32} color="#ef4444" />,
-    needsTarget: true,
+  hint1000: {
+    title: 'Hint Unlocked!',
+    description: 'You\'ll see the first letter of the next answer!',
+    buttonLabel: 'Got it!',
+    color: '#00f2ff',
+    colorRgb: '0, 242, 255',
+    icon: <span className="text-3xl">{'\u{1F50D}'}</span>,
+    needsTarget: false,
     needsOwnCell: false,
     autoApplied: false,
+  },
+  pointSurge1500: {
+    title: 'Point Surge!',
+    description: '+50 bonus points per correct answer for 3 rounds!',
+    buttonLabel: 'Got it!',
+    color: '#ff8833',
+    colorRgb: '255, 136, 51',
+    icon: <LightningBolt size={32} color="#ff8833" />,
+    needsTarget: false,
+    needsOwnCell: false,
+    autoApplied: true,
+  },
+  jackpot2000: {
+    title: 'JACKPOT!',
+    description: 'You just earned 300 bonus points!',
+    buttonLabel: 'Got it!',
+    color: '#EAB308',
+    colorRgb: '234, 179, 8',
+    icon: <span className="text-3xl">{'\u{1F4B0}'}</span>,
+    needsTarget: false,
+    needsOwnCell: false,
+    autoApplied: true,
   },
   streak3FreeMark: {
     title: '3-Streak Reward!',
@@ -118,18 +118,16 @@ interface MilestoneRewardProps {
   onDismiss: () => void;
 }
 
-type Step = 'announce' | 'selectPlayer' | 'selectCell' | 'selectOwnCell';
+type Step = 'announce' | 'selectPlayer' | 'selectOwnCell';
 
 export default function MilestoneReward({ milestone, players, myPlayerId, myBingoCard, onDismiss }: MilestoneRewardProps) {
   const [step, setStep] = useState<Step>('announce');
-  const [targetPlayer, setTargetPlayer] = useState<Player | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Reset step when milestone changes
   useEffect(() => {
     setStep('announce');
-    setTargetPlayer(null);
   }, [milestone?.type]);
 
   // Entrance animation
@@ -213,30 +211,7 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
         socket.emit(SOCKET_EVENTS.MILESTONE_USE_DRINKS, { targetPlayerId: player.id });
         onDismiss();
         return;
-      case 'swap750':
-        socket.emit(SOCKET_EVENTS.MILESTONE_USE_SWAP, { targetPlayerId: player.id });
-        onDismiss();
-        return;
-      case 'steal2000':
-        socket.emit(SOCKET_EVENTS.MILESTONE_USE_STEAL, { targetPlayerId: player.id });
-        onDismiss();
-        return;
-      case 'block1000':
-        // Need to select a cell next
-        setTargetPlayer(player);
-        setStep('selectCell');
-        return;
     }
-  };
-
-  const handleCellSelect = (cellIndex: number) => {
-    if (!targetPlayer) return;
-    const socket = getSocket();
-    socket.emit(SOCKET_EVENTS.MILESTONE_USE_BLOCK, {
-      targetPlayerId: targetPlayer.id,
-      cellIndex,
-    });
-    onDismiss();
   };
 
   const handleOwnCellSelect = (cellIndex: number) => {
@@ -279,10 +254,7 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
               className="text-sm font-black uppercase tracking-wider text-center mb-3"
               style={{ color: config.color }}
             >
-              {milestone.type === 'drinks500' ? 'Who gets the drink?' :
-                milestone.type === 'swap750' ? 'Whose cell to swap?' :
-                milestone.type === 'steal2000' ? 'Who to steal from?' :
-                'Whose card to block?'}
+              Who gets the drink?
             </h3>
             <div className="flex flex-col gap-2">
               {otherPlayers.map((p) => (
@@ -296,55 +268,11 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
                   }}
                 >
                   {p.name}
-                  {milestone.type === 'steal2000' && (
-                    <span className="float-right text-xs opacity-60">{p.score} pts</span>
-                  )}
                 </button>
               ))}
             </div>
             <button
               onClick={() => setStep('announce')}
-              className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
-              style={{ color: 'rgba(148, 163, 184, 0.6)' }}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {step === 'selectCell' && targetPlayer && (
-          <div>
-            <h3
-              className="text-sm font-black uppercase tracking-wider text-center mb-1"
-              style={{ color: config.color }}
-            >
-              Block a cell on {targetPlayer.name}&apos;s card
-            </h3>
-            <p className="text-xs text-center mb-3" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-              Tap a marked cell to unmark it
-            </p>
-            <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
-              {targetPlayer.bingoCard.map((cell: BingoCell, i: number) => (
-                <button
-                  key={i}
-                  onClick={() => cell.marked && handleCellSelect(i)}
-                  disabled={!cell.marked}
-                  className="aspect-square rounded-lg flex items-center justify-center text-xs font-bold uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                  style={{
-                    background: cell.marked
-                      ? 'linear-gradient(135deg, rgba(217, 70, 239, 0.5), rgba(139, 92, 246, 0.5))'
-                      : 'rgba(30, 20, 60, 0.8)',
-                    border: cell.marked
-                      ? '2px solid rgba(239, 68, 68, 0.8)'
-                      : '1px solid rgba(100, 80, 140, 0.2)',
-                  }}
-                >
-                  {cell.category === 'year-approx' ? 'Y\u00B11' : cell.category.slice(0, 3).toUpperCase()}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => { setStep('selectPlayer'); setTargetPlayer(null); }}
               className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
               style={{ color: 'rgba(148, 163, 184, 0.6)' }}
             >

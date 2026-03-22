@@ -156,14 +156,52 @@ export interface BingoCell {
 }
 
 export type MilestoneType =
-  | 'shield250'
+  | 'streakSaver250'
   | 'drinks500'
-  | 'swap750'
-  | 'block1000'
-  | 'doublePts1500'
-  | 'steal2000'
+  | 'bonusRound750'
+  | 'hint1000'
+  | 'pointSurge1500'
+  | 'jackpot2000'
   | 'streak3FreeMark'
   | 'streak5AllDrink';
+
+// ── Shop System ──
+export type ShopItemId =
+  | 'freeMark'
+  | 'stealCell'
+  | 'shield'
+  | 'scramble'
+  | 'doubleMark'
+  | 'lifeline'
+  | 'cardPeek';
+
+export interface ShopItemDef {
+  id: ShopItemId;
+  name: string;
+  description: string;
+  cost: number;
+  icon: string;
+  needsTarget: boolean;
+  needsOwnCell: boolean;
+  maxPerGame: number; // 0 = unlimited
+}
+
+export const SHOP_ITEMS: ShopItemDef[] = [
+  { id: 'cardPeek', name: 'Card Peek', description: 'See which cells opponents need to complete a line', cost: 100, icon: '\u{1F441}', needsTarget: false, needsOwnCell: false, maxPerGame: 3 },
+  { id: 'shield', name: 'Shield', description: 'Block the next steal or block attempt against you', cost: 150, icon: '\u{1F6E1}', needsTarget: false, needsOwnCell: false, maxPerGame: 2 },
+  { id: 'freeMark', name: 'Free Mark', description: 'Mark any unmarked cell on your bingo card', cost: 200, icon: '\u2B50', needsTarget: false, needsOwnCell: true, maxPerGame: 2 },
+  { id: 'lifeline', name: 'Lifeline', description: 'If you get the next answer wrong, mark the cell anyway', cost: 250, icon: '\u{1F48E}', needsTarget: false, needsOwnCell: false, maxPerGame: 1 },
+  { id: 'doubleMark', name: 'Double Mark', description: 'Your next correct answer marks 2 cells instead of 1', cost: 300, icon: '\u{1F31F}', needsTarget: false, needsOwnCell: false, maxPerGame: 1 },
+  { id: 'stealCell', name: 'Steal Cell', description: 'Unmark a cell from a target player\'s card', cost: 350, icon: '\u{1F5E1}', needsTarget: true, needsOwnCell: false, maxPerGame: 2 },
+  { id: 'scramble', name: 'Scramble', description: 'Shuffle categories on a target player\'s unmarked cells', cost: 400, icon: '\u{1F300}', needsTarget: true, needsOwnCell: false, maxPerGame: 1 },
+];
+
+export interface PlayerShopState {
+  /** How many times each item has been purchased this game */
+  purchaseCount: Record<ShopItemId, number>;
+  /** Currently active passive items (shield, lifeline, doubleMark) */
+  activeItems: ShopItemId[];
+}
 
 export type SurpriseEventType =
   | 'spotlight'
@@ -184,18 +222,20 @@ export interface SurpriseModifiers {
 }
 
 export interface PlayerMilestones {
-  shield250Earned: boolean;
-  shield250Active: boolean;
+  streakSaver250Earned: boolean;
+  streakSaver250Active: boolean;  // blocks next streak-break
   drinks500Earned: boolean;
   drinks500Used: boolean;
-  swap750Earned: boolean;
-  swap750Used: boolean;
-  block1000Earned: boolean;
-  block1000Used: boolean;
-  doublePts1500Earned: boolean;
-  doublePts1500Active: boolean;
-  steal2000Earned: boolean;
-  steal2000Used: boolean;
+  bonusRound750Earned: boolean;
+  bonusRound750Active: boolean;   // 1.5x points for next 2 rounds
+  bonusRound750Remaining: number; // rounds left
+  hint1000Earned: boolean;
+  hint1000Used: boolean;
+  pointSurge1500Earned: boolean;
+  pointSurge1500Active: boolean;  // +50 bonus per correct for next 3 rounds
+  pointSurge1500Remaining: number;
+  jackpot2000Earned: boolean;
+  jackpot2000Used: boolean;
 }
 
 export interface Player {
@@ -208,6 +248,7 @@ export interface Player {
   drinks: number;
   milestones: PlayerMilestones;
   streak: number;
+  shopState: PlayerShopState;
 }
 
 export interface GuessResult {

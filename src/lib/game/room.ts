@@ -97,20 +97,26 @@ export function addPlayer(roomCode: string, playerId: string, playerName: string
     completedRows: 0,
     drinks: 0,
     milestones: {
-      shield250Earned: false,
-      shield250Active: false,
+      streakSaver250Earned: false,
+      streakSaver250Active: false,
       drinks500Earned: false,
       drinks500Used: false,
-      swap750Earned: false,
-      swap750Used: false,
-      block1000Earned: false,
-      block1000Used: false,
-      doublePts1500Earned: false,
-      doublePts1500Active: false,
-      steal2000Earned: false,
-      steal2000Used: false,
+      bonusRound750Earned: false,
+      bonusRound750Active: false,
+      bonusRound750Remaining: 0,
+      hint1000Earned: false,
+      hint1000Used: false,
+      pointSurge1500Earned: false,
+      pointSurge1500Active: false,
+      pointSurge1500Remaining: 0,
+      jackpot2000Earned: false,
+      jackpot2000Used: false,
     },
     streak: 0,
+    shopState: {
+      purchaseCount: { freeMark: 0, stealCell: 0, shield: 0, scramble: 0, doubleMark: 0, lifeline: 0, cardPeek: 0 },
+      activeItems: [],
+    },
   };
   room.players.push(player);
   return player;
@@ -165,18 +171,24 @@ export function resetRoomToLobby(roomCode: string): RoomState | null {
     player.streak = 0;
     player.bingoCard = generateBingoCard(room.settings.contentMode);
     player.milestones = {
-      shield250Earned: false,
-      shield250Active: false,
+      streakSaver250Earned: false,
+      streakSaver250Active: false,
       drinks500Earned: false,
       drinks500Used: false,
-      swap750Earned: false,
-      swap750Used: false,
-      block1000Earned: false,
-      block1000Used: false,
-      doublePts1500Earned: false,
-      doublePts1500Active: false,
-      steal2000Earned: false,
-      steal2000Used: false,
+      bonusRound750Earned: false,
+      bonusRound750Active: false,
+      bonusRound750Remaining: 0,
+      hint1000Earned: false,
+      hint1000Used: false,
+      pointSurge1500Earned: false,
+      pointSurge1500Active: false,
+      pointSurge1500Remaining: 0,
+      jackpot2000Earned: false,
+      jackpot2000Used: false,
+    };
+    player.shopState = {
+      purchaseCount: { freeMark: 0, stealCell: 0, shield: 0, scramble: 0, doubleMark: 0, lifeline: 0, cardPeek: 0 },
+      activeItems: [],
     };
   }
 
