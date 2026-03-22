@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import gsap from 'gsap';
 import type { GuessResult, Track, Player } from '@/types/game';
 import { ALL_WHEEL_SEGMENTS, isMusicTrack, getMediaTitle, getMediaSubtitle, getMediaDetail } from '@/types/game';
 import CategoryBadge from '@/components/shared/CategoryBadge';
@@ -60,6 +60,33 @@ export default function RoundResults({
 
   const correctCount = playerResults.filter((p) => p.correct).length;
 
+  // Refs for GSAP animations
+  const flashRef = useRef<HTMLDivElement>(null);
+  const spotlightRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const subtitleRef = useRef<HTMLParagraphElement>(null);
+  const trackCardRef = useRef<HTMLDivElement>(null);
+  const trackGlowRef = useRef<HTMLDivElement>(null);
+  const albumArtRef = useRef<HTMLDivElement>(null);
+  const artistRef = useRef<HTMLParagraphElement>(null);
+  const detailRef = useRef<HTMLParagraphElement>(null);
+  const yearBadgeRef = useRef<HTMLDivElement>(null);
+  const dividerRef = useRef<HTMLDivElement>(null);
+  const correctHeaderRef = useRef<HTMLDivElement>(null);
+  const playerCardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const playerIconRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const nextBtnRef = useRef<HTMLButtonElement>(null);
+
+  const setPlayerCardRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) playerCardRefs.current.set(id, el);
+    else playerCardRefs.current.delete(id);
+  }, []);
+
+  const setPlayerIconRef = useCallback((id: string) => (el: HTMLSpanElement | null) => {
+    if (el) playerIconRefs.current.set(id, el);
+    else playerIconRefs.current.delete(id);
+  }, []);
+
   // Cinematic stage progression
   useEffect(() => {
     playSound('reveal');
@@ -73,6 +100,132 @@ export default function RoundResults({
 
     return () => timers.forEach(clearTimeout);
   }, [playSound]);
+
+  // Flash overlay animation
+  useEffect(() => {
+    if (stage === 'flash' && flashRef.current) {
+      gsap.fromTo(flashRef.current,
+        { opacity: 1 },
+        { opacity: 0, duration: 0.4 }
+      );
+    }
+  }, [stage]);
+
+  // Spotlight beam animation
+  useEffect(() => {
+    if (stageAtLeast(stage, 'spotlight') && !stageAtLeast(stage, 'trackInfo') && spotlightRef.current) {
+      gsap.fromTo(spotlightRef.current,
+        { scaleY: 0, opacity: 0 },
+        { scaleY: 1, opacity: 0.15, duration: 0.5, ease: 'power2.out' }
+      );
+    }
+    if (stageAtLeast(stage, 'trackInfo') && spotlightRef.current) {
+      gsap.to(spotlightRef.current, { opacity: 0, duration: 0.3 });
+    }
+  }, [stage]);
+
+  // Title slam-in animation
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      if (titleRef.current) {
+        gsap.fromTo(titleRef.current,
+          { scale: 1.8, y: -20, opacity: 0, filter: 'blur(10px)' },
+          { scale: 1, y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.5, delay: 0.1, ease: 'power4.out' }
+        );
+      }
+      if (subtitleRef.current) {
+        gsap.fromTo(subtitleRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.3, delay: 0.3 }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, []);
+
+  // Track card entrance
+  useEffect(() => {
+    if (!stageAtLeast(stage, 'albumArt') || !trackCardRef.current) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(trackCardRef.current,
+        { opacity: 0, scale: 0.8, y: 40 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)' }
+      );
+
+      // Background glow pulse
+      if (trackGlowRef.current) {
+        gsap.fromTo(trackGlowRef.current,
+          { opacity: 0 },
+          { opacity: 0.3, duration: 0.5, yoyo: true, repeat: 1, repeatDelay: 0.2 }
+        );
+      }
+
+      // Album art 3D flip
+      if (albumArtRef.current) {
+        gsap.fromTo(albumArtRef.current,
+          { rotateY: -90, opacity: 0 },
+          { rotateY: 0, opacity: 1, duration: 0.6, ease: 'elastic.out(1, 0.5)' }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [stage === 'albumArt' || stage === 'trackInfo' || stage === 'playerCards' || stage === 'done' ? 'shown' : 'hidden']);
+
+  // Track info slide-in animations
+  useEffect(() => {
+    if (!stageAtLeast(stage, 'trackInfo')) return;
+
+    const ctx = gsap.context(() => {
+      if (artistRef.current) {
+        gsap.fromTo(artistRef.current,
+          { x: 20, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.3, delay: 0.4 }
+        );
+      }
+      if (detailRef.current) {
+        gsap.fromTo(detailRef.current,
+          { x: 20, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.3, delay: 0.55 }
+        );
+      }
+      if (yearBadgeRef.current) {
+        gsap.fromTo(yearBadgeRef.current,
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.3, delay: 0.6 }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [stageAtLeast(stage, 'trackInfo') ? 'trackInfo' : 'waiting']);
+
+  // Divider + correct header animation
+  useEffect(() => {
+    if (!stageAtLeast(stage, 'playerCards')) return;
+
+    const ctx = gsap.context(() => {
+      if (dividerRef.current) {
+        gsap.fromTo(dividerRef.current,
+          { scaleX: 0 },
+          { scaleX: 1, duration: 0.4 }
+        );
+      }
+      if (correctHeaderRef.current) {
+        gsap.fromTo(correctHeaderRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.3 }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [stageAtLeast(stage, 'playerCards') ? 'playerCards' : 'waiting']);
 
   // Player card cascade with sounds
   useEffect(() => {
@@ -101,43 +254,80 @@ export default function RoundResults({
     };
   }, [stage]);
 
+  // Animate each player card as it's revealed
+  useEffect(() => {
+    if (revealedPlayerIndex < 0) return;
+    const result = playerResults[revealedPlayerIndex];
+    if (!result) return;
+
+    const cardEl = playerCardRefs.current.get(result.id);
+    const iconEl = playerIconRefs.current.get(result.id);
+
+    if (cardEl) {
+      gsap.fromTo(cardEl,
+        { opacity: 0, y: 20, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' }
+      );
+    }
+    if (iconEl) {
+      gsap.fromTo(iconEl,
+        { scale: 0 },
+        { scale: 1, duration: 0.3, ease: 'back.out(3)', keyframes: [{ scale: 0 }, { scale: 1.3 }, { scale: 1 }] }
+      );
+    }
+  }, [revealedPlayerIndex]);
+
+  // Next button entrance + hover
+  useEffect(() => {
+    if (stage !== 'done' || !nextBtnRef.current) return;
+    gsap.fromTo(nextBtnRef.current,
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.3 }
+    );
+
+    const btn = nextBtnRef.current;
+    const onEnter = () => gsap.to(btn, { scale: 1.03, duration: 0.2 });
+    const onLeave = () => gsap.to(btn, { scale: 1, duration: 0.2 });
+    const onDown = () => gsap.to(btn, { scale: 0.97, duration: 0.1 });
+    const onUp = () => gsap.to(btn, { scale: 1.03, duration: 0.1 });
+    btn.addEventListener('mouseenter', onEnter);
+    btn.addEventListener('mouseleave', onLeave);
+    btn.addEventListener('pointerdown', onDown);
+    btn.addEventListener('pointerup', onUp);
+    return () => {
+      btn.removeEventListener('mouseenter', onEnter);
+      btn.removeEventListener('mouseleave', onLeave);
+      btn.removeEventListener('pointerdown', onDown);
+      btn.removeEventListener('pointerup', onUp);
+    };
+  }, [stage]);
+
   return (
     <div className="relative flex flex-col items-center w-full max-w-2xl">
       {/* Dark flash overlay */}
-      <AnimatePresence>
-        {stage === 'flash' && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="fixed inset-0 z-50 pointer-events-none"
-            style={{ background: '#0d0216' }}
-          />
-        )}
-      </AnimatePresence>
+      {stage === 'flash' && (
+        <div
+          ref={flashRef}
+          className="fixed inset-0 z-50 pointer-events-none"
+          style={{ background: '#0d0216' }}
+        />
+      )}
 
       {/* Spotlight beam */}
-      <AnimatePresence>
-        {stageAtLeast(stage, 'spotlight') && !stageAtLeast(stage, 'trackInfo') && (
-          <motion.div
-            initial={{ scaleY: 0, opacity: 0 }}
-            animate={{ scaleY: 1, opacity: 0.15 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-80 origin-top pointer-events-none z-10"
-            style={{
-              clipPath: 'polygon(40% 0%, 60% 0%, 80% 100%, 20% 100%)',
-              background: 'linear-gradient(180deg, rgba(188,19,254,0.4), transparent)',
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {stageAtLeast(stage, 'spotlight') && (
+        <div
+          ref={spotlightRef}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-80 origin-top pointer-events-none z-10"
+          style={{
+            clipPath: 'polygon(40% 0%, 60% 0%, 80% 100%, 20% 100%)',
+            background: 'linear-gradient(180deg, rgba(188,19,254,0.4), transparent)',
+          }}
+        />
+      )}
 
       {/* Title — slams in */}
-      <motion.h1
-        initial={{ scale: 1.8, y: -20, opacity: 0, filter: 'blur(10px)' }}
-        animate={{ scale: 1, y: 0, opacity: 1, filter: 'blur(0px)' }}
-        transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+      <h1
+        ref={titleRef}
         className="text-4xl md:text-5xl font-black uppercase tracking-wide text-center"
         style={{
           fontFamily: 'var(--font-display)',
@@ -146,24 +336,20 @@ export default function RoundResults({
         }}
       >
         Round Results
-      </motion.h1>
+      </h1>
 
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
+      <p
+        ref={subtitleRef}
         className="text-xs font-bold uppercase mt-2 mb-8"
         style={{ color: 'var(--game-cyan)', letterSpacing: '0.3em' }}
       >
         Neon Disco Edition &middot; Round {roundNumber}
-      </motion.p>
+      </p>
 
       {/* Track Card — album art with 3D flip + typewriter track name */}
       {track && stageAtLeast(stage, 'albumArt') && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.6, type: 'spring', stiffness: 200, damping: 20 }}
+        <div
+          ref={trackCardRef}
           className="relative w-full rounded-2xl p-5 mb-8 flex gap-5 items-center overflow-hidden"
           style={{
             background: 'rgba(255, 255, 255, 0.04)',
@@ -172,10 +358,8 @@ export default function RoundResults({
           }}
         >
           {/* Background glow */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.3, 0.1] }}
-            transition={{ duration: 1 }}
+          <div
+            ref={trackGlowRef}
             className="absolute inset-0 pointer-events-none"
             style={{
               background: 'radial-gradient(ellipse at center, rgba(188, 19, 254, 0.3), transparent 70%)',
@@ -184,10 +368,8 @@ export default function RoundResults({
 
           {/* Album Art with 3D flip */}
           {track.albumArt && (
-            <motion.div
-              initial={{ rotateY: -90, opacity: 0 }}
-              animate={{ rotateY: 0, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            <div
+              ref={albumArtRef}
               className="shrink-0 rounded-xl overflow-hidden relative"
               style={{
                 width: 'clamp(80px, 20vw, 120px)',
@@ -204,7 +386,7 @@ export default function RoundResults({
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
-            </motion.div>
+            </div>
           )}
 
           {/* Track / Movie Info */}
@@ -217,28 +399,22 @@ export default function RoundResults({
                 >
                   <TextReveal text={getMediaTitle(track)} mode="typewriter" speed={30} />
                 </h2>
-                <motion.p
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
+                <p
+                  ref={artistRef}
                   className="text-base font-medium truncate" style={{ color: 'rgba(0, 242, 255, 0.6)' }}
                 >
                   {isMovie ? 'Dir. ' : ''}{getMediaSubtitle(track)}
-                </motion.p>
+                </p>
                 {getMediaDetail(track) && (
-                  <motion.p
-                    initial={{ x: 20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.55, duration: 0.3 }}
+                  <p
+                    ref={detailRef}
                     className="text-sm text-gray-500 font-medium truncate italic"
                   >
                     {getMediaDetail(track)}
-                  </motion.p>
+                  </p>
                 )}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
+                <div
+                  ref={yearBadgeRef}
                   className="flex items-center gap-2 flex-wrap mt-1"
                 >
                   <span
@@ -253,21 +429,19 @@ export default function RoundResults({
                     {track.year}
                   </span>
                   {category && <CategoryBadge category={category} />}
-                </motion.div>
+                </div>
               </>
             ) : (
               <div className="h-20" /> /* placeholder while waiting for trackInfo stage */
             )}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Divider */}
       {stageAtLeast(stage, 'playerCards') && (
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ duration: 0.4 }}
+        <div
+          ref={dividerRef}
           className="w-full h-px mb-6 origin-center"
           style={{
             background: 'linear-gradient(to right, transparent, rgba(188, 19, 254, 0.3), transparent)',
@@ -277,10 +451,8 @@ export default function RoundResults({
 
       {/* Correct Guesses Header */}
       {stageAtLeast(stage, 'playerCards') && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
+        <div
+          ref={correctHeaderRef}
           className="flex items-center gap-2 mb-5"
         >
           <span style={{ color: 'var(--game-cyan)' }}>&#10003;</span>
@@ -294,73 +466,64 @@ export default function RoundResults({
               </>
             )}
           </span>
-        </motion.div>
+        </div>
       )}
 
       {/* Player Result Cards — cascade one-by-one with sounds */}
       {stageAtLeast(stage, 'playerCards') && (
         <div className="w-full flex flex-wrap justify-center gap-2 sm:gap-3 mb-8">
-          <AnimatePresence>
-            {playerResults.map((p, i) => (
-              i <= revealedPlayerIndex && (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  className="flex flex-col items-center gap-1 rounded-xl px-3 sm:px-5 py-2.5 sm:py-3 min-w-[80px] sm:min-w-[100px]"
-                  style={{
-                    background: p.correct
-                      ? 'rgba(0, 242, 255, 0.08)'
-                      : 'rgba(255, 255, 255, 0.03)',
-                    border: p.correct
-                      ? '1px solid rgba(0, 242, 255, 0.3)'
-                      : '1px solid rgba(255, 255, 255, 0.06)',
-                    opacity: p.correct ? 1 : 0.5,
-                  }}
+          {playerResults.map((p, i) => (
+            i <= revealedPlayerIndex && (
+              <div
+                key={p.id}
+                ref={setPlayerCardRef(p.id)}
+                className="flex flex-col items-center gap-1 rounded-xl px-3 sm:px-5 py-2.5 sm:py-3 min-w-[80px] sm:min-w-[100px]"
+                style={{
+                  background: p.correct
+                    ? 'rgba(0, 242, 255, 0.08)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: p.correct
+                    ? '1px solid rgba(0, 242, 255, 0.3)'
+                    : '1px solid rgba(255, 255, 255, 0.06)',
+                  opacity: p.correct ? 1 : 0.5,
+                }}
+              >
+                <span
+                  ref={setPlayerIconRef(p.id)}
+                  className="text-lg"
                 >
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: [0, 1.3, 1] }}
-                    transition={{ duration: 0.3 }}
-                    className="text-lg"
-                  >
-                    {p.correct ? '\u2705' : '\u274C'}
-                  </motion.span>
+                  {p.correct ? '\u2705' : '\u274C'}
+                </span>
+                <span
+                  className="text-sm font-bold truncate max-w-[120px]"
+                  style={{ color: p.correct ? '#fff' : '#94a3b8' }}
+                >
+                  {p.name}
+                </span>
+                <span
+                  className="text-xs font-black"
+                  style={{ color: p.correct ? '#00f2ff' : '#64748b' }}
+                >
+                  {p.correct ? `+${p.points} PTS` : '0 PTS'}
+                </span>
+                {p.guess && (
                   <span
-                    className="text-sm font-bold truncate max-w-[120px]"
-                    style={{ color: p.correct ? '#fff' : '#94a3b8' }}
+                    className="text-[10px] truncate max-w-[120px]"
+                    style={{ color: p.correct ? 'rgba(0, 242, 255, 0.6)' : 'rgba(148, 163, 184, 0.5)' }}
                   >
-                    {p.name}
+                    &ldquo;{p.guess}&rdquo;
                   </span>
-                  <span
-                    className="text-xs font-black"
-                    style={{ color: p.correct ? '#00f2ff' : '#64748b' }}
-                  >
-                    {p.correct ? `+${p.points} PTS` : '0 PTS'}
-                  </span>
-                  {p.guess && (
-                    <span
-                      className="text-[10px] truncate max-w-[120px]"
-                      style={{ color: p.correct ? 'rgba(0, 242, 255, 0.6)' : 'rgba(148, 163, 184, 0.5)' }}
-                    >
-                      &ldquo;{p.guess}&rdquo;
-                    </span>
-                  )}
-                </motion.div>
-              )
-            ))}
-          </AnimatePresence>
+                )}
+              </div>
+            )
+          ))}
         </div>
       )}
 
       {/* Next Round Button */}
       {stage === 'done' && (
-        <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
+        <button
+          ref={nextBtnRef}
           onClick={onNextRound}
           className="py-3 px-12 rounded-full font-black text-lg text-white uppercase tracking-wider cursor-pointer"
           style={{
@@ -370,7 +533,7 @@ export default function RoundResults({
           }}
         >
           Next Round
-        </motion.button>
+        </button>
       )}
     </div>
   );

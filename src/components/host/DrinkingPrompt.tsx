@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
 import { useAudio } from '@/hooks/useAudio';
 import { LightningBolt } from '@/components/animations/SVGIcons';
 import { fireGoldConfetti } from '@/lib/confetti';
@@ -14,12 +14,53 @@ interface DrinkingPromptProps {
 
 export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPromptProps) {
   const { playSound } = useAudio();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const leftBoltRef = useRef<HTMLDivElement>(null);
+  const rightBoltRef = useRef<HTMLDivElement>(null);
 
   // Play alert sound on mount + confetti for everybody-drinks
   useEffect(() => {
     playSound('ding');
     if (type === 'everybody-drinks') fireGoldConfetti();
   }, [playSound, type]);
+
+  // Entrance animation
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      // Container entrance
+      if (containerRef.current) {
+        gsap.fromTo(containerRef.current,
+          { opacity: 0, scale: 0.8 },
+          { opacity: 1, scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' }
+        );
+      }
+
+      // Title pulse
+      if (titleRef.current) {
+        gsap.to(titleRef.current, { scale: 1.05, yoyo: true, repeat: -1, duration: 0.75, ease: 'sine.inOut' });
+      }
+
+      // Lightning bolt flicker
+      if (leftBoltRef.current) {
+        gsap.fromTo(leftBoltRef.current,
+          { opacity: 1 },
+          { opacity: 0.3, yoyo: true, repeat: -1, duration: 0.75, ease: 'steps(3)' }
+        );
+      }
+      if (rightBoltRef.current) {
+        gsap.fromTo(rightBoltRef.current,
+          { opacity: 1 },
+          { opacity: 0.3, yoyo: true, repeat: -1, duration: 0.75, ease: 'steps(3)', delay: 0.2 }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, []);
 
   const content = {
     'everybody-drinks': {
@@ -39,35 +80,27 @@ export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPr
   const c = content[type];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
+    <div
+      ref={containerRef}
       className="relative flex flex-col items-center justify-center gap-6 text-center"
     >
       <div className="flex items-center gap-3">
         {type === 'rock-off' && (
-          <motion.div
-            animate={{ opacity: [1, 0.3, 1, 0.5, 1] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-          >
+          <div ref={leftBoltRef}>
             <LightningBolt size={32} color="#14B8A6" />
-          </motion.div>
+          </div>
         )}
-        <motion.h2
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
+        <h2
+          ref={titleRef}
           className="text-2xl sm:text-4xl font-black"
           style={{ color: c.color, textShadow: `0 0 20px ${c.color}80` }}
         >
           {c.title}
-        </motion.h2>
+        </h2>
         {type === 'rock-off' && (
-          <motion.div
-            animate={{ opacity: [1, 0.5, 1, 0.3, 1] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-          >
+          <div ref={rightBoltRef}>
             <LightningBolt size={32} color="#14B8A6" />
-          </motion.div>
+          </div>
         )}
       </div>
       <p className="text-base sm:text-xl max-w-md px-4" style={{ color: 'var(--text-secondary)' }}>
@@ -83,6 +116,6 @@ export default function DrinkingPrompt({ type, isMovie, onContinue }: DrinkingPr
       >
         Continue
       </button>
-    </motion.div>
+    </div>
   );
 }

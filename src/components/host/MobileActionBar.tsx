@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useRef, useEffect } from 'react';
+import gsap from 'gsap';
 import type { GamePhase } from '@/types/game';
 
 interface MobileActionBarProps {
@@ -18,9 +19,38 @@ const PHASE_DISPLAY: Partial<Record<GamePhase, string>> = {
   DRINKING_SEGMENT: 'Party Time',
 };
 
+function useTapScale(ref: React.RefObject<HTMLElement | null>, scale = 0.9) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onDown = () => gsap.to(el, { scale, duration: 0.1 });
+    const onUp = () => gsap.to(el, { scale: 1, duration: 0.15 });
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointerleave', onUp);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointerleave', onUp);
+    };
+  }, [ref, scale]);
+}
+
 export default function MobileActionBar({
   phase, currentSpinnerName, wheelSpinning, onSpin, onNextRound,
 }: MobileActionBarProps) {
+  const spinBtnRef = useRef<HTMLButtonElement>(null);
+  const revealBtnRef = useRef<HTMLButtonElement>(null);
+  const nextBtnRef = useRef<HTMLButtonElement>(null);
+  const continueBtnRef = useRef<HTMLButtonElement>(null);
+  const skipBtnRef = useRef<HTMLButtonElement>(null);
+
+  useTapScale(spinBtnRef);
+  useTapScale(revealBtnRef);
+  useTapScale(nextBtnRef);
+  useTapScale(continueBtnRef);
+  useTapScale(skipBtnRef);
+
   return (
     <div className="lg:hidden w-full flex items-center gap-2 px-3 py-2 rounded-xl"
       style={{
@@ -57,59 +87,59 @@ export default function MobileActionBar({
 
       {/* Phase-specific primary action */}
       {phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning && (
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+        <button
+          ref={spinBtnRef}
           onClick={onSpin}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#8635;</span>
           <span>Spin</span>
-        </motion.button>
+        </button>
       )}
 
       {phase === 'PLAYING' && (
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+        <button
+          ref={revealBtnRef}
           onClick={onNextRound}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#9989;</span>
           <span>Reveal</span>
-        </motion.button>
+        </button>
       )}
 
       {phase === 'ROUND_RESULTS' && (
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+        <button
+          ref={nextBtnRef}
           onClick={onNextRound}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#9654;</span>
           <span>Next</span>
-        </motion.button>
+        </button>
       )}
 
       {phase === 'DRINKING_SEGMENT' && (
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+        <button
+          ref={continueBtnRef}
           onClick={onNextRound}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white font-black uppercase text-xs gradient-spin-btn cursor-pointer"
         >
           <span>&#9654;</span>
           <span>Continue</span>
-        </motion.button>
+        </button>
       )}
 
       {/* Skip — secondary action */}
       {(phase === 'SPINNING' || phase === 'PLAYING') && (
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+        <button
+          ref={skipBtnRef}
           onClick={onNextRound}
           className="shrink-0 text-[10px] font-bold uppercase px-2 py-1.5 rounded-lg cursor-pointer"
           style={{ background: 'rgba(0, 242, 255, 0.08)', color: 'rgba(0, 242, 255, 0.6)', border: '1px solid rgba(0, 242, 255, 0.15)' }}
         >
           Skip
-        </motion.button>
+        </button>
       )}
     </div>
   );

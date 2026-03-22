@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import { getSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import type { Player, BingoCell, MilestoneType } from '@/types/game';
@@ -124,11 +124,27 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
   const [step, setStep] = useState<Step>('announce');
   const [targetPlayer, setTargetPlayer] = useState<Player | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Reset step when milestone changes
   useEffect(() => {
     setStep('announce');
     setTargetPlayer(null);
+  }, [milestone?.type]);
+
+  // Entrance animation
+  useEffect(() => {
+    if (!milestone) return;
+    const el = overlayRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, scale: 0.9 },
+        { opacity: 1, scale: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' }
+      );
+    });
+    return () => ctx.revert();
   }, [milestone?.type]);
 
   // Focus trap + Escape key
@@ -230,159 +246,155 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        key={milestone.type}
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-        style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="milestone-title"
+    <div
+      ref={overlayRef}
+      key={milestone.type}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="milestone-title"
+    >
+      <div
         ref={modalRef}
+        className="max-w-sm w-full rounded-2xl p-5"
+        style={{
+          background: `linear-gradient(135deg, rgba(${config.colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
+          border: `2px solid rgba(${config.colorRgb}, 0.6)`,
+          boxShadow: `0 0 30px rgba(${config.colorRgb}, 0.3)`,
+        }}
       >
-        <div
-          className="max-w-sm w-full rounded-2xl p-5"
-          style={{
-            background: `linear-gradient(135deg, rgba(${config.colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
-            border: `2px solid rgba(${config.colorRgb}, 0.6)`,
-            boxShadow: `0 0 30px rgba(${config.colorRgb}, 0.3)`,
-          }}
-        >
-          {step === 'announce' && (
-            <AutoDismissAnnounce
-              config={config}
-              autoDismiss={config.autoApplied}
-              onAction={handleAnnounceAction}
-              onSkip={onDismiss}
-            />
-          )}
+        {step === 'announce' && (
+          <AutoDismissAnnounce
+            config={config}
+            autoDismiss={config.autoApplied}
+            onAction={handleAnnounceAction}
+            onSkip={onDismiss}
+          />
+        )}
 
-          {step === 'selectPlayer' && (
-            <div>
-              <h3
-                className="text-sm font-black uppercase tracking-wider text-center mb-3"
-                style={{ color: config.color }}
-              >
-                {milestone.type === 'drinks500' ? 'Who gets the drink?' :
-                  milestone.type === 'swap750' ? 'Whose cell to swap?' :
-                  milestone.type === 'steal2000' ? 'Who to steal from?' :
-                  'Whose card to block?'}
-              </h3>
-              <div className="flex flex-col gap-2">
-                {otherPlayers.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handlePlayerSelect(p)}
-                    className="w-full py-3 px-4 rounded-xl font-semibold text-white text-left cursor-pointer transition-all"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                    }}
-                  >
-                    {p.name}
-                    {milestone.type === 'steal2000' && (
-                      <span className="float-right text-xs opacity-60">{p.score} pts</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setStep('announce')}
-                className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
-                style={{ color: 'rgba(148, 163, 184, 0.6)' }}
-              >
-                Back
-              </button>
+        {step === 'selectPlayer' && (
+          <div>
+            <h3
+              className="text-sm font-black uppercase tracking-wider text-center mb-3"
+              style={{ color: config.color }}
+            >
+              {milestone.type === 'drinks500' ? 'Who gets the drink?' :
+                milestone.type === 'swap750' ? 'Whose cell to swap?' :
+                milestone.type === 'steal2000' ? 'Who to steal from?' :
+                'Whose card to block?'}
+            </h3>
+            <div className="flex flex-col gap-2">
+              {otherPlayers.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handlePlayerSelect(p)}
+                  className="w-full py-3 px-4 rounded-xl font-semibold text-white text-left cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                >
+                  {p.name}
+                  {milestone.type === 'steal2000' && (
+                    <span className="float-right text-xs opacity-60">{p.score} pts</span>
+                  )}
+                </button>
+              ))}
             </div>
-          )}
+            <button
+              onClick={() => setStep('announce')}
+              className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
+              style={{ color: 'rgba(148, 163, 184, 0.6)' }}
+            >
+              Back
+            </button>
+          </div>
+        )}
 
-          {step === 'selectCell' && targetPlayer && (
-            <div>
-              <h3
-                className="text-sm font-black uppercase tracking-wider text-center mb-1"
-                style={{ color: config.color }}
-              >
-                Block a cell on {targetPlayer.name}&apos;s card
-              </h3>
-              <p className="text-xs text-center mb-3" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                Tap a marked cell to unmark it
-              </p>
-              <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
-                {targetPlayer.bingoCard.map((cell: BingoCell, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => cell.marked && handleCellSelect(i)}
-                    disabled={!cell.marked}
-                    className="aspect-square rounded-lg flex items-center justify-center text-xs font-bold uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                    style={{
-                      background: cell.marked
-                        ? 'linear-gradient(135deg, rgba(217, 70, 239, 0.5), rgba(139, 92, 246, 0.5))'
-                        : 'rgba(30, 20, 60, 0.8)',
-                      border: cell.marked
-                        ? '2px solid rgba(239, 68, 68, 0.8)'
-                        : '1px solid rgba(100, 80, 140, 0.2)',
-                    }}
-                  >
-                    {cell.category === 'year-approx' ? 'Y\u00B11' : cell.category.slice(0, 3).toUpperCase()}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => { setStep('selectPlayer'); setTargetPlayer(null); }}
-                className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
-                style={{ color: 'rgba(148, 163, 184, 0.6)' }}
-              >
-                Back
-              </button>
+        {step === 'selectCell' && targetPlayer && (
+          <div>
+            <h3
+              className="text-sm font-black uppercase tracking-wider text-center mb-1"
+              style={{ color: config.color }}
+            >
+              Block a cell on {targetPlayer.name}&apos;s card
+            </h3>
+            <p className="text-xs text-center mb-3" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
+              Tap a marked cell to unmark it
+            </p>
+            <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
+              {targetPlayer.bingoCard.map((cell: BingoCell, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => cell.marked && handleCellSelect(i)}
+                  disabled={!cell.marked}
+                  className="aspect-square rounded-lg flex items-center justify-center text-xs font-bold uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                  style={{
+                    background: cell.marked
+                      ? 'linear-gradient(135deg, rgba(217, 70, 239, 0.5), rgba(139, 92, 246, 0.5))'
+                      : 'rgba(30, 20, 60, 0.8)',
+                    border: cell.marked
+                      ? '2px solid rgba(239, 68, 68, 0.8)'
+                      : '1px solid rgba(100, 80, 140, 0.2)',
+                  }}
+                >
+                  {cell.category === 'year-approx' ? 'Y\u00B11' : cell.category.slice(0, 3).toUpperCase()}
+                </button>
+              ))}
             </div>
-          )}
+            <button
+              onClick={() => { setStep('selectPlayer'); setTargetPlayer(null); }}
+              className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
+              style={{ color: 'rgba(148, 163, 184, 0.6)' }}
+            >
+              Back
+            </button>
+          </div>
+        )}
 
-          {step === 'selectOwnCell' && (
-            <div>
-              <h3
-                className="text-sm font-black uppercase tracking-wider text-center mb-1"
-                style={{ color: config.color }}
-              >
-                Pick a cell to mark
-              </h3>
-              <p className="text-xs text-center mb-3" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                Tap an unmarked cell to mark it for free
-              </p>
-              <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
-                {myBingoCard.map((cell: BingoCell, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => !cell.marked && handleOwnCellSelect(i)}
-                    disabled={cell.marked}
-                    className="aspect-square rounded-lg flex items-center justify-center text-xs font-bold uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                    style={{
-                      background: cell.marked
-                        ? 'rgba(30, 20, 60, 0.4)'
-                        : 'linear-gradient(135deg, rgba(217, 70, 239, 0.3), rgba(139, 92, 246, 0.3))',
-                      border: cell.marked
-                        ? '1px solid rgba(100, 80, 140, 0.2)'
-                        : `2px solid rgba(${config.colorRgb}, 0.8)`,
-                    }}
-                  >
-                    {cell.category === 'year-approx' ? 'Y\u00B11' : cell.category.slice(0, 3).toUpperCase()}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setStep('announce')}
-                className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
-                style={{ color: 'rgba(148, 163, 184, 0.6)' }}
-              >
-                Back
-              </button>
+        {step === 'selectOwnCell' && (
+          <div>
+            <h3
+              className="text-sm font-black uppercase tracking-wider text-center mb-1"
+              style={{ color: config.color }}
+            >
+              Pick a cell to mark
+            </h3>
+            <p className="text-xs text-center mb-3" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
+              Tap an unmarked cell to mark it for free
+            </p>
+            <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
+              {myBingoCard.map((cell: BingoCell, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => !cell.marked && handleOwnCellSelect(i)}
+                  disabled={cell.marked}
+                  className="aspect-square rounded-lg flex items-center justify-center text-xs font-bold uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                  style={{
+                    background: cell.marked
+                      ? 'rgba(30, 20, 60, 0.4)'
+                      : 'linear-gradient(135deg, rgba(217, 70, 239, 0.3), rgba(139, 92, 246, 0.3))',
+                    border: cell.marked
+                      ? '1px solid rgba(100, 80, 140, 0.2)'
+                      : `2px solid rgba(${config.colorRgb}, 0.8)`,
+                  }}
+                >
+                  {cell.category === 'year-approx' ? 'Y\u00B11' : cell.category.slice(0, 3).toUpperCase()}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      </motion.div>
-    </AnimatePresence>
+            <button
+              onClick={() => setStep('announce')}
+              className="mt-3 text-sm font-medium cursor-pointer w-full text-center"
+              style={{ color: 'rgba(148, 163, 184, 0.6)' }}
+            >
+              Back
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

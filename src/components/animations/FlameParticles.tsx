@@ -1,29 +1,24 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import gsap from 'gsap';
 
 interface Ember {
   id: number;
-  x: number;        // lateral drift (px)
-  y: number;        // upward travel (px, negative)
+  x: number;
+  y: number;
   size: number;
   color: string;
   delay: number;
   duration: number;
-  wobble: number;    // lateral sine amplitude
+  wobble: number;
 }
 
 interface FlameParticlesProps {
-  /** When true, continuously emits fire embers */
   active: boolean;
-  /** Number of particles per burst */
   count?: number;
-  /** Duration of the entire effect in seconds */
   effectDuration?: number;
-  /** Color palette for embers */
   colors?: string[];
-  /** Container width constraint */
   width?: number;
 }
 
@@ -37,6 +32,7 @@ export default function FlameParticles({
   width = 120,
 }: FlameParticlesProps) {
   const [embers, setEmbers] = useState<Ember[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const generateEmbers = useCallback(() => {
     const newEmbers: Ember[] = [];
@@ -66,10 +62,40 @@ export default function FlameParticles({
     }
   }, [active, generateEmbers, effectDuration]);
 
+  // Animate embers with GSAP
+  useEffect(() => {
+    if (embers.length === 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const ctx = gsap.context(() => {
+      const els = container.querySelectorAll('.flame-ember');
+      els.forEach((el, i) => {
+        const e = embers[i];
+        if (!e) return;
+        gsap.fromTo(el,
+          { x: 0, y: 0, scale: 0, opacity: 0.9 },
+          {
+            keyframes: [
+              { x: 0, y: 0, scale: 0, opacity: 0.9, duration: 0 },
+              { x: e.wobble * 0.5, y: e.y * 0.3, scale: 1.2, opacity: 0.95, duration: e.duration * 0.3 },
+              { x: e.x + e.wobble, y: e.y * 0.7, scale: 0.8, opacity: 0.7, duration: e.duration * 0.4 },
+              { x: e.x + e.wobble * 1.5, y: e.y, scale: 0, opacity: 0, duration: e.duration * 0.3 },
+            ],
+            delay: e.delay,
+            ease: 'power2.out',
+          }
+        );
+      });
+    });
+    return () => ctx.revert();
+  }, [embers]);
+
   if (embers.length === 0) return null;
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'absolute',
         inset: 0,
@@ -79,25 +105,9 @@ export default function FlameParticles({
       }}
     >
       {embers.map((e) => (
-        <motion.div
+        <div
           key={e.id}
-          initial={{
-            x: 0,
-            y: 0,
-            scale: 0,
-            opacity: 0.9,
-          }}
-          animate={{
-            x: [0, e.wobble * 0.5, e.x + e.wobble, e.x + e.wobble * 1.5],
-            y: [0, e.y * 0.3, e.y * 0.7, e.y],
-            scale: [0, 1.2, 0.8, 0],
-            opacity: [0, 0.95, 0.7, 0],
-          }}
-          transition={{
-            duration: e.duration,
-            delay: e.delay,
-            ease: 'easeOut',
-          }}
+          className="flame-ember"
           style={{
             position: 'absolute',
             left: '50%',
@@ -107,6 +117,8 @@ export default function FlameParticles({
             borderRadius: '50%',
             background: `radial-gradient(circle, ${e.color}, transparent)`,
             boxShadow: `0 0 ${e.size * 2}px ${e.color}`,
+            opacity: 0,
+            transform: 'scale(0)',
           }}
         />
       ))}

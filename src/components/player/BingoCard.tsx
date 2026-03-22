@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import gsap from 'gsap';
 import type { BingoCell, GuessCategory } from '@/types/game';
 import { SparkleIcon, BingoCalendar, BingoArtist, BingoSongTitle, BingoAlbum, BingoYearApprox, BingoDecade } from '@/components/animations/SVGIcons';
 import CellDisintegrate from '@/components/animations/CellDisintegrate';
@@ -65,126 +65,19 @@ const CATEGORY_ICONS_COMPACT: Partial<Record<GuessCategory, string>> = {
   genre: '\u{1F3AD}',
 };
 
-interface BingoCellItemProps {
-  cell: BingoCell;
-  index: number;
-  isNewlyMarked: boolean;
-  isFlashing: boolean;
-  isNearBingo: boolean;
-}
-
-const BingoCellItem = memo(function BingoCellItem({ cell, index: i, isNewlyMarked, isFlashing, isNearBingo }: BingoCellItemProps) {
-  const label = CATEGORY_LABELS[cell.category];
-  const SvgIcon = CATEGORY_SVG[cell.category];
-  const isCenter = i === 4;
-
-  // Colors: unmarked = muted fuchsia, marked = bright fuchsia, center = teal accent
-  const unmarkedBg = isCenter
-    ? 'linear-gradient(145deg, #1c0e35 0%, #2a1245 100%)'
-    : 'linear-gradient(145deg, #1a0a30 0%, #250d3d 100%)';
-  const markedBg = 'linear-gradient(145deg, rgba(217, 70, 239, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%)';
-
-  const unmarkedBorder = isCenter
-    ? '2px solid rgba(45, 212, 191, 0.6)'
-    : '1.5px solid rgba(217, 70, 239, 0.25)';
-  const markedBorder = '2px solid rgba(217, 70, 239, 0.8)';
-
-  const unmarkedShadow = isCenter
-    ? '0 0 15px rgba(45, 212, 191, 0.3), inset 0 0 12px rgba(45, 212, 191, 0.08)'
-    : 'inset 0 1px 0 rgba(255,255,255,0.03)';
-  const markedShadow = '0 0 18px rgba(217, 70, 239, 0.5), inset 0 0 12px rgba(217, 70, 239, 0.15)';
-
-  const iconColor = cell.marked
-    ? '#d946ef'
-    : isCenter ? '#2dd4bf' : 'rgba(180, 140, 220, 0.6)';
-
-  return (
-    <motion.div
-      animate={cell.marked ? { scale: [1, 1.06, 1] } : {}}
-      transition={{ duration: 0.4 }}
-      className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center overflow-hidden ${isFlashing ? 'bingo-line-flash' : ''}`}
-      style={{
-        background: cell.marked ? markedBg : unmarkedBg,
-        border: cell.marked ? markedBorder : unmarkedBorder,
-        boxShadow: cell.marked ? markedShadow : unmarkedShadow,
-      }}
-    >
-      {/* Near-bingo pulse overlay */}
-      {isNearBingo && (
-        <div
-          className="absolute inset-0 rounded-2xl pointer-events-none near-bingo-pulse"
-          style={{ border: '1.5px solid rgba(234,179,8,0.35)' }}
-        />
-      )}
-
-      {/* Sparkle overlay on newly marked cells */}
-      {isNewlyMarked && (
-        <motion.div
-          initial={{ scale: 0, opacity: 1 }}
-          animate={{ scale: [0, 1.5, 0], opacity: [1, 1, 0] }}
-          transition={{ duration: 0.6 }}
-          className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
-        >
-          <SparkleIcon size={44} color="#d946ef" />
-        </motion.div>
-      )}
-
-      {/* Icon */}
-      <div className="flex flex-col items-center justify-center gap-1.5">
-        {SvgIcon && (
-          <SvgIcon
-            size={30}
-            color={iconColor}
-            style={{
-              filter: cell.marked
-                ? 'drop-shadow(0 0 8px rgba(217, 70, 239, 0.7))'
-                : 'none',
-              transition: 'filter 0.3s',
-            }}
-          />
-        )}
-        <span
-          className="text-[9px] font-black tracking-[0.15em] uppercase leading-none"
-          style={{
-            color: cell.marked
-              ? '#d946ef'
-              : isCenter ? '#2dd4bf' : 'rgba(180, 140, 220, 0.7)',
-            textShadow: cell.marked
-              ? '0 0 8px rgba(217, 70, 239, 0.5)'
-              : 'none',
-            transition: 'color 0.3s, text-shadow 0.3s',
-          }}
-        >
-          {label}
-        </span>
-      </div>
-
-      {/* Checkmark badge */}
-      {cell.marked && (
-        <motion.div
-          initial={isNewlyMarked ? { scale: 0 } : { scale: 1 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          className="absolute top-1.5 right-1.5 rounded-full flex items-center justify-center"
-          style={{
-            width: '20px', height: '20px',
-            background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
-            boxShadow: '0 0 8px rgba(217, 70, 239, 0.6)',
-          }}
-        >
-          <span className="text-[10px]" style={{ color: '#fff', fontWeight: 800 }}>&#x2713;</span>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-});
-
 export default function BingoCard({ cells, compact, pickableIndices, onCellPick }: BingoCardProps) {
   const prevCellsRef = useRef<BingoCell[]>([]);
   const [newlyMarked, setNewlyMarked] = useState<Set<number>>(new Set());
   const [flashingLines, setFlashingLines] = useState<Set<number>>(new Set());
   const [disintegratingCells, setDisintegratingCells] = useState<Set<number>>(new Set());
   const { playSound } = useAudio();
+
+  // Refs for cell DOM elements (for GSAP animations)
+  const cellRefsMap = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const sparkleRefsMap = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const checkRefsMap = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const pickableRefsMap = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const nearBingoRefsMap = useRef<Map<number, HTMLDivElement | null>>(new Map());
 
   const handleDisintegrateComplete = useCallback((cellIdx: number) => {
     setDisintegratingCells((prev) => {
@@ -254,6 +147,140 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
 
     prevCellsRef.current = cells;
   }, [cells, playSound]);
+
+  // Animate cell pop when marked
+  useEffect(() => {
+    if (newlyMarked.size === 0) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      newlyMarked.forEach((i) => {
+        const el = cellRefsMap.current.get(i);
+        if (el) {
+          gsap.fromTo(el,
+            { scale: 1 },
+            { scale: 1.06, duration: 0.2, ease: 'power2.out', yoyo: true, repeat: 1 }
+          );
+        }
+      });
+    });
+    return () => ctx.revert();
+  }, [newlyMarked]);
+
+  // Animate sparkle overlay on newly marked cells
+  useEffect(() => {
+    if (newlyMarked.size === 0) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      newlyMarked.forEach((i) => {
+        const el = sparkleRefsMap.current.get(i);
+        if (el) {
+          gsap.fromTo(el,
+            { scale: 0, opacity: 1 },
+            { scale: 1.5, opacity: 0, duration: 0.6, ease: 'power2.out' }
+          );
+        }
+      });
+    });
+    return () => ctx.revert();
+  }, [newlyMarked]);
+
+  // Animate checkmark badges on newly marked cells
+  useEffect(() => {
+    if (newlyMarked.size === 0) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      newlyMarked.forEach((i) => {
+        const el = checkRefsMap.current.get(i);
+        if (el) {
+          gsap.fromTo(el,
+            { scale: 0 },
+            { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' }
+          );
+        }
+      });
+    });
+    return () => ctx.revert();
+  }, [newlyMarked]);
+
+  // Animate disintegrating cells
+  useEffect(() => {
+    if (disintegratingCells.size === 0) return;
+
+    const ctx = gsap.context(() => {
+      disintegratingCells.forEach((i) => {
+        const el = cellRefsMap.current.get(i);
+        if (el) {
+          gsap.to(el, {
+            scale: 0.95,
+            opacity: 0.3,
+            duration: 0.3,
+            ease: 'power2.in',
+            keyframes: [
+              { scale: 1.05, opacity: 0.8, duration: 0.1 },
+              { scale: 0.95, opacity: 0.3, duration: 0.2 },
+            ],
+          });
+        }
+      });
+    });
+    return () => ctx.revert();
+  }, [disintegratingCells]);
+
+  // Pickable cell glow pulse animation
+  useEffect(() => {
+    if (!pickableIndices || pickableIndices.size === 0) return;
+
+    const ctx = gsap.context(() => {
+      pickableIndices.forEach((i) => {
+        const el = pickableRefsMap.current.get(i);
+        if (el) {
+          gsap.fromTo(el,
+            { boxShadow: 'inset 0 0 10px rgba(217, 70, 239, 0.2), 0 0 12px rgba(217, 70, 239, 0.3)' },
+            {
+              boxShadow: 'inset 0 0 20px rgba(217, 70, 239, 0.5), 0 0 24px rgba(217, 70, 239, 0.6)',
+              yoyo: true,
+              repeat: -1,
+              duration: 0.6,
+              ease: 'sine.inOut',
+            }
+          );
+        }
+      });
+    });
+    return () => ctx.revert();
+  }, [pickableIndices]);
+
+  // Near-bingo pulse animation
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      nearBingoRefsMap.current.forEach((el, i) => {
+        if (!el) return;
+        const cell = cells[i];
+        if (!cell) return;
+        const isNearBingo = nearBingoCells.has(i) && !cell.marked;
+        const isPickable = pickableIndices?.has(i) ?? false;
+        if (isNearBingo && !isPickable) {
+          gsap.fromTo(el,
+            { boxShadow: 'inset 0 0 8px rgba(234,179,8,0.15), 0 0 6px rgba(234,179,8,0.1)' },
+            {
+              boxShadow: 'inset 0 0 15px rgba(234,179,8,0.35), 0 0 12px rgba(234,179,8,0.25)',
+              yoyo: true,
+              repeat: -1,
+              duration: 1,
+              ease: 'sine.inOut',
+            }
+          );
+        }
+      });
+    });
+    return () => ctx.revert();
+  }, [cells, pickableIndices]);
 
   // Compute near-bingo cells
   const nearBingoCells = useMemo(() => {
@@ -360,16 +387,9 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
           : isCenter ? '#2dd4bf' : 'rgba(180, 140, 220, 0.6)';
 
         return (
-          <motion.div
+          <div
             key={i}
-            animate={
-              isDisintegrating
-                ? { scale: [1, 1.05, 0.95], opacity: [1, 0.8, 0.3] }
-                : cell.marked
-                  ? { scale: [1, 1.06, 1] }
-                  : {}
-            }
-            transition={{ duration: isDisintegrating ? 0.3 : 0.4 }}
+            ref={(el) => { cellRefsMap.current.set(i, el); }}
             onClick={isPickable ? () => onCellPick?.(i) : undefined}
             onKeyDown={isPickable ? (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellPick?.(i); } } : undefined}
             role={isPickable ? 'button' : 'gridcell'}
@@ -400,15 +420,8 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
 
             {/* Pickable cell glow overlay */}
             {isPickable && (
-              <motion.div
-                animate={{
-                  boxShadow: [
-                    'inset 0 0 10px rgba(217, 70, 239, 0.2), 0 0 12px rgba(217, 70, 239, 0.3)',
-                    'inset 0 0 20px rgba(217, 70, 239, 0.5), 0 0 24px rgba(217, 70, 239, 0.6)',
-                    'inset 0 0 10px rgba(217, 70, 239, 0.2), 0 0 12px rgba(217, 70, 239, 0.3)',
-                  ],
-                }}
-                transition={{ repeat: Infinity, duration: 1.2 }}
+              <div
+                ref={(el) => { pickableRefsMap.current.set(i, el); }}
                 className="absolute inset-0 rounded-2xl pointer-events-none z-10"
               >
                 <span
@@ -417,20 +430,13 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
                 >
                   TAP
                 </span>
-              </motion.div>
+              </div>
             )}
 
             {/* Near-bingo pulse overlay */}
             {isNearBingo && !isPickable && (
-              <motion.div
-                animate={{
-                  boxShadow: [
-                    'inset 0 0 8px rgba(234,179,8,0.15), 0 0 6px rgba(234,179,8,0.1)',
-                    'inset 0 0 15px rgba(234,179,8,0.35), 0 0 12px rgba(234,179,8,0.25)',
-                    'inset 0 0 8px rgba(234,179,8,0.15), 0 0 6px rgba(234,179,8,0.1)',
-                  ],
-                }}
-                transition={{ repeat: Infinity, duration: 2 }}
+              <div
+                ref={(el) => { nearBingoRefsMap.current.set(i, el); }}
                 className="absolute inset-0 rounded-2xl pointer-events-none"
                 style={{ border: '1.5px solid rgba(234,179,8,0.35)' }}
               />
@@ -438,14 +444,12 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
 
             {/* Sparkle overlay on newly marked cells */}
             {isNewlyMarked && (
-              <motion.div
-                initial={{ scale: 0, opacity: 1 }}
-                animate={{ scale: [0, 1.5, 0], opacity: [1, 1, 0] }}
-                transition={{ duration: 0.6 }}
+              <div
+                ref={(el) => { sparkleRefsMap.current.set(i, el); }}
                 className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
               >
                 <SparkleIcon size={44} color="#d946ef" />
-              </motion.div>
+              </div>
             )}
 
             {/* Icon */}
@@ -488,10 +492,8 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
 
             {/* Checkmark badge */}
             {cell.marked && !isDisintegrating && (
-              <motion.div
-                initial={isNewlyMarked ? { scale: 0 } : { scale: 1 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              <div
+                ref={(el) => { checkRefsMap.current.set(i, el); }}
                 className="absolute top-1.5 right-1.5 rounded-full flex items-center justify-center"
                 style={{
                   width: '20px', height: '20px',
@@ -500,9 +502,9 @@ export default function BingoCard({ cells, compact, pickableIndices, onCellPick 
                 }}
               >
                 <span className="text-[10px]" style={{ color: '#fff', fontWeight: 800 }}>&#x2713;</span>
-              </motion.div>
+              </div>
             )}
-          </motion.div>
+          </div>
         );
       })}
     </div>

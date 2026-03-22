@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
 import { SurpriseIcon } from '@/components/animations/SVGIcons';
 import { fireConfetti } from '@/lib/confetti';
 import type { SurpriseEventType } from '@/types/game';
@@ -93,6 +93,11 @@ interface SurpriseEventOverlayProps {
 }
 
 export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEventOverlayProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (event) {
       const config = EVENT_CONFIG[event.type];
@@ -105,71 +110,102 @@ export default function SurpriseEventOverlay({ event, onComplete }: SurpriseEven
     }
   }, [event, onComplete]);
 
+  // Entrance animations
+  useEffect(() => {
+    if (!event) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      // Overlay fade in
+      if (overlayRef.current) {
+        gsap.fromTo(overlayRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.3 }
+        );
+      }
+
+      // Backdrop flash
+      if (backdropRef.current) {
+        gsap.fromTo(backdropRef.current,
+          { opacity: 0 },
+          { opacity: 0.4, duration: 0.2, yoyo: true, repeat: 1, repeatDelay: 0.1 }
+        );
+        gsap.to(backdropRef.current, { opacity: 0.15, duration: 0.3, delay: 0.5 });
+      }
+
+      // Card spring in
+      if (cardRef.current) {
+        gsap.fromTo(cardRef.current,
+          { scale: 0.5, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.6, ease: 'elastic.out(1, 0.5)' }
+        );
+      }
+
+      // Icon spin in
+      if (iconRef.current) {
+        gsap.fromTo(iconRef.current,
+          { scale: 0, rotation: -30 },
+          { scale: 1, rotation: 0, duration: 0.5, ease: 'elastic.out(1, 0.4)', delay: 0.1 }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [event]);
+
   if (!event) return null;
 
   const config = EVENT_CONFIG[event.type];
 
   return (
-    <AnimatePresence>
-      {event && (
-        <motion.div
-          key={event.type + (event.targetName ?? '')}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          role="alert"
-          aria-live="assertive"
-          className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
-        >
-          {/* Backdrop flash */}
-          <motion.div
-            className="absolute inset-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.4, 0.15] }}
-            transition={{ duration: 0.5 }}
-            style={{ background: `rgba(${config.colorRgb}, 0.2)` }}
-          />
+    <div
+      ref={overlayRef}
+      role="alert"
+      aria-live="assertive"
+      className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
+    >
+      {/* Backdrop flash */}
+      <div
+        ref={backdropRef}
+        className="absolute inset-0"
+        style={{ background: `rgba(${config.colorRgb}, 0.2)` }}
+      />
 
-          {/* Card */}
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            className="relative rounded-3xl p-8 text-center max-w-md mx-4"
-            style={{
-              background: `linear-gradient(135deg, rgba(${config.colorRgb}, 0.15), rgba(20, 12, 50, 0.95))`,
-              border: `2px solid rgba(${config.colorRgb}, 0.5)`,
-              boxShadow: `0 0 60px rgba(${config.colorRgb}, 0.3)`,
-            }}
-          >
-            <motion.div
-              initial={{ scale: 0, rotate: -30 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
-              className="mb-3 flex justify-center"
-            >
-              <SurpriseIcon size={48} color={config.color} aria-hidden="true" />
-            </motion.div>
-            <h2
-              className="text-3xl font-black uppercase tracking-wider mb-2"
-              style={{
-                fontFamily: 'var(--font-display)',
-                color: config.color,
-                textShadow: `0 0 20px rgba(${config.colorRgb}, 0.6)`,
-              }}
-            >
-              {config.title}
-            </h2>
-            <p
-              className="text-lg font-semibold"
-              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
-            >
-              {config.getSubtitle(event.targetName, event.targetName2)}
-            </p>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      {/* Card */}
+      <div
+        ref={cardRef}
+        className="relative rounded-3xl p-8 text-center max-w-md mx-4"
+        style={{
+          background: `linear-gradient(135deg, rgba(${config.colorRgb}, 0.15), rgba(20, 12, 50, 0.95))`,
+          border: `2px solid rgba(${config.colorRgb}, 0.5)`,
+          boxShadow: `0 0 60px rgba(${config.colorRgb}, 0.3)`,
+        }}
+      >
+        <div
+          ref={iconRef}
+          className="mb-3 flex justify-center"
+        >
+          <SurpriseIcon size={48} color={config.color} aria-hidden="true" />
+        </div>
+        <h2
+          className="text-3xl font-black uppercase tracking-wider mb-2"
+          style={{
+            fontFamily: 'var(--font-display)',
+            color: config.color,
+            textShadow: `0 0 20px rgba(${config.colorRgb}, 0.6)`,
+          }}
+        >
+          {config.title}
+        </h2>
+        <p
+          className="text-lg font-semibold"
+          style={{ color: 'rgba(255, 255, 255, 0.85)' }}
+        >
+          {config.getSubtitle(event.targetName, event.targetName2)}
+        </p>
+      </div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinFromMomentum, easeOutQuintic } from '@/lib/wheel/animate-spin';
@@ -52,6 +52,14 @@ export default function PlayerWheelSpinner({
   const lastAngleRef = useRef(0);
   const velocitySamplesRef = useRef<VelocitySample[]>([]);
   const centerRef = useRef({ x: 0, y: 0 });
+
+  // GSAP animation refs
+  const titleRef = useRef<HTMLDivElement>(null);
+  const promptRef = useRef<HTMLDivElement>(null);
+  const promptIconRef = useRef<HTMLDivElement>(null);
+  const spinningTextRef = useRef<HTMLDivElement>(null);
+  const spinningPRef = useRef<HTMLParagraphElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   const [spinState, setSpinState] = useState<SpinState>('IDLE');
   const [showResult, setShowResult] = useState(false);
@@ -228,6 +236,99 @@ export default function PlayerWheelSpinner({
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [isSpinning, resultIndex, redraw, updateSpinState, onSpinComplete]);
+
+  // --- Title entrance animation ---
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, y: -20 },
+        { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
+      );
+    });
+    return () => ctx.revert();
+  }, []);
+
+  // --- Prompt wiggle animation (when interactive) ---
+  useEffect(() => {
+    const el = promptIconRef.current;
+    if (!el) return;
+    const isInteractive = spinState === 'IDLE' && !hasFiredSwipeRef.current;
+    if (!isInteractive) return;
+
+    const ctx = gsap.context(() => {
+      gsap.to(el, {
+        rotation: 20,
+        yoyo: true,
+        repeat: -1,
+        duration: 0.5,
+        ease: 'sine.inOut',
+        keyframes: [
+          { rotation: 0 },
+          { rotation: -20 },
+          { rotation: 20 },
+          { rotation: -20 },
+          { rotation: 0 },
+        ],
+      });
+    });
+    return () => ctx.revert();
+  }, [spinState]);
+
+  // --- Prompt entrance animation ---
+  useEffect(() => {
+    const el = promptRef.current;
+    if (!el) return;
+    const isInteractive = spinState === 'IDLE' && !hasFiredSwipeRef.current;
+    if (!isInteractive) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }
+      );
+    });
+    return () => ctx.revert();
+  }, [spinState]);
+
+  // --- Spinning text entrance + pulse ---
+  useEffect(() => {
+    const container = spinningTextRef.current;
+    const pEl = spinningPRef.current;
+    if (!container || !pEl) return;
+    const isAnimating = spinState === 'MOMENTUM' || spinState === 'SERVER_SPIN';
+    if (!isAnimating) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(container,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: 'power2.out' }
+      );
+      gsap.fromTo(pEl,
+        { opacity: 0.5 },
+        { opacity: 1, yoyo: true, repeat: -1, duration: 0.6, ease: 'sine.inOut' }
+      );
+    });
+    return () => ctx.revert();
+  }, [spinState]);
+
+  // --- Result badge entrance ---
+  useEffect(() => {
+    const el = resultRef.current;
+    if (!el || !showResult || resultIndex === null) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, scale: 0.3, y: 20 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.5)' }
+      );
+    });
+    return () => ctx.revert();
+  }, [showResult, resultIndex]);
 
   // --- Touch handlers ---
   const onTouchStart = useCallback((e: React.TouchEvent) => {
@@ -410,9 +511,8 @@ export default function PlayerWheelSpinner({
       </div>
 
       {/* Title */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
+        ref={titleRef}
         className="relative z-10 text-center mb-6"
       >
         <h1
@@ -428,7 +528,7 @@ export default function PlayerWheelSpinner({
         <p className="text-xs font-bold uppercase mt-1" style={{ color: 'rgba(0, 242, 255, 0.8)', letterSpacing: '0.3em' }}>
           Spin the Category Wheel
         </p>
-      </motion.div>
+      </div>
 
       {/* Wheel with glow ring */}
       <div
@@ -464,76 +564,62 @@ export default function PlayerWheelSpinner({
       </div>
 
       {/* Drag prompt */}
-      <AnimatePresence>
-        {isInteractive && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="relative z-10 mt-8 flex flex-col items-center gap-3"
+      {isInteractive && (
+        <div
+          ref={promptRef}
+          className="relative z-10 mt-8 flex flex-col items-center gap-3"
+        >
+          <div
+            ref={promptIconRef}
+            className="flex flex-col items-center"
           >
-            <motion.div
-              animate={{ rotate: [0, -20, 20, -20, 0] }}
-              transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-              className="flex flex-col items-center"
-            >
-              <span className="text-3xl" style={{ color: 'var(--game-cyan)' }}>
-                &#8635;
-              </span>
-            </motion.div>
-            <p
-              className="text-xl font-black tracking-wider uppercase italic"
-              style={{
-                color: 'white',
-                textShadow: '0 0 10px rgba(255, 0, 127, 0.5)',
-              }}
-            >
-              Drag & Flick to Spin!
-            </p>
-            <p className="text-xs" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-              Spin the wheel with your finger
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <span className="text-3xl" style={{ color: 'var(--game-cyan)' }}>
+              &#8635;
+            </span>
+          </div>
+          <p
+            className="text-xl font-black tracking-wider uppercase italic"
+            style={{
+              color: 'white',
+              textShadow: '0 0 10px rgba(255, 0, 127, 0.5)',
+            }}
+          >
+            Drag & Flick to Spin!
+          </p>
+          <p className="text-xs" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
+            Spin the wheel with your finger
+          </p>
+        </div>
+      )}
 
       {/* Spinning state */}
-      <AnimatePresence>
-        {isAnimating && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="relative z-10 mt-6 text-center"
+      {isAnimating && (
+        <div
+          ref={spinningTextRef}
+          className="relative z-10 mt-6 text-center"
+        >
+          <p
+            ref={spinningPRef}
+            className="text-lg font-bold uppercase"
+            style={{ color: 'var(--game-purple)', letterSpacing: '0.2em' }}
           >
-            <motion.p
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ repeat: Infinity, duration: 1.2 }}
-              className="text-lg font-bold uppercase"
-              style={{ color: 'var(--game-purple)', letterSpacing: '0.2em' }}
-            >
-              Spinning...
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            Spinning...
+          </p>
+        </div>
+      )}
 
       {/* Result badge */}
-      <AnimatePresence>
-        {showResult && resultIndex !== null && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.3, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="relative z-10 mt-6 flex flex-col items-center gap-3"
-          >
-            <CategoryBadge category={segments[resultIndex].category} large />
-            <p className="text-sm font-bold" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-              Watch the host screen!
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showResult && resultIndex !== null && (
+        <div
+          ref={resultRef}
+          className="relative z-10 mt-6 flex flex-col items-center gap-3"
+        >
+          <CategoryBadge category={segments[resultIndex].category} large />
+          <p className="text-sm font-bold" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
+            Watch the host screen!
+          </p>
+        </div>
+      )}
     </div>
   );
 }

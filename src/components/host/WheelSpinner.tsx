@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import { WHEEL_SEGMENTS, type WheelSegment } from '@/types/game';
 import { drawWheel } from '@/lib/wheel/draw-wheel';
 import { calculateSpinAnimation, easeOutQuintic } from '@/lib/wheel/animate-spin';
@@ -37,6 +37,11 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
   const [showVignette, setShowVignette] = useState(false);
   const { playSound } = useAudio();
 
+  // Refs for GSAP animations
+  const vignetteRef = useRef<HTMLDivElement>(null);
+  const shockwaveRef = useRef<HTMLDivElement>(null);
+  const badgeRef = useRef<HTMLDivElement>(null);
+
   // Cache canvas context and draw initial wheel (DPI-aware)
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -60,6 +65,36 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
       setLanded(false);
     }
   }, [isSpinning]);
+
+  // Vignette entrance animation
+  useEffect(() => {
+    if (showVignette && !landed && vignetteRef.current) {
+      gsap.fromTo(vignetteRef.current,
+        { opacity: 0 },
+        { opacity: 0.6, duration: 0.5 }
+      );
+    }
+  }, [showVignette, landed]);
+
+  // Shockwave animation on impact
+  useEffect(() => {
+    if (landingStage === 'impact' && shockwaveRef.current) {
+      gsap.fromTo(shockwaveRef.current,
+        { scale: 0.3, opacity: 0.9 },
+        { scale: 2.5, opacity: 0, duration: 0.6, ease: 'power2.out' }
+      );
+    }
+  }, [landingStage]);
+
+  // Badge reveal animation
+  useEffect(() => {
+    if (showResult && badgeRef.current) {
+      gsap.fromTo(badgeRef.current,
+        { opacity: 0, scale: 0.5, y: 10 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)' }
+      );
+    }
+  }, [showResult]);
 
   // Spin animation
   useEffect(() => {
@@ -175,38 +210,27 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
 
           <div className="relative overflow-hidden rounded-full">
             {/* Deceleration vignette overlay */}
-            <AnimatePresence>
-              {showVignette && !landed && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.6 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="absolute inset-0 rounded-full pointer-events-none z-10"
-                  style={{
-                    background: 'radial-gradient(circle at center, transparent 40%, rgba(13, 2, 22, 0.8) 100%)',
-                  }}
-                />
-              )}
-            </AnimatePresence>
+            {showVignette && !landed && (
+              <div
+                ref={vignetteRef}
+                className="absolute inset-0 rounded-full pointer-events-none z-10"
+                style={{
+                  background: 'radial-gradient(circle at center, transparent 40%, rgba(13, 2, 22, 0.8) 100%)',
+                }}
+              />
+            )}
 
             {/* Impact shockwave ring */}
-            <AnimatePresence>
-              {landingStage === 'impact' && landedColor && (
-                <motion.div
-                  key="shockwave"
-                  initial={{ scale: 0.3, opacity: 0.9 }}
-                  animate={{ scale: 2.5, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                  className="absolute inset-0 rounded-full pointer-events-none z-20"
-                  style={{
-                    border: `3px solid ${landedColor}`,
-                    boxShadow: `0 0 30px ${landedColor}, 0 0 60px ${landedColor}60`,
-                  }}
-                />
-              )}
-            </AnimatePresence>
+            {landingStage === 'impact' && landedColor && (
+              <div
+                ref={shockwaveRef}
+                className="absolute inset-0 rounded-full pointer-events-none z-20"
+                style={{
+                  border: `3px solid ${landedColor}`,
+                  boxShadow: `0 0 30px ${landedColor}, 0 0 60px ${landedColor}60`,
+                }}
+              />
+            )}
 
             <canvas
               ref={canvasRef}
@@ -219,18 +243,11 @@ export default function WheelSpinner({ onSpinComplete, isSpinning, resultIndex, 
         </div>
 
         {/* Category badge reveal */}
-        <AnimatePresence>
-          {showResult && resultIndex !== null && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            >
-              <CategoryBadge category={segments[resultIndex].category} large />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {showResult && resultIndex !== null && (
+          <div ref={badgeRef}>
+            <CategoryBadge category={segments[resultIndex].category} large />
+          </div>
+        )}
       </div>
     </ScreenShake>
   );

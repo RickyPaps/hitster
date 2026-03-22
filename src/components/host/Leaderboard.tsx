@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import gsap from 'gsap';
 import type { Player } from '@/types/game';
 import { getNearBingoPlayers } from '@/lib/game/bingo-utils';
 import { CrownIcon, ArrowUp, ArrowDown, FlameCrown } from '@/components/animations/SVGIcons';
@@ -102,6 +102,147 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
     prevRankingsRef.current = currentRankings;
   });
 
+  // Refs for GSAP animations
+  const playerRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setPlayerRowRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) playerRowRefs.current.set(id, el);
+    else playerRowRefs.current.delete(id);
+  }, []);
+
+  const crownRef = useRef<HTMLDivElement>(null);
+  const flameCrownRef = useRef<HTMLDivElement>(null);
+  const takeoverBannerRef = useRef<HTMLDivElement>(null);
+  const takeoverTextRef = useRef<HTMLSpanElement>(null);
+
+  // Animate player rows entrance
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      sorted.forEach((p) => {
+        const el = playerRowRefs.current.get(p.id);
+        if (!el) return;
+        if (!el.dataset.animated) {
+          gsap.fromTo(el,
+            { opacity: 0, x: 20 },
+            { opacity: 1, x: 0, duration: 0.3 }
+          );
+          el.dataset.animated = '1';
+        }
+      });
+    });
+
+    return () => ctx.revert();
+  }, [sorted]);
+
+  // Score change pulse animation
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    sorted.forEach((p) => {
+      if (scoreChanged[p.id]) {
+        const el = playerRowRefs.current.get(p.id);
+        if (!el) return;
+        const scoreEl = el.querySelector('[data-score]');
+        if (scoreEl) {
+          const isLeader = sorted[0].id === p.id;
+          gsap.fromTo(scoreEl,
+            { scale: 1, textShadow: '0 0 0px transparent' },
+            {
+              scale: 1.4,
+              textShadow: isLeader ? '0 0 20px rgba(255, 107, 0, 0.8)' : '0 0 15px rgba(0, 242, 255, 0.6)',
+              duration: 0.3,
+              yoyo: true,
+              repeat: 1,
+              ease: 'power2.out',
+            }
+          );
+        }
+      }
+    });
+  }, [sorted, scoreChanged]);
+
+  // Rank change arrow animations
+  const arrowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setArrowRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) arrowRefs.current.set(id, el);
+    else arrowRefs.current.delete(id);
+  }, []);
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      sorted.forEach((p) => {
+        const change = rankChanges[p.id];
+        const el = arrowRefs.current.get(p.id);
+        if (!el || !change) return;
+
+        if (change === 'up') {
+          gsap.fromTo(el,
+            { opacity: 0, y: 8, scale: 0.5 },
+            { opacity: 1, y: -2, scale: 1.2, duration: 0.5, ease: 'power2.out' }
+          );
+          gsap.to(el, { opacity: 0, y: -5, scale: 1, duration: 0.5, delay: 2.5 });
+        } else {
+          gsap.fromTo(el,
+            { opacity: 0, y: -8, scale: 0.5 },
+            { opacity: 1, y: 2, scale: 1.2, duration: 0.5, ease: 'power2.out' }
+          );
+          gsap.to(el, { opacity: 0, y: 5, scale: 1, duration: 0.5, delay: 2.5 });
+        }
+      });
+    });
+
+    return () => ctx.revert();
+  }, [sorted, rankChanges]);
+
+  // Crown bob animation
+  useEffect(() => {
+    if (!crownRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.to(crownRef.current, { y: -2, yoyo: true, repeat: -1, duration: 0.75, ease: 'sine.inOut' });
+    });
+    return () => ctx.revert();
+  }, [sorted]);
+
+  // Flame crown entrance animation on takeover
+  useEffect(() => {
+    if (!leaderTakeover || !flameCrownRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(flameCrownRef.current,
+        { scale: 0, rotation: -20 },
+        { scale: 1, rotation: 0, duration: 0.6, ease: 'power2.out',
+          keyframes: [
+            { scale: 0, rotation: -20 },
+            { scale: 1.4, rotation: 5 },
+            { scale: 1, rotation: 0 },
+          ]
+        }
+      );
+    });
+    return () => ctx.revert();
+  }, [leaderTakeover]);
+
+  // Takeover banner animation
+  useEffect(() => {
+    if (!leaderTakeover || !takeoverBannerRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(takeoverBannerRef.current,
+        { opacity: 0, y: -20, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' }
+      );
+      // Pulse text
+      if (takeoverTextRef.current) {
+        gsap.to(takeoverTextRef.current, { scale: 1.05, yoyo: true, repeat: -1, duration: 0.4, ease: 'sine.inOut' });
+      }
+    });
+    return () => ctx.revert();
+  }, [leaderTakeover]);
+
   return (
     <section className="sidebar-panel-right sidebar-scroll p-4 flex flex-col gap-4">
       {/* Leaderboard header */}
@@ -149,191 +290,149 @@ export default function Leaderboard({ players, winCondition }: LeaderboardProps)
         </div>
 
         {/* Player rows */}
-        <AnimatePresence mode="popLayout">
-          {sorted.map((p, i) => {
-            const isLeader = i === 0;
-            const isTakeover = isLeader && leaderTakeover;
+        {sorted.map((p, i) => {
+          const isLeader = i === 0;
+          const isTakeover = isLeader && leaderTakeover;
 
-            return (
-              <motion.div
-                key={p.id}
-                layout
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="relative flex items-center justify-between px-4 py-3"
-                style={{
-                  borderTop: i > 0 ? '1px solid rgba(217, 70, 239, 0.1)' : undefined,
-                  background: isTakeover
-                    ? 'linear-gradient(90deg, rgba(255, 107, 0, 0.15), rgba(234, 179, 8, 0.08), transparent)'
-                    : undefined,
-                }}
-              >
-                {/* Flame particles on #1 takeover */}
-                {isTakeover && <FlameParticles active count={15} effectDuration={2} width={200} />}
+          return (
+            <div
+              key={p.id}
+              ref={setPlayerRowRef(p.id)}
+              className="relative flex items-center justify-between px-4 py-3"
+              style={{
+                borderTop: i > 0 ? '1px solid rgba(217, 70, 239, 0.1)' : undefined,
+                background: isTakeover
+                  ? 'linear-gradient(90deg, rgba(255, 107, 0, 0.15), rgba(234, 179, 8, 0.08), transparent)'
+                  : undefined,
+              }}
+            >
+              {/* Flame particles on #1 takeover */}
+              {isTakeover && <FlameParticles active count={15} effectDuration={2} width={200} />}
 
-                <div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="font-black w-4 text-sm"
-                      style={{ color: isLeader ? '#00f2ff' : 'rgba(217, 70, 239, 0.5)' }}
-                    >
-                      {i + 1}
-                    </span>
+              <div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="font-black w-4 text-sm"
+                    style={{ color: isLeader ? '#00f2ff' : 'rgba(217, 70, 239, 0.5)' }}
+                  >
+                    {i + 1}
+                  </span>
 
-                    {/* Crown icon — flame crown during takeover, normal crown otherwise */}
-                    {isLeader && (
-                      <AnimatePresence mode="wait">
-                        {isTakeover ? (
-                          <motion.div
-                            key="flame-crown"
-                            initial={{ scale: 0, rotate: -20 }}
-                            animate={{
-                              scale: [0, 1.4, 1],
-                              rotate: [-20, 5, 0],
-                            }}
-                            transition={{
-                              duration: 0.6,
-                              type: 'tween',
-                              ease: 'easeOut',
-                            }}
-                            style={{ filter: 'drop-shadow(0 0 12px rgba(255, 107, 0, 0.7))' }}
-                          >
-                            <FlameCrown size={24} />
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="crown"
-                            animate={{ y: [0, -2, 0] }}
-                            transition={{ repeat: Infinity, duration: 1.5 }}
-                          >
-                            <CrownIcon size={16} color="#EAB308" />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    )}
+                  {/* Crown icon — flame crown during takeover, normal crown otherwise */}
+                  {isLeader && (
+                    <>
+                      {isTakeover ? (
+                        <div
+                          ref={flameCrownRef}
+                          style={{ filter: 'drop-shadow(0 0 12px rgba(255, 107, 0, 0.7))' }}
+                        >
+                          <FlameCrown size={24} />
+                        </div>
+                      ) : (
+                        <div ref={crownRef}>
+                          <CrownIcon size={16} color="#EAB308" />
+                        </div>
+                      )}
+                    </>
+                  )}
 
-                    <span className={`font-bold text-sm ${!p.connected ? 'opacity-40' : ''} ${isLeader ? 'text-white' : 'text-gray-200'}`}>
-                      {p.name}
-                    </span>
+                  <span className={`font-bold text-sm ${!p.connected ? 'opacity-40' : ''} ${isLeader ? 'text-white' : 'text-gray-200'}`}>
+                    {p.name}
+                  </span>
 
-                    {/* Rank change indicators with enhanced animation */}
-                    {rankChanges[p.id] === 'up' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.5 }}
-                        animate={{ opacity: [1, 1, 0], y: [8, -2, -5], scale: [0.5, 1.2, 1] }}
-                        transition={{ duration: 3, ease: 'easeOut' }}
-                      >
-                        <ArrowUp size={14} />
-                      </motion.div>
-                    )}
-                    {rankChanges[p.id] === 'down' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -8, scale: 0.5 }}
-                        animate={{ opacity: [1, 1, 0], y: [-8, 2, 5], scale: [0.5, 1.2, 1] }}
-                        transition={{ duration: 3, ease: 'easeOut' }}
-                      >
-                        <ArrowDown size={14} />
-                      </motion.div>
-                    )}
-                  </div>
-                  {/* Inline badges */}
-                  {nearBingo.some((nb) => nb.id === p.id) && (
-                    <div className="mt-1 ml-7">
-                      <span
-                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(255, 0, 127, 0.2)', color: 'var(--game-pink)' }}
-                      >
-                        Near Bingo!
-                      </span>
+                  {/* Rank change indicators */}
+                  {rankChanges[p.id] === 'up' && (
+                    <div ref={setArrowRef(p.id)}>
+                      <ArrowUp size={14} />
                     </div>
                   )}
-                  {p.completedRows > 0 && !nearBingo.some((nb) => nb.id === p.id) && (
-                    <div className="mt-1 ml-7">
-                      <span
-                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(188, 19, 254, 0.2)', color: 'var(--game-purple)' }}
-                      >
-                        {p.completedRows} Line{p.completedRows > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  )}
-                  {p.milestones && (p.milestones.drinks500Earned && !p.milestones.drinks500Used) && (
-                    <div className="mt-1 ml-7">
-                      <span
-                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--game-gold)' }}
-                      >
-                        &#127866; Drink Ready
-                      </span>
-                    </div>
-                  )}
-                  {p.milestones && (p.milestones.block1000Earned && !p.milestones.block1000Used) && (
-                    <div className="mt-1 ml-7">
-                      <span
-                        className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
-                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error)' }}
-                      >
-                        &#128737; Block Ready
-                      </span>
-                    </div>
-                  )}
-                  {!p.connected && (
-                    <div className="mt-1 ml-7">
-                      <span className="text-[10px] text-red-400/70">Disconnected</span>
+                  {rankChanges[p.id] === 'down' && (
+                    <div ref={setArrowRef(p.id)}>
+                      <ArrowDown size={14} />
                     </div>
                   )}
                 </div>
+                {/* Inline badges */}
+                {nearBingo.some((nb) => nb.id === p.id) && (
+                  <div className="mt-1 ml-7">
+                    <span
+                      className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                      style={{ background: 'rgba(255, 0, 127, 0.2)', color: 'var(--game-pink)' }}
+                    >
+                      Near Bingo!
+                    </span>
+                  </div>
+                )}
+                {p.completedRows > 0 && !nearBingo.some((nb) => nb.id === p.id) && (
+                  <div className="mt-1 ml-7">
+                    <span
+                      className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                      style={{ background: 'rgba(188, 19, 254, 0.2)', color: 'var(--game-purple)' }}
+                    >
+                      {p.completedRows} Line{p.completedRows > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+                {p.milestones && (p.milestones.drinks500Earned && !p.milestones.drinks500Used) && (
+                  <div className="mt-1 ml-7">
+                    <span
+                      className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                      style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--game-gold)' }}
+                    >
+                      &#127866; Drink Ready
+                    </span>
+                  </div>
+                )}
+                {p.milestones && (p.milestones.block1000Earned && !p.milestones.block1000Used) && (
+                  <div className="mt-1 ml-7">
+                    <span
+                      className="px-2 py-1 sm:py-0.5 text-[10px] font-black rounded uppercase"
+                      style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error)' }}
+                    >
+                      &#128737; Block Ready
+                    </span>
+                  </div>
+                )}
+                {!p.connected && (
+                  <div className="mt-1 ml-7">
+                    <span className="text-[10px] text-red-400/70">Disconnected</span>
+                  </div>
+                )}
+              </div>
 
-                {/* Score with enhanced animation */}
-                <motion.span
-                  key={p.score}
-                  animate={scoreChanged[p.id] ? {
-                    scale: [1, 1.4, 1],
-                    textShadow: [
-                      '0 0 0px transparent',
-                      isLeader ? '0 0 20px rgba(255, 107, 0, 0.8)' : '0 0 15px rgba(0, 242, 255, 0.6)',
-                      '0 0 0px transparent',
-                    ],
-                  } : {}}
-                  transition={{ duration: 0.6, type: 'tween', ease: 'easeOut' }}
-                  className={`font-black text-right ${isLeader ? 'text-lg italic' : 'text-sm'}`}
-                  style={{ color: isLeader ? '#ff007f' : '#d1d5db' }}
-                >
-                  <AnimatedNumber value={p.score} />
-                </motion.span>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+              {/* Score */}
+              <span
+                data-score
+                className={`font-black text-right ${isLeader ? 'text-lg italic' : 'text-sm'}`}
+                style={{ color: isLeader ? '#ff007f' : '#d1d5db' }}
+              >
+                <AnimatedNumber value={p.score} />
+              </span>
+            </div>
+          );
+        })}
 
         {/* Takeover banner overlay */}
-        <AnimatePresence>
-          {leaderTakeover && newLeaderName && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              role="status"
-              aria-live="polite"
-              className="absolute top-12 left-2 right-2 z-40 flex items-center justify-center py-2 px-3 rounded-lg"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 107, 0, 0.9), rgba(234, 179, 8, 0.85))',
-                boxShadow: '0 0 20px rgba(255, 107, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)',
-              }}
+        {leaderTakeover && newLeaderName && (
+          <div
+            ref={takeoverBannerRef}
+            role="status"
+            aria-live="polite"
+            className="absolute top-12 left-2 right-2 z-40 flex items-center justify-center py-2 px-3 rounded-lg"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 107, 0, 0.9), rgba(234, 179, 8, 0.85))',
+              boxShadow: '0 0 20px rgba(255, 107, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <span
+              ref={takeoverTextRef}
+              className="text-xs font-black uppercase text-white tracking-wider"
+              style={{ textShadow: '0 1px 4px rgba(0, 0, 0, 0.3)' }}
             >
-              <motion.span
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ repeat: Infinity, duration: 0.8, type: 'tween', ease: 'easeInOut' }}
-                className="text-xs font-black uppercase text-white tracking-wider"
-                style={{ textShadow: '0 1px 4px rgba(0, 0, 0, 0.3)' }}
-              >
-                {newLeaderName} takes the lead!
-              </motion.span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {newLeaderName} takes the lead!
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Bingo alert panel */}

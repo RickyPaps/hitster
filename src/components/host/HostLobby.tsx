@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import { getSocket, disconnectSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import { useGameStore } from '@/stores/gameStore';
@@ -42,6 +42,58 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
   const prevPlayerCountRef = useRef(players.length);
   const [newPlayerId, setNewPlayerId] = useState<string | null>(null);
   const [loadMsgIdx, setLoadMsgIdx] = useState(0);
+  const playerCardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const glowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const startBtnRef = useRef<HTMLButtonElement>(null);
+
+  const setPlayerCardRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) playerCardRefs.current.set(id, el);
+    else playerCardRefs.current.delete(id);
+  }, []);
+
+  const setGlowRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) glowRefs.current.set(id, el);
+    else glowRefs.current.delete(id);
+  }, []);
+
+  // Animate player cards on mount / new joins
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      players.forEach((p, i) => {
+        const el = playerCardRefs.current.get(p.id);
+        if (!el) return;
+        const isNew = p.id === newPlayerId;
+        if (isNew) {
+          gsap.fromTo(el,
+            { opacity: 0, x: -30, scale: 0.8 },
+            { opacity: 1, x: 0, scale: 1, duration: 0.6, ease: 'elastic.out(1, 0.5)' }
+          );
+          // Glow burst ring
+          const glowEl = glowRefs.current.get(p.id);
+          if (glowEl) {
+            gsap.fromTo(glowEl,
+              { scale: 0.8, opacity: 0.9 },
+              { scale: 1.4, opacity: 0, duration: 0.8, ease: 'power2.out' }
+            );
+          }
+        } else {
+          // Only animate if element hasn't been animated yet (check data attribute)
+          if (!el.dataset.animated) {
+            gsap.fromTo(el,
+              { opacity: 0, x: -20 },
+              { opacity: 1, x: 0, duration: 0.4, delay: i * 0.08 }
+            );
+            el.dataset.animated = '1';
+          }
+        }
+      });
+    });
+
+    return () => ctx.revert();
+  }, [players, newPlayerId]);
 
   // Play join chime + track new player when a new player joins
   useEffect(() => {
@@ -62,6 +114,29 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
     if (!loading) return;
     const id = setInterval(() => setLoadMsgIdx((i) => (i + 1) % LOADING_MSGS.length), 2000);
     return () => clearInterval(id);
+  }, [loading]);
+
+  // Start button hover/tap interactions
+  useEffect(() => {
+    const btn = startBtnRef.current;
+    if (!btn || loading) return;
+
+    const onEnter = () => gsap.to(btn, { scale: 1.05, duration: 0.2 });
+    const onLeave = () => gsap.to(btn, { scale: 1, duration: 0.2 });
+    const onDown = () => gsap.to(btn, { scale: 0.95, duration: 0.1 });
+    const onUp = () => gsap.to(btn, { scale: 1.05, duration: 0.1 });
+
+    btn.addEventListener('mouseenter', onEnter);
+    btn.addEventListener('mouseleave', onLeave);
+    btn.addEventListener('mousedown', onDown);
+    btn.addEventListener('mouseup', onUp);
+
+    return () => {
+      btn.removeEventListener('mouseenter', onEnter);
+      btn.removeEventListener('mouseleave', onLeave);
+      btn.removeEventListener('mousedown', onDown);
+      btn.removeEventListener('mouseup', onUp);
+    };
   }, [loading]);
 
   const handleBack = () => {
@@ -136,20 +211,12 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             </div>
 
             <div className="space-y-3">
-              <AnimatePresence mode="popLayout">
               {players.map((p, i) => {
                 const isNew = p.id === newPlayerId;
                 return (
-                <motion.div
+                <div
                   key={p.id}
-                  layout
-                  initial={isNew ? { opacity: 0, x: -30, scale: 0.8 } : { opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={isNew
-                    ? { type: 'spring', stiffness: 400, damping: 18 }
-                    : { delay: i * 0.08 }
-                  }
+                  ref={setPlayerCardRef(p.id)}
                   className={`relative rounded-xl p-4 flex items-center justify-between ${
                     i === 0
                       ? 'bg-fuchsia-500/15 neon-box-fuchsia'
@@ -158,10 +225,8 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                 >
                   {/* Glow burst ring on new player */}
                   {isNew && (
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0.9 }}
-                      animate={{ scale: 1.4, opacity: 0 }}
-                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                    <div
+                      ref={setGlowRef(p.id)}
                       className="absolute inset-0 rounded-xl pointer-events-none"
                       style={{
                         background: 'radial-gradient(ellipse at center, rgba(217, 70, 239, 0.4), transparent 70%)',
@@ -195,10 +260,9 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
                       </button>
                     )}
                   </div>
-                </motion.div>
+                </div>
                 );
               })}
-              </AnimatePresence>
 
               {players.length === 0 && (
                 <div className="border-2 border-dashed border-fuchsia-900/50 rounded-xl p-4 flex items-center justify-center text-purple-300/50">
@@ -381,9 +445,8 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             Leave Lobby
           </button>
 
-          <motion.button
-            whileHover={{ scale: loading ? 1 : 1.05 }}
-            whileTap={{ scale: loading ? 1 : 0.95 }}
+          <button
+            ref={startBtnRef}
             onClick={onStartGame}
             disabled={players.length === 0 || loading}
             className="px-12 py-5 rounded-full bg-fuchsia-500 text-white text-xl uppercase tracking-widest neon-box-fuchsia animate-pulse-glow hover:brightness-110 transition-all w-full md:w-auto disabled:opacity-40 disabled:animate-none cursor-pointer"
@@ -397,7 +460,7 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             ) : (
               'Start Game'
             )}
-          </motion.button>
+          </button>
         </div>
       </div>
     </div>

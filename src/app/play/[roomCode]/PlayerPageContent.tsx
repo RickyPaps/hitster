@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import { useSocket } from '@/hooks/useSocket';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameStore } from '@/stores/gameStore';
@@ -473,14 +473,12 @@ export default function PlayerPageContent() {
     if (autoRejoining) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center">
-          <motion.p
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-            className="text-lg font-semibold"
+          <p
+            className="text-lg font-semibold animate-pulse"
             style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
           >
             Rejoining game...
-          </motion.p>
+          </p>
         </div>
       );
     }
@@ -546,73 +544,7 @@ export default function PlayerPageContent() {
   }
 
   if (phase === 'GAME_OVER') {
-    const isWinner = winner?.name === playerName;
-    return (
-      <div className="min-h-dvh flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
-          <div className="absolute bottom-0 w-full h-[50%] dance-floor-grid" style={{ transform: 'perspective(600px) rotateX(55deg) scale(1.6)', transformOrigin: 'bottom' }} />
-        </div>
-
-
-        <div className="relative z-10 flex flex-col items-center">
-          {/* Trophy */}
-          {winner && (
-            <motion.div
-              initial={{ y: -100, scale: 0, rotate: -30 }}
-              animate={{ y: 0, scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0 }}
-              className="mb-4"
-            >
-              <TrophyIcon size={isWinner ? 80 : 64} color="#EAB308" />
-            </motion.div>
-          )}
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-4xl neon-text-fuchsia uppercase tracking-widest mb-4"
-            style={{ fontFamily: 'var(--font-display)', color: 'white' }}
-          >
-            Game Over!
-          </motion.h1>
-          {winner ? (
-            <motion.p
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.6, type: 'spring', stiffness: 400, damping: 15 }}
-              className="text-2xl font-black mb-4"
-              style={{
-                color: isWinner ? '#22c55e' : '#d946ef',
-                textShadow: isWinner
-                  ? '0 0 15px rgba(34, 197, 94, 0.5)'
-                  : '0 0 15px rgba(217, 70, 239, 0.5)',
-              }}
-            >
-              {isWinner ? 'YOU WIN!' : `${winner.name} wins!`}
-            </motion.p>
-          ) : (
-            <p className="text-lg mb-4" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-              No more tracks available
-            </p>
-          )}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1 }}
-            className="bg-purple-950/30 backdrop-blur-md border border-fuchsia-900/40 rounded-2xl p-5"
-          >
-            <h3
-              className="text-[11px] font-bold uppercase tracking-widest text-center mb-3"
-              style={{ color: 'rgba(217, 70, 239, 0.8)' }}
-            >
-              Your Card
-            </h3>
-            <BingoCard cells={bingoCard} />
-          </motion.div>
-        </div>
-      </div>
-    );
+    return <PlayerGameOver winner={winner} playerName={playerName} bingoCard={bingoCard} />;
   }
 
   return (
@@ -642,23 +574,9 @@ export default function PlayerPageContent() {
           Reconnecting...
         </div>
       )}
-      <AnimatePresence>
-        {showReconnectedToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
-            className="fixed top-0 left-0 right-0 z-50 py-2 px-4 text-center text-sm font-bold"
-            style={{
-              background: 'rgba(34, 197, 94, 0.9)',
-              color: 'white',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            Reconnected!
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showReconnectedToast && (
+        <ReconnectedToast />
+      )}
 
       {/* Milestone reward overlay (queue — shows first item) */}
       {milestoneQueue.length > 0 && playerId && (
@@ -672,48 +590,9 @@ export default function PlayerPageContent() {
       )}
 
       {/* Notification queue overlay (surprise events, milestone received, etc.) */}
-      <AnimatePresence>
-        {notificationQueue.length > 0 && (
-          <motion.div
-            key={notificationQueue[0].message}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 z-[55] flex items-center justify-center p-4"
-            style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
-          >
-            <div
-              className="max-w-sm w-full rounded-2xl p-5 text-center"
-              style={{
-                background: `linear-gradient(135deg, rgba(${notificationQueue[0].colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
-                border: `2px solid rgba(${notificationQueue[0].colorRgb}, 0.6)`,
-                boxShadow: `0 0 30px rgba(${notificationQueue[0].colorRgb}, 0.3)`,
-              }}
-            >
-              <div className="text-4xl mb-3">{notificationQueue[0].icon}</div>
-              <p
-                className="text-lg font-black uppercase tracking-wider mb-5"
-                style={{
-                  color: notificationQueue[0].color,
-                  textShadow: `0 0 12px rgba(${notificationQueue[0].colorRgb}, 0.5)`,
-                }}
-              >
-                {notificationQueue[0].message}
-              </p>
-              <button
-                onClick={() => setNotificationQueue((prev) => prev.slice(1))}
-                className="py-2.5 px-6 rounded-xl font-bold text-white cursor-pointer"
-                style={{
-                  background: `linear-gradient(135deg, ${notificationQueue[0].color}, ${notificationQueue[0].color}cc)`,
-                  boxShadow: `0 0 12px rgba(${notificationQueue[0].colorRgb}, 0.4)`,
-                }}
-              >
-                Got it!
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {notificationQueue.length > 0 && (
+        <NotificationOverlay notification={notificationQueue[0]} onDismiss={() => setNotificationQueue((prev) => prev.slice(1))} />
+      )}
       {/* Background */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-15">
         <div
@@ -766,19 +645,7 @@ export default function PlayerPageContent() {
               className="flex-1 h-2 rounded-full overflow-hidden"
               style={{ background: 'rgba(30, 20, 60, 0.8)', border: '1px solid rgba(100, 80, 140, 0.2)' }}
             >
-              <motion.div
-                className="h-full rounded-full"
-                style={{
-                  background: timerIsLow
-                    ? 'linear-gradient(90deg, #ef4444, #f97316)'
-                    : 'linear-gradient(90deg, #d946ef, #8b5cf6)',
-                  boxShadow: timerIsLow
-                    ? '0 0 8px rgba(239, 68, 68, 0.5)'
-                    : '0 0 8px rgba(217, 70, 239, 0.4)',
-                }}
-                animate={{ width: `${timerPct}%` }}
-                transition={{ duration: 0.3 }}
-              />
+              <PlayerTimerBar pct={timerPct} isLow={timerIsLow} />
             </div>
             <span
               className={`text-lg font-bold tabular-nums ${timerIsLow ? 'animate-pulse' : ''}`}
@@ -798,20 +665,7 @@ export default function PlayerPageContent() {
 
         {/* Pick cell banner */}
         {pendingPick && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-2 py-2 px-4 rounded-xl text-center"
-            style={{
-              background: 'rgba(217, 70, 239, 0.15)',
-              border: '1.5px solid rgba(217, 70, 239, 0.5)',
-              boxShadow: '0 0 12px rgba(217, 70, 239, 0.2)',
-            }}
-          >
-            <p className="text-sm font-bold" style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 8px rgba(217, 70, 239, 0.4)' }}>
-              Pick a cell to mark!
-            </p>
-          </motion.div>
+          <PickCellBanner />
         )}
 
         {/* Bingo Card — hide when player is actively spinning the wheel */}
@@ -823,317 +677,494 @@ export default function PlayerPageContent() {
           />
         </div>}
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col items-center justify-start gap-4 pb-6">
-          <AnimatePresence mode="wait">
-            {phase === 'SPINNING' && (
-              <motion.div
-                key="spinning"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center w-full"
-              >
-                {isSpinner ? (
-                  <PlayerWheelSpinner
-                    onSwipe={handleSwipe}
-                    isSpinning={playerWheelSpinning}
-                    resultIndex={playerWheelResultIndex}
-                    swipeVelocity={playerSwipeVelocity}
-                    onSpinComplete={handlePlayerSpinComplete}
-                    segments={getWheelSegments(playerWheelMediaType ?? (settings.contentMode === 'mixed' ? 'mixed' : settings.contentMode === 'movie' ? 'movie' : 'music'))}
-                  />
-                ) : currentSpinnerName ? (
-                  <motion.div className="flex flex-col items-center gap-3">
-                    <motion.p
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ repeat: Infinity, duration: 1.5 }}
-                      className="text-2xl font-bold"
-                      style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}
-                    >
-                      {currentSpinnerName} is spinning...
-                    </motion.p>
-                    <p className="text-sm" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                      Watch the wheel on the big screen!
-                    </p>
-                  </motion.div>
-                ) : (
-                  <motion.p
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="text-2xl font-bold"
-                    style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}
-                  >
-                    Spinning the wheel...
-                  </motion.p>
-                )}
-              </motion.div>
-            )}
+        {/* Main Content — GSAP-animated phase container */}
+        <PlayerPhaseContent
+          phase={phase}
+          isSpinner={isSpinner}
+          currentSpinnerName={currentSpinnerName}
+          currentCategory={currentCategory}
+          hasGuessedThisRound={hasGuessedThisRound}
+          timerSeconds={timerSeconds}
+          roundEndMsg={roundEndMsg}
+          nextRoundMsg={nextRoundMsg}
+          lastResult={lastResult}
+          roundGuesses={roundGuesses}
+          playerName={playerName}
+          players={players}
+          settings={settings}
+          rockOffCanAssign={rockOffCanAssign}
+          rockOffDrinkAssigned={rockOffDrinkAssigned}
+          playerWheelSpinning={playerWheelSpinning}
+          playerWheelResultIndex={playerWheelResultIndex}
+          playerSwipeVelocity={playerSwipeVelocity}
+          playerWheelMediaType={playerWheelMediaType}
+          onSwipe={handleSwipe}
+          onPlayerSpinComplete={handlePlayerSpinComplete}
+          onGuessSubmitted={() => setHasGuessedThisRound(true)}
+          onRockOffAssign={(targetId, targetName) => {
+            const socket = getSocket();
+            socket.emit(SOCKET_EVENTS.ROCK_OFF_ASSIGN_DRINK, { targetPlayerId: targetId });
+            setRockOffDrinkAssigned(targetName);
+            setRockOffCanAssign(false);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
-            {phase === 'PLAYING' && currentCategory && (
-              <motion.div
-                key="playing"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="w-full flex flex-col items-center gap-4"
-              >
-                {!hasGuessedThisRound ? (
-                  <GuessInput
-                    category={currentCategory}
-                    disabled={hasGuessedThisRound}
-                    onGuessSubmitted={() => setHasGuessedThisRound(true)}
-                    timerSeconds={timerSeconds}
-                  />
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center p-5 rounded-2xl w-full max-w-sm"
-                    style={{
-                      background: 'rgba(20, 12, 50, 0.6)',
-                      border: '1.5px solid rgba(217, 70, 239, 0.3)',
-                    }}
-                  >
-                    <motion.p
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="text-lg font-semibold"
-                      style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}
-                    >
-                      Guess locked in!
-                    </motion.p>
-                    <p className="text-sm mt-1" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-                      {roundEndMsg}
-                    </p>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
+/* ── Helper components extracted for GSAP animation ── */
 
-            {phase === 'ROUND_RESULTS' && (
-              <motion.div
-                key="results"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center w-full max-w-sm"
-              >
-                {lastResult && (
-                  <RoundFeedback
-                    correct={lastResult.correct}
-                    shouldDrink={lastResult.shouldDrink}
-                    noGuess={lastResult.noGuess}
-                    pointsAwarded={lastResult.pointsAwarded}
-                    bonusCategories={lastResult.bonusCategories}
-                  />
-                )}
-                <motion.p
-                  animate={{ opacity: [0.4, 0.8, 0.4] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="mt-4 text-sm"
-                  style={{ color: 'rgba(148, 163, 184, 0.6)' }}
-                >
-                  {nextRoundMsg}
-                </motion.p>
-              </motion.div>
-            )}
+function ReconnectedToast() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el, { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
+    });
+    return () => ctx.revert();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className="fixed top-0 left-0 right-0 z-50 py-2 px-4 text-center text-sm font-bold"
+      style={{ background: 'rgba(34, 197, 94, 0.9)', color: 'white', backdropFilter: 'blur(8px)', opacity: 0 }}
+    >
+      Reconnected!
+    </div>
+  );
+}
 
-            {phase === 'DRINKING_SEGMENT' && (
-              <motion.div
-                key="drinking"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center w-full"
-              >
-                {currentCategory === 'everybody-drinks' && (
-                  <div className="flex flex-col items-center gap-2">
-                    <motion.p
-                      initial={{ scale: 0.5 }}
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ repeat: Infinity, duration: 1.5 }}
-                      className="text-3xl font-black"
-                      style={{ color: 'var(--game-gold)', textShadow: '0 0 20px rgba(234, 179, 8, 0.5)' }}
-                    >
-                      EVERYBODY DRINKS!
-                    </motion.p>
-                    <span className="text-4xl">&#x1F37B;</span>
-                  </div>
-                )}
-                {currentCategory === 'rock-off' && (() => {
-                  const myGuess = roundGuesses.find((g) => g.playerName === playerName);
-                  const myPosition = myGuess ? roundGuesses.findIndex((g) => g.playerName === playerName) + 1 : null;
-                  const winner = roundGuesses.find((g) => g.correct);
-                  const positionSuffix = (n: number) => {
-                    if (n === 1) return 'st';
-                    if (n === 2) return 'nd';
-                    if (n === 3) return 'rd';
-                    return 'th';
-                  };
+function NotificationOverlay({ notification, onDismiss }: { notification: { message: string; color: string; colorRgb: string; icon: string }; onDismiss: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.5)' });
+    });
+    return () => ctx.revert();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className="fixed inset-0 z-[55] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)', opacity: 0 }}
+    >
+      <div
+        className="max-w-sm w-full rounded-2xl p-5 text-center"
+        style={{
+          background: `linear-gradient(135deg, rgba(${notification.colorRgb}, 0.2), rgba(20, 12, 50, 0.95))`,
+          border: `2px solid rgba(${notification.colorRgb}, 0.6)`,
+          boxShadow: `0 0 30px rgba(${notification.colorRgb}, 0.3)`,
+        }}
+      >
+        <div className="text-4xl mb-3">{notification.icon}</div>
+        <p className="text-lg font-black uppercase tracking-wider mb-5" style={{ color: notification.color, textShadow: `0 0 12px rgba(${notification.colorRgb}, 0.5)` }}>
+          {notification.message}
+        </p>
+        <button onClick={onDismiss} className="py-2.5 px-6 rounded-xl font-bold text-white cursor-pointer" style={{ background: `linear-gradient(135deg, ${notification.color}, ${notification.color}cc)`, boxShadow: `0 0 12px rgba(${notification.colorRgb}, 0.4)` }}>
+          Got it!
+        </button>
+      </div>
+    </div>
+  );
+}
 
-                  return (
-                    <div className="flex flex-col items-center gap-4 w-full">
-                      <p
-                        className="text-2xl font-black"
-                        style={{ color: '#14B8A6', textShadow: '0 0 15px rgba(20, 184, 166, 0.5)' }}
-                      >
-                        ROCK OFF!
-                      </p>
-                      <span className="text-3xl">&#x1F3B8;</span>
+function PlayerTimerBar({ pct, isLow }: { pct: number; isLow: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    gsap.to(el, { width: `${pct}%`, duration: 0.3, ease: 'none' });
+  }, [pct]);
+  return (
+    <div
+      ref={ref}
+      className="h-full rounded-full"
+      style={{
+        background: isLow ? 'linear-gradient(90deg, #ef4444, #f97316)' : 'linear-gradient(90deg, #d946ef, #8b5cf6)',
+        boxShadow: isLow ? '0 0 8px rgba(239, 68, 68, 0.5)' : '0 0 8px rgba(217, 70, 239, 0.4)',
+        width: `${pct}%`,
+      }}
+    />
+  );
+}
 
-                      {!myGuess ? (
-                        <>
-                          <p style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
-                            Listen and buzz in to name the {settings.contentMode === 'movie' ? 'movie' : 'artist'}!
-                          </p>
-                          <GuessInput
-                            category={settings.contentMode === 'movie' ? 'movie-title' : 'artist'}
-                            disabled={false}
-                            onGuessSubmitted={() => {}}
-                          />
-                        </>
-                      ) : (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="w-full max-w-sm rounded-2xl p-5 text-center"
-                          style={{
-                            background: myGuess.correct
-                              ? 'rgba(20, 60, 30, 0.6)'
-                              : 'rgba(60, 20, 20, 0.6)',
-                            border: `1.5px solid ${myGuess.correct ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`,
-                          }}
-                        >
-                          <div className="flex items-center justify-center gap-3 mb-2">
-                            <span
-                              className="text-sm font-bold px-2.5 py-0.5 rounded-full"
-                              style={{
-                                background: 'rgba(255,255,255,0.1)',
-                                color: 'var(--game-fuchsia)',
-                              }}
-                            >
-                              {myPosition}{positionSuffix(myPosition!)}
-                            </span>
-                            <span className="text-2xl">
-                              {myGuess.correct ? '\u2705' : '\u274C'}
-                            </span>
-                          </div>
-                          <p
-                            className="text-lg font-bold"
-                            style={{
-                              color: myGuess.correct ? '#22c55e' : '#ef4444',
-                              textShadow: myGuess.correct
-                                ? '0 0 10px rgba(34,197,94,0.4)'
-                                : '0 0 10px rgba(239,68,68,0.4)',
-                            }}
-                          >
-                            {myGuess.correct ? 'Correct!' : 'Wrong!'}
-                          </p>
-                          <p className="text-sm mt-1" style={{ color: 'rgba(148,163,184,0.6)' }}>
-                            &ldquo;{myGuess.guess}&rdquo;
-                          </p>
+function PickCellBanner() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
+    });
+    return () => ctx.revert();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className="mb-2 py-2 px-4 rounded-xl text-center"
+      style={{ background: 'rgba(217, 70, 239, 0.15)', border: '1.5px solid rgba(217, 70, 239, 0.5)', boxShadow: '0 0 12px rgba(217, 70, 239, 0.2)', opacity: 0 }}
+    >
+      <p className="text-sm font-bold" style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 8px rgba(217, 70, 239, 0.4)' }}>
+        Pick a cell to mark!
+      </p>
+    </div>
+  );
+}
 
-                          {/* Rock Off winner: assign a drink */}
-                          {myGuess.correct && rockOffCanAssign && !rockOffDrinkAssigned && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="mt-4 pt-3"
-                              style={{ borderTop: '1px solid rgba(34, 197, 94, 0.3)' }}
-                            >
-                              <p
-                                className="text-sm font-black uppercase tracking-wider mb-2"
-                                style={{ color: 'var(--game-gold)', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
-                              >
-                                &#x1F37A; Assign a drink!
-                              </p>
-                              <div className="flex flex-col gap-1.5">
-                                {players.filter((p) => p.name !== playerName && p.connected).map((p) => (
-                                  <button
-                                    key={p.id}
-                                    onClick={() => {
-                                      const socket = getSocket();
-                                      socket.emit(SOCKET_EVENTS.ROCK_OFF_ASSIGN_DRINK, { targetPlayerId: p.id });
-                                      setRockOffDrinkAssigned(p.name);
-                                      setRockOffCanAssign(false);
-                                    }}
-                                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-white text-left cursor-pointer transition-all"
-                                    style={{
-                                      background: 'rgba(234, 179, 8, 0.15)',
-                                      border: '1px solid rgba(234, 179, 8, 0.3)',
-                                    }}
-                                  >
-                                    {p.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-                          {rockOffDrinkAssigned && (
-                            <motion.p
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="mt-3 text-sm font-bold"
-                              style={{ color: 'var(--game-gold)', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}
-                            >
-                              &#x1F37B; Drink assigned to {rockOffDrinkAssigned}!
-                            </motion.p>
-                          )}
-                        </motion.div>
-                      )}
+function PlayerGameOver({ winner, playerName, bingoCard }: { winner: any; playerName: string | null; bingoCard: any[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const trophyRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const winnerRef = useRef<HTMLParagraphElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-                      {/* Winner announcement */}
-                      {winner && (
-                        <motion.p
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="text-lg font-bold text-center"
-                          style={{ color: 'var(--game-gold)', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}
-                        >
-                          &#x1F3C6; {winner.playerName === playerName ? 'You win' : `${winner.playerName} wins`} the Rock Off!
-                        </motion.p>
-                      )}
+  const isWinner = winner?.name === playerName;
 
-                      {/* Live feed */}
-                      {roundGuesses.length > 0 && (
-                        <div className="w-full max-w-sm space-y-1.5 mt-1">
-                          {roundGuesses.map((g, i) => (
-                            <motion.div
-                              key={g.playerId}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: i * 0.05 }}
-                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm"
-                              style={{
-                                background: 'rgba(20, 12, 50, 0.5)',
-                                border: '1px solid rgba(100, 80, 140, 0.2)',
-                              }}
-                            >
-                              <span
-                                className="text-xs font-bold shrink-0 w-7 text-center px-1.5 py-0.5 rounded-full"
-                                style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--game-fuchsia)' }}
-                              >
-                                {i + 1}{positionSuffix(i + 1)}
-                              </span>
-                              <span className="flex-1 font-medium truncate" style={{ color: '#e2e8f0' }}>
-                                {g.playerName}
-                              </span>
-                              <span className="text-base">
-                                {g.correct ? '\u2705' : '\u274C'}
-                              </span>
-                            </motion.div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </motion.div>
-            )}
-          </AnimatePresence>
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline();
+      if (trophyRef.current) {
+        tl.fromTo(trophyRef.current,
+          { y: -100, scale: 0, rotation: -30 },
+          { y: 0, scale: 1, rotation: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)' },
+          0
+        );
+      }
+      if (titleRef.current) {
+        tl.fromTo(titleRef.current,
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
+          0.4
+        );
+      }
+      if (winnerRef.current) {
+        tl.fromTo(winnerRef.current,
+          { scale: 0.5, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' },
+          0.6
+        );
+      }
+      if (cardRef.current) {
+        tl.fromTo(cardRef.current,
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
+          1
+        );
+      }
+    });
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="min-h-dvh flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+        <div className="absolute bottom-0 w-full h-[50%] dance-floor-grid" style={{ transform: 'perspective(600px) rotateX(55deg) scale(1.6)', transformOrigin: 'bottom' }} />
+      </div>
+      <div className="relative z-10 flex flex-col items-center">
+        {winner && (
+          <div ref={trophyRef} className="mb-4" style={{ opacity: 0 }}>
+            <TrophyIcon size={isWinner ? 80 : 64} color="#EAB308" />
+          </div>
+        )}
+        <h1
+          ref={titleRef}
+          className="text-4xl neon-text-fuchsia uppercase tracking-widest mb-4"
+          style={{ fontFamily: 'var(--font-display)', color: 'white', opacity: 0 }}
+        >
+          Game Over!
+        </h1>
+        {winner ? (
+          <p
+            ref={winnerRef}
+            className="text-2xl font-black mb-4"
+            style={{
+              color: isWinner ? '#22c55e' : '#d946ef',
+              textShadow: isWinner ? '0 0 15px rgba(34, 197, 94, 0.5)' : '0 0 15px rgba(217, 70, 239, 0.5)',
+              opacity: 0,
+            }}
+          >
+            {isWinner ? 'YOU WIN!' : `${winner.name} wins!`}
+          </p>
+        ) : (
+          <p className="text-lg mb-4" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>No more tracks available</p>
+        )}
+        <div ref={cardRef} className="bg-purple-950/30 backdrop-blur-md border border-fuchsia-900/40 rounded-2xl p-5" style={{ opacity: 0 }}>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-center mb-3" style={{ color: 'rgba(217, 70, 239, 0.8)' }}>Your Card</h3>
+          <BingoCard cells={bingoCard} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Main phase content with GSAP transitions ── */
+interface PlayerPhaseContentProps {
+  phase: string;
+  isSpinner: boolean;
+  currentSpinnerName: string | null;
+  currentCategory: string | null;
+  hasGuessedThisRound: boolean;
+  timerSeconds: number;
+  roundEndMsg: string;
+  nextRoundMsg: string;
+  lastResult: { correct: boolean; shouldDrink?: boolean; noGuess?: boolean; pointsAwarded?: number; bonusCategories?: string[] } | null;
+  roundGuesses: any[];
+  playerName: string | null;
+  players: any[];
+  settings: any;
+  rockOffCanAssign: boolean;
+  rockOffDrinkAssigned: string | null;
+  playerWheelSpinning: boolean;
+  playerWheelResultIndex: number | null;
+  playerSwipeVelocity?: number;
+  playerWheelMediaType?: any;
+  onSwipe: (v: number) => void;
+  onPlayerSpinComplete: () => void;
+  onGuessSubmitted: () => void;
+  onRockOffAssign: (targetId: string, targetName: string) => void;
+}
+
+function PlayerPhaseContent(props: PlayerPhaseContentProps) {
+  const {
+    phase, isSpinner, currentSpinnerName, currentCategory,
+    hasGuessedThisRound, timerSeconds, roundEndMsg, nextRoundMsg,
+    lastResult, roundGuesses, playerName, players, settings,
+    rockOffCanAssign, rockOffDrinkAssigned,
+    playerWheelSpinning, playerWheelResultIndex, playerSwipeVelocity, playerWheelMediaType,
+    onSwipe, onPlayerSpinComplete, onGuessSubmitted, onRockOffAssign,
+  } = props;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevPhaseRef = useRef(phase);
+  const pulseRef = useRef<HTMLParagraphElement>(null);
+
+  // Animate container on phase change
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = phase;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) { gsap.set(el, { opacity: 1, y: 0, scale: 1 }); return; }
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline();
+      if (prev !== phase) {
+        tl.to(el, { opacity: 0, y: -10, duration: 0.15, ease: 'power2.in' });
+      }
+      // Phase-specific entrances
+      if (phase === 'SPINNING') {
+        tl.fromTo(el, { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.4, ease: 'power2.out' });
+      } else if (phase === 'PLAYING') {
+        tl.fromTo(el, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' });
+      } else if (phase === 'ROUND_RESULTS') {
+        tl.fromTo(el, { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.35, ease: 'power2.out' });
+      } else if (phase === 'DRINKING_SEGMENT') {
+        tl.fromTo(el, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.6)' });
+      } else {
+        tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      }
+    });
+    return () => ctx.revert();
+  }, [phase]);
+
+  // Pulse animation for waiting text
+  useEffect(() => {
+    const el = pulseRef.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el, { opacity: 0.4 }, { opacity: 0.8, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    });
+    return () => ctx.revert();
+  });
+
+  const positionSuffix = (n: number) => (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+
+  return (
+    <div ref={containerRef} className="flex-1 flex flex-col items-center justify-start gap-4 pb-6" style={{ opacity: 0 }}>
+      {phase === 'SPINNING' && (
+        <div className="text-center w-full">
+          {isSpinner ? (
+            <PlayerWheelSpinner
+              onSwipe={onSwipe}
+              isSpinning={playerWheelSpinning}
+              resultIndex={playerWheelResultIndex}
+              swipeVelocity={playerSwipeVelocity}
+              onSpinComplete={onPlayerSpinComplete}
+              segments={getWheelSegments(playerWheelMediaType ?? (settings.contentMode === 'mixed' ? 'mixed' : settings.contentMode === 'movie' ? 'movie' : 'music'))}
+            />
+          ) : currentSpinnerName ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-2xl font-bold animate-pulse" style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}>
+                {currentSpinnerName} is spinning...
+              </p>
+              <p className="text-sm" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>Watch the wheel on the big screen!</p>
+            </div>
+          ) : (
+            <p className="text-2xl font-bold animate-pulse" style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 15px rgba(217, 70, 239, 0.5)' }}>
+              Spinning the wheel...
+            </p>
+          )}
+        </div>
+      )}
+
+      {phase === 'PLAYING' && currentCategory && (
+        <div className="w-full flex flex-col items-center gap-4">
+          {!hasGuessedThisRound ? (
+            <GuessInput category={currentCategory} disabled={hasGuessedThisRound} onGuessSubmitted={onGuessSubmitted} timerSeconds={timerSeconds} />
+          ) : (
+            <div className="text-center p-5 rounded-2xl w-full max-w-sm" style={{ background: 'rgba(20, 12, 50, 0.6)', border: '1.5px solid rgba(217, 70, 239, 0.3)' }}>
+              <p className="text-lg font-semibold animate-pulse" style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}>
+                Guess locked in!
+              </p>
+              <p className="text-sm mt-1" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>{roundEndMsg}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {phase === 'ROUND_RESULTS' && (
+        <div className="text-center w-full max-w-sm">
+          {lastResult && (
+            <RoundFeedback
+              correct={lastResult.correct}
+              shouldDrink={lastResult.shouldDrink}
+              noGuess={lastResult.noGuess}
+              pointsAwarded={lastResult.pointsAwarded}
+              bonusCategories={lastResult.bonusCategories}
+            />
+          )}
+          <p ref={pulseRef} className="mt-4 text-sm" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>{nextRoundMsg}</p>
+        </div>
+      )}
+
+      {phase === 'DRINKING_SEGMENT' && (
+        <div className="text-center w-full">
+          {currentCategory === 'everybody-drinks' && (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-3xl font-black animate-pulse" style={{ color: 'var(--game-gold)', textShadow: '0 0 20px rgba(234, 179, 8, 0.5)' }}>
+                EVERYBODY DRINKS!
+              </p>
+              <span className="text-4xl">&#x1F37B;</span>
+            </div>
+          )}
+          {currentCategory === 'rock-off' && (() => {
+            const myGuess = roundGuesses.find((g: any) => g.playerName === playerName);
+            const myPosition = myGuess ? roundGuesses.findIndex((g: any) => g.playerName === playerName) + 1 : null;
+            const winner = roundGuesses.find((g: any) => g.correct);
+
+            return (
+              <div className="flex flex-col items-center gap-4 w-full">
+                <p className="text-2xl font-black" style={{ color: '#14B8A6', textShadow: '0 0 15px rgba(20, 184, 166, 0.5)' }}>ROCK OFF!</p>
+                <span className="text-3xl">&#x1F3B8;</span>
+                {!myGuess ? (
+                  <>
+                    <p style={{ color: 'rgba(148, 163, 184, 0.8)' }}>Listen and buzz in to name the {settings.contentMode === 'movie' ? 'movie' : 'artist'}!</p>
+                    <GuessInput category={settings.contentMode === 'movie' ? 'movie-title' : 'artist'} disabled={false} onGuessSubmitted={() => {}} />
+                  </>
+                ) : (
+                  <RockOffResult
+                    myGuess={myGuess}
+                    myPosition={myPosition!}
+                    rockOffCanAssign={rockOffCanAssign}
+                    rockOffDrinkAssigned={rockOffDrinkAssigned}
+                    players={players}
+                    playerName={playerName}
+                    onRockOffAssign={onRockOffAssign}
+                  />
+                )}
+                {winner && (
+                  <p className="text-lg font-bold text-center" style={{ color: 'var(--game-gold)', textShadow: '0 0 12px rgba(234,179,8,0.5)' }}>
+                    &#x1F3C6; {winner.playerName === playerName ? 'You win' : `${winner.playerName} wins`} the Rock Off!
+                  </p>
+                )}
+                {roundGuesses.length > 0 && (
+                  <RockOffFeed guesses={roundGuesses} />
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RockOffResult({ myGuess, myPosition, rockOffCanAssign, rockOffDrinkAssigned, players, playerName, onRockOffAssign }: any) {
+  const ref = useRef<HTMLDivElement>(null);
+  const positionSuffix = (n: number) => (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.5)' });
+    });
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <div ref={ref} className="w-full max-w-sm rounded-2xl p-5 text-center" style={{
+      background: myGuess.correct ? 'rgba(20, 60, 30, 0.6)' : 'rgba(60, 20, 20, 0.6)',
+      border: `1.5px solid ${myGuess.correct ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`,
+      opacity: 0,
+    }}>
+      <div className="flex items-center justify-center gap-3 mb-2">
+        <span className="text-sm font-bold px-2.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--game-fuchsia)' }}>
+          {myPosition}{positionSuffix(myPosition)}
+        </span>
+        <span className="text-2xl">{myGuess.correct ? '\u2705' : '\u274C'}</span>
+      </div>
+      <p className="text-lg font-bold" style={{ color: myGuess.correct ? '#22c55e' : '#ef4444', textShadow: myGuess.correct ? '0 0 10px rgba(34,197,94,0.4)' : '0 0 10px rgba(239,68,68,0.4)' }}>
+        {myGuess.correct ? 'Correct!' : 'Wrong!'}
+      </p>
+      <p className="text-sm mt-1" style={{ color: 'rgba(148,163,184,0.6)' }}>&ldquo;{myGuess.guess}&rdquo;</p>
+      {myGuess.correct && rockOffCanAssign && !rockOffDrinkAssigned && (
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(34, 197, 94, 0.3)' }}>
+          <p className="text-sm font-black uppercase tracking-wider mb-2" style={{ color: 'var(--game-gold)', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}>&#x1F37A; Assign a drink!</p>
+          <div className="flex flex-col gap-1.5">
+            {players.filter((p: any) => p.name !== playerName && p.connected).map((p: any) => (
+              <button key={p.id} onClick={() => onRockOffAssign(p.id, p.name)} className="w-full py-2.5 px-4 rounded-xl font-semibold text-white text-left cursor-pointer transition-all" style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {rockOffDrinkAssigned && (
+        <p className="mt-3 text-sm font-bold" style={{ color: 'var(--game-gold)', textShadow: '0 0 8px rgba(234,179,8,0.4)' }}>&#x1F37B; Drink assigned to {rockOffDrinkAssigned}!</p>
+      )}
+    </div>
+  );
+}
+
+function RockOffFeed({ guesses }: { guesses: any[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const positionSuffix = (n: number) => (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el.children, { opacity: 0, x: -20 }, { opacity: 1, x: 0, stagger: 0.05, duration: 0.3, ease: 'power2.out' });
+    });
+    return () => ctx.revert();
+  }, [guesses.length]);
+
+  return (
+    <div ref={ref} className="w-full max-w-sm space-y-1.5 mt-1">
+      {guesses.map((g: any, i: number) => (
+        <div key={g.playerId} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm" style={{ background: 'rgba(20, 12, 50, 0.5)', border: '1px solid rgba(100, 80, 140, 0.2)' }}>
+          <span className="text-xs font-bold shrink-0 w-7 text-center px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--game-fuchsia)' }}>{i + 1}{positionSuffix(i + 1)}</span>
+          <span className="flex-1 font-medium truncate" style={{ color: '#e2e8f0' }}>{g.playerName}</span>
+          <span className="text-base">{g.correct ? '\u2705' : '\u274C'}</span>
+        </div>
+      ))}
     </div>
   );
 }

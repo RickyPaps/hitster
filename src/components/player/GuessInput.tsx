@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import gsap from 'gsap';
 import { getSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
 import { useAudio } from '@/hooks/useAudio';
@@ -27,6 +27,10 @@ export default function GuessInput({ category, disabled, onGuessSubmitted, timer
   const [guess, setGuess] = useState('');
   const [locked, setLocked] = useState(false);
   const { playSound } = useAudio();
+
+  const lockedRef = useRef<HTMLDivElement>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+  const glowTweenRef = useRef<gsap.core.Tween | null>(null);
 
   // Timer pressure: haptic + tick at <3s
   useEffect(() => {
@@ -59,10 +63,62 @@ export default function GuessInput({ category, disabled, onGuessSubmitted, timer
   const isYear = category === 'year' || category === 'year-approx';
   const isDecade = category === 'decade';
 
+  // Locked stamp entrance animation
+  useEffect(() => {
+    if (!locked) return;
+    const el = lockedRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { scale: 1.4, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' }
+      );
+    });
+    return () => ctx.revert();
+  }, [locked]);
+
+  // Pulsing glow on submit button when input is non-empty
+  useEffect(() => {
+    const el = submitBtnRef.current;
+    if (!el || locked) return;
+
+    if (isDecade ? guess : guess.trim()) {
+      const ctx = gsap.context(() => {
+        glowTweenRef.current = gsap.fromTo(el,
+          { boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' },
+          {
+            boxShadow: '0 0 25px rgba(217,70,239,0.7), 0 0 45px rgba(139,92,246,0.4)',
+            yoyo: true,
+            repeat: -1,
+            duration: 0.75,
+            ease: 'sine.inOut',
+          }
+        );
+      });
+      return () => ctx.revert();
+    } else {
+      if (glowTweenRef.current) {
+        glowTweenRef.current.kill();
+        glowTweenRef.current = null;
+      }
+      gsap.set(el, { boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' });
+    }
+  }, [guess, locked, isDecade]);
+
+  const handleTap = useCallback(() => {
+    const el = submitBtnRef.current;
+    if (!el) return;
+    gsap.to(el, { scale: 0.92, rotation: -1, duration: 0.1, ease: 'power2.in', onComplete: () => {
+      gsap.to(el, { scale: 1, rotation: 0, duration: 0.2, ease: 'elastic.out(1, 0.5)' });
+    }});
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!guess.trim() || disabled || locked) return;
 
+    handleTap();
     navigator.vibrate?.([30, 50, 80]);
     setLocked(true);
     const socket = getSocket();
@@ -96,37 +152,28 @@ export default function GuessInput({ category, disabled, onGuessSubmitted, timer
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          <AnimatePresence mode="wait">
-            {locked ? (
-              <motion.div
-                key="locked"
-                initial={{ scale: 1.4, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="stamp-lock w-full py-3.5 rounded-xl font-black text-white text-lg uppercase tracking-wider text-center"
-                style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 0 25px rgba(34,197,94,0.5)' }}
-              >
-                Locked In!
-              </motion.div>
-            ) : (
-              <motion.button
-                key="submit"
-                whileTap={{ scale: 0.92, rotate: -1 }}
-                whileHover={{ scale: 1.02 }}
-                type="submit"
-                disabled={disabled || !guess}
-                className="w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer"
-                animate={
-                  guess
-                    ? { boxShadow: ['0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)', '0 0 25px rgba(217,70,239,0.7), 0 0 45px rgba(139,92,246,0.4)', '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)'] }
-                    : { boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' }
-                }
-                transition={guess ? { repeat: Infinity, duration: 1.5 } : {}}
-                style={{ background: 'linear-gradient(135deg, #d946ef, #8b5cf6)' }}
-              >
-                Submit Guess
-              </motion.button>
-            )}
-          </AnimatePresence>
+          {locked ? (
+            <div
+              ref={lockedRef}
+              className="stamp-lock w-full py-3.5 rounded-xl font-black text-white text-lg uppercase tracking-wider text-center"
+              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 0 25px rgba(34,197,94,0.5)' }}
+            >
+              Locked In!
+            </div>
+          ) : (
+            <button
+              ref={submitBtnRef}
+              type="submit"
+              disabled={disabled || !guess}
+              className="w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
+                boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)',
+              }}
+            >
+              Submit Guess
+            </button>
+          )}
         </form>
       </div>
     );
@@ -160,37 +207,28 @@ export default function GuessInput({ category, disabled, onGuessSubmitted, timer
             boxShadow: '0 0 8px rgba(217, 70, 239, 0.1)',
           }}
         />
-        <AnimatePresence mode="wait">
-          {locked ? (
-            <motion.div
-              key="locked"
-              initial={{ scale: 1.4, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="stamp-lock w-full py-3.5 rounded-xl font-black text-white text-lg uppercase tracking-wider text-center"
-              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 0 25px rgba(34,197,94,0.5)' }}
-            >
-              Locked In!
-            </motion.div>
-          ) : (
-            <motion.button
-              key="submit"
-              whileTap={{ scale: 0.92, rotate: -1 }}
-              whileHover={{ scale: 1.02 }}
-              type="submit"
-              disabled={disabled || !guess.trim()}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer"
-              animate={
-                guess.trim()
-                  ? { boxShadow: ['0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)', '0 0 25px rgba(217,70,239,0.7), 0 0 45px rgba(139,92,246,0.4)', '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)'] }
-                  : { boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)' }
-              }
-              transition={guess.trim() ? { repeat: Infinity, duration: 1.5 } : {}}
-              style={{ background: 'linear-gradient(135deg, #d946ef, #8b5cf6)' }}
-            >
-              Submit Guess
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {locked ? (
+          <div
+            ref={lockedRef}
+            className="stamp-lock w-full py-3.5 rounded-xl font-black text-white text-lg uppercase tracking-wider text-center"
+            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 0 25px rgba(34,197,94,0.5)' }}
+          >
+            Locked In!
+          </div>
+        ) : (
+          <button
+            ref={submitBtnRef}
+            type="submit"
+            disabled={disabled || !guess.trim()}
+            className="w-full py-3.5 rounded-xl font-bold text-white text-lg uppercase tracking-wider disabled:opacity-40 cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
+              boxShadow: '0 0 15px rgba(217,70,239,0.4), 0 0 30px rgba(139,92,246,0.2)',
+            }}
+          >
+            Submit Guess
+          </button>
+        )}
       </form>
     </div>
   );

@@ -7,7 +7,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useGameStore } from '@/stores/gameStore';
 import { getSocket, disconnectSocket } from '@/lib/socket/client';
 import { SOCKET_EVENTS } from '@/lib/socket/events';
-import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import HostLobby from '@/components/host/HostLobby';
 import HostGameShell from '@/components/host/HostGameShell';
 import WinnerScreen from '@/components/host/WinnerScreen';
@@ -308,28 +308,85 @@ export default function HostPageContent() {
     />
   );
 
+  // GSAP phase transition refs
+  const lobbyRef = useRef<HTMLDivElement>(null);
+  const gameOverRef = useRef<HTMLDivElement>(null);
+  const inGameRef = useRef<HTMLDivElement>(null);
+  const prevHostPhaseRef = useRef(phase);
+
+  // Animate phase transitions with GSAP
+  useEffect(() => {
+    const prev = prevHostPhaseRef.current;
+    prevHostPhaseRef.current = phase;
+    const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Determine which container is now active
+    const activeRef = phase === 'LOBBY' ? lobbyRef
+      : phase === 'GAME_OVER' ? gameOverRef
+      : inGameRef;
+    const el = activeRef.current;
+    if (!el) return;
+
+    if (reduced) {
+      gsap.set(el, { opacity: 1, scale: 1, y: 0 });
+      return;
+    }
+
+    // Phase-specific entrance animations
+    const ctx = gsap.context(() => {
+      if (phase === 'LOBBY') {
+        // Lobby entrance: fade in + slight slide up
+        gsap.fromTo(el,
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }
+        );
+      } else if (phase === 'GAME_OVER') {
+        // Game over: scale up from center with dramatic ease
+        gsap.fromTo(el,
+          { opacity: 0, scale: 0.85 },
+          { opacity: 1, scale: 1, duration: 0.8, ease: 'power4.out' }
+        );
+      } else if (prev === 'LOBBY') {
+        // Lobby → first game phase: dramatic zoom in
+        gsap.fromTo(el,
+          { opacity: 0, scale: 1.1 },
+          { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' }
+        );
+      } else if (prev === 'GAME_OVER') {
+        // Game over → lobby/game: slide up
+        gsap.fromTo(el,
+          { opacity: 0, y: 40 },
+          { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }
+        );
+      } else {
+        // In-game phase transitions (handled by HostGameShell internally)
+        gsap.fromTo(el,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.3, ease: 'power2.out' }
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, [phase]);
+
+  // Determine which section to show
+  const isLobby = phase === 'LOBBY';
+  const isGameOver = phase === 'GAME_OVER';
+  const isInGame = !isLobby && !isGameOver;
+
   return (
-    <AnimatePresence mode="wait">
+    <>
       {/* ── LOBBY ── */}
-      {phase === 'LOBBY' && (
-        <motion.div
-          key="lobby"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, transition: { duration: 0.4 } }}
-          exit={{ opacity: 0, transition: { duration: 0.3 } }}
-        >
+      {isLobby && (
+        <div ref={lobbyRef} style={{ opacity: 0 }}>
           <HostLobby onStartGame={handleStartGame} loading={loading} />
-        </motion.div>
+        </div>
       )}
 
       {/* ── GAME OVER ── */}
-      {phase === 'GAME_OVER' && (
-        <motion.div
-          key="game-over"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }}
-          exit={{ opacity: 0, transition: { duration: 0.3 } }}
-        >
+      {isGameOver && (
+        <div ref={gameOverRef} style={{ opacity: 0 }}>
           <div className="min-h-dvh flex flex-col items-center justify-center p-8 relative overflow-hidden">
             {surpriseOverlay}
             {/* Disco background */}
@@ -382,17 +439,12 @@ export default function HostPageContent() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ── IN-GAME ── */}
-      {phase !== 'LOBBY' && phase !== 'GAME_OVER' && (
-        <motion.div
-          key="in-game"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, transition: { duration: 0.3 } }}
-          exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.4, ease: 'easeIn' } }}
-        >
+      {isInGame && (
+        <div ref={inGameRef} style={{ opacity: 0 }}>
           {surpriseOverlay}
           <HostGameShell
             roomCode={roomCode}
@@ -420,8 +472,8 @@ export default function HostPageContent() {
             onVolumeChange={handleVolumeChange}
             onMuteToggle={handleMuteToggle}
           />
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

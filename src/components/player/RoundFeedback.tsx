@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import gsap from 'gsap';
 import { useAudio } from '@/hooks/useAudio';
 import FloatingScore from '@/components/animations/FloatingScore';
 import { fireConfetti } from '@/lib/confetti';
@@ -29,6 +29,16 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
   const { playSound } = useAudio();
   const [showFloatingScore, setShowFloatingScore] = useState(false);
 
+  // Refs for GSAP animations
+  const cardRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
+  const checkPathRef = useRef<SVGPathElement>(null);
+  const drinkRef = useRef<HTMLDivElement>(null);
+  const drinkTextRef = useRef<HTMLParagraphElement>(null);
+  const scoreRef = useRef<HTMLParagraphElement>(null);
+  const bonusRef = useRef<HTMLDivElement>(null);
+  const sparkleRef = useRef<HTMLDivElement>(null);
+
   // Pick random messages once on mount
   const feedbackMsg = useMemo(() => pick(correct ? CORRECT_MSGS : noGuess ? NO_GUESS_MSGS : WRONG_MSGS), [correct, noGuess]);
   const drinkMsg = useMemo(() => pick(DRINK_MSGS), []);
@@ -54,6 +64,122 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
     }
   }, [shouldDrink, playSound]);
 
+  // Main card entrance animation
+  useEffect(() => {
+    if (correct === null) return;
+    const el = cardRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { scale: 0.5, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' }
+      );
+    });
+    return () => ctx.revert();
+  }, [correct]);
+
+  // Icon entrance animation
+  useEffect(() => {
+    if (correct === null) return;
+    const el = iconRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { scale: 0 },
+        { scale: 1, duration: 0.4, delay: 0.1, ease: 'elastic.out(1, 0.5)' }
+      );
+    });
+    return () => ctx.revert();
+  }, [correct]);
+
+  // SVG checkmark path animation (strokeDashoffset approach)
+  useEffect(() => {
+    if (!correct) return;
+    const path = checkPathRef.current;
+    if (!path) return;
+
+    const ctx = gsap.context(() => {
+      const length = path.getTotalLength();
+      gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+      gsap.to(path, { strokeDashoffset: 0, duration: 0.5, delay: 0.2, ease: 'power2.out' });
+    });
+    return () => ctx.revert();
+  }, [correct]);
+
+  // Drink section entrance
+  useEffect(() => {
+    if (!shouldDrink) return;
+    const el = drinkRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: 0.4, delay: 0.4, ease: 'power2.out' }
+      );
+    });
+    return () => ctx.revert();
+  }, [shouldDrink]);
+
+  // Drink text pulse
+  useEffect(() => {
+    if (!shouldDrink) return;
+    const el = drinkTextRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.to(el, { scale: 1.08, yoyo: true, repeat: -1, duration: 0.6, ease: 'sine.inOut' });
+    });
+    return () => ctx.revert();
+  }, [shouldDrink]);
+
+  // Score entrance
+  useEffect(() => {
+    if (!correct) return;
+    const el = scoreRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, y: 5 },
+        { opacity: 1, y: 0, duration: 0.3, delay: 0.3, ease: 'power2.out' }
+      );
+    });
+    return () => ctx.revert();
+  }, [correct]);
+
+  // Bonus categories entrance
+  useEffect(() => {
+    if (!correct || !bonusCategories || bonusCategories.length === 0) return;
+    const el = bonusRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0, y: 5 },
+        { opacity: 1, y: 0, duration: 0.3, delay: 0.5, ease: 'power2.out' }
+      );
+    });
+    return () => ctx.revert();
+  }, [correct, bonusCategories]);
+
+  // Sparkle icon animation
+  useEffect(() => {
+    if (!correct || !bonusCategories || bonusCategories.length === 0) return;
+    const el = sparkleRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { scale: 0 },
+        { scale: 1, duration: 0.4, delay: 0.6, ease: 'elastic.out(1, 0.5)' }
+      );
+    });
+    return () => ctx.revert();
+  }, [correct, bonusCategories]);
+
   if (correct === null) return null;
 
   return (
@@ -67,10 +193,8 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
           <FloatingScore points={pointsAwarded ?? 100} />
         )}
 
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+        <div
+          ref={cardRef}
           className="text-center p-5 rounded-2xl"
           style={{
             background: correct
@@ -82,39 +206,35 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
               : '0 0 20px rgba(239, 68, 68, 0.2), inset 0 0 15px rgba(239, 68, 68, 0.05)',
           }}
         >
-          {/* Animated checkmark/X using SVG pathLength */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
+          {/* Animated checkmark/X using SVG strokeDashoffset */}
+          <div
+            ref={iconRef}
             className="flex items-center justify-center mb-2"
           >
             {correct ? (
               <svg width="48" height="48" viewBox="0 0 48 48">
-                <motion.path
+                <path
+                  ref={checkPathRef}
                   d="M12 24l8 8 16-16"
                   fill="none"
                   stroke="#22c55e"
                   strokeWidth="4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
                   style={{
                     filter: 'drop-shadow(0 0 10px rgba(34, 197, 94, 0.8))',
                   }}
                 />
               </svg>
             ) : (
-              <motion.p
+              <p
                 className="text-4xl"
                 style={{ filter: 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.8))' }}
               >
                 &#x2717;
-              </motion.p>
+              </p>
             )}
-          </motion.div>
+          </div>
 
           <p
             className="font-bold text-lg"
@@ -130,16 +250,13 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
 
           {/* Drink prompt */}
           {shouldDrink && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+            <div
+              ref={drinkRef}
               className="mt-4 pt-3"
               style={{ borderTop: '1px solid rgba(234, 179, 8, 0.3)' }}
             >
-              <motion.p
-                animate={{ scale: [1, 1.08, 1] }}
-                transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+              <p
+                ref={drinkTextRef}
                 className="text-2xl font-black uppercase italic"
                 style={{
                   color: 'var(--game-gold)',
@@ -147,46 +264,38 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
                 }}
               >
                 {drinkMsg}
-              </motion.p>
+              </p>
               <p className="text-3xl mt-1">&#x1F37A;</p>
-            </motion.div>
+            </div>
           )}
 
           {/* Score update for correct answers */}
           {correct && (
-            <motion.p
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+            <p
+              ref={scoreRef}
               className="mt-3 text-sm font-bold"
               style={{ color: 'var(--game-cyan)', textShadow: '0 0 8px rgba(0, 242, 255, 0.4)' }}
             >
               +{pointsAwarded ?? 100} points!
-            </motion.p>
+            </p>
           )}
 
           {/* Bonus categories info with sparkle */}
           {correct && bonusCategories && bonusCategories.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+            <div
+              ref={bonusRef}
               className="mt-1 flex items-center justify-center gap-1"
             >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.5, 1] }}
-                transition={{ delay: 0.6, duration: 0.4 }}
-              >
+              <div ref={sparkleRef}>
                 <SparkleIcon size={14} color="#d946ef" />
-              </motion.div>
+              </div>
               <span
                 className="text-xs font-semibold"
                 style={{ color: 'var(--game-fuchsia)', textShadow: '0 0 6px rgba(217, 70, 239, 0.4)' }}
               >
                 Bonus! Also marked: {bonusCategories.join(', ')}
               </span>
-            </motion.div>
+            </div>
           )}
 
           {message && (
@@ -194,7 +303,7 @@ export default function RoundFeedback({ correct, shouldDrink, noGuess, message, 
               {message}
             </p>
           )}
-        </motion.div>
+        </div>
       </div>
     </ScreenShake>
   );

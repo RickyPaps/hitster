@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import gsap from 'gsap';
 
 interface TextRevealProps {
   text: string;
@@ -78,6 +78,7 @@ function TypewriterText({
 }) {
   const [displayedChars, setDisplayedChars] = useState(0);
   const [started, setStarted] = useState(false);
+  const cursorRef = useRef<HTMLSpanElement>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
@@ -97,15 +98,24 @@ function TypewriterText({
     return () => clearTimeout(timer);
   }, [started, displayedChars, text.length, speed]);
 
+  // Blinking cursor with GSAP
+  useEffect(() => {
+    const el = cursorRef.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.to(el, { opacity: 0, duration: 0.3, repeat: -1, yoyo: true, ease: 'power1.inOut' });
+    });
+    return () => ctx.revert();
+  }, [started]);
+
   const isComplete = displayedChars >= text.length;
 
   return (
     <span className={className} style={style}>
       {text.slice(0, displayedChars)}
       {!isComplete && started && (
-        <motion.span
-          animate={{ opacity: [1, 0] }}
-          transition={{ repeat: Infinity, duration: 0.6 }}
+        <span
+          ref={cursorRef}
           style={{ display: 'inline-block', width: '2px', height: '1em', background: 'currentColor', verticalAlign: 'text-bottom', marginLeft: '1px' }}
         />
       )}
@@ -128,20 +138,37 @@ function ShimmerText({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const ref = useRef<HTMLSpanElement>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { backgroundPosition: '-200% center' },
+        {
+          backgroundPosition: '200% center',
+          duration,
+          delay,
+          ease: 'none',
+          onComplete: () => onCompleteRef.current?.(),
+        }
+      );
+    });
+    return () => ctx.revert();
+  }, [duration, delay]);
+
   return (
-    <motion.span
+    <span
+      ref={ref}
       className={className}
-      initial={{ backgroundPosition: '-200% center' }}
-      animate={{ backgroundPosition: '200% center' }}
-      transition={{ duration, delay, ease: 'linear' }}
-      onAnimationComplete={() => onCompleteRef.current?.()}
       style={{
         ...style,
         backgroundImage: 'linear-gradient(90deg, currentColor 0%, #ff007f 25%, #00f2ff 50%, #EAB308 75%, currentColor 100%)',
         backgroundSize: '200% auto',
+        backgroundPosition: '-200% center',
         WebkitBackgroundClip: 'text',
         backgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
@@ -149,6 +176,6 @@ function ShimmerText({
       }}
     >
       {text}
-    </motion.span>
+    </span>
   );
 }

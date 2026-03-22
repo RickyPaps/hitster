@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useRef } from 'react';
+import gsap from 'gsap';
 import type { Player } from '@/types/game';
 import { TrophyIcon, SparkleIcon, CrownIcon } from '@/components/animations/SVGIcons';
 import AnimatedNumber from '@/components/animations/AnimatedNumber';
@@ -28,6 +28,20 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
   const victoryMsg = useMemo(() => VICTORY_MSGS[Math.floor(Math.random() * VICTORY_MSGS.length)], []);
   const playAgainMsg = useMemo(() => PLAY_AGAIN_MSGS[Math.floor(Math.random() * PLAY_AGAIN_MSGS.length)], []);
 
+  // Refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const spotlightRef = useRef<HTMLDivElement>(null);
+  const trophyRef = useRef<HTMLDivElement>(null);
+  const nameContainerRef = useRef<HTMLDivElement>(null);
+  const sparkleLeftRef = useRef<HTMLDivElement>(null);
+  const sparkleRightRef = useRef<HTMLDivElement>(null);
+  const podiumRef = useRef<HTMLDivElement>(null);
+  const podiumItemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const crownRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const statCardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const playAgainBtnRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     playSound('win');
     fireSideCannons(40);
@@ -38,17 +52,150 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
     ? Math.max(...players.map((p) => p.streak ?? 0))
     : 0;
 
+  // Master GSAP timeline
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) {
+      // Just make everything visible
+      [containerRef, spotlightRef, trophyRef, nameContainerRef, sparkleLeftRef, sparkleRightRef, podiumRef, statsRef].forEach(ref => {
+        if (ref.current) gsap.set(ref.current, { opacity: 1 });
+      });
+      podiumItemRefs.current.forEach(el => { if (el) gsap.set(el, { scaleY: 1 }); });
+      statCardRefs.current.forEach(el => { if (el) gsap.set(el, { opacity: 1, scale: 1 }); });
+      if (playAgainBtnRef.current) gsap.set(playAgainBtnRef.current, { opacity: 1, y: 0 });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline();
+
+      // Container fade in
+      tl.fromTo(containerRef.current, { opacity: 0 }, { opacity: 1, duration: 0.4 });
+
+      // Spotlight
+      tl.fromTo(spotlightRef.current,
+        { opacity: 0 },
+        { opacity: 0.15, duration: 1 },
+        0.3
+      );
+
+      // Trophy slam in
+      tl.fromTo(trophyRef.current,
+        { y: -100, scale: 0, rotation: -30 },
+        { y: 0, scale: 1, rotation: 0, duration: 0.7, ease: 'elastic.out(1, 0.5)' },
+        0.2
+      );
+
+      // Winner name
+      tl.fromTo(nameContainerRef.current,
+        { opacity: 0, scale: 0.5 },
+        { opacity: 1, scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' },
+        0.6
+      );
+
+      // Sparkles
+      tl.fromTo(sparkleLeftRef.current,
+        { scale: 0 },
+        { scale: 1, duration: 0.4, ease: 'back.out(3)', keyframes: [{ scale: 0 }, { scale: 1.3 }, { scale: 1 }] },
+        0.8
+      );
+      tl.fromTo(sparkleRightRef.current,
+        { scale: 0 },
+        { scale: 1, duration: 0.4, ease: 'back.out(3)', keyframes: [{ scale: 0 }, { scale: 1.3 }, { scale: 1 }] },
+        1.0
+      );
+
+      // Podium
+      if (podiumRef.current) {
+        tl.fromTo(podiumRef.current,
+          { opacity: 0, y: 40 },
+          { opacity: 1, y: 0, duration: 0.6 },
+          1.2
+        );
+
+        // Podium items scale up
+        podiumItemRefs.current.forEach((el, idx) => {
+          if (el) {
+            const actualRank = idx === 0 ? 1 : idx === 1 ? 0 : 2;
+            tl.fromTo(el,
+              { scaleY: 0 },
+              { scaleY: 1, duration: 0.4, ease: 'power2.out' },
+              1.4 + actualRank * 0.15
+            );
+          }
+        });
+
+        // Crown bob
+        if (crownRef.current) {
+          tl.fromTo(crownRef.current,
+            { scale: 0 },
+            { scale: 1, duration: 0.4, ease: 'back.out(3)' },
+            1.8
+          );
+          // Continuous bob after timeline
+          tl.to(crownRef.current, { y: -5, yoyo: true, repeat: -1, duration: 1, ease: 'sine.inOut' }, '+=0');
+        }
+      }
+
+      // Stats
+      tl.fromTo(statsRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.4 },
+        1.8
+      );
+
+      // Stat cards
+      statCardRefs.current.forEach((el, idx) => {
+        if (el) {
+          tl.fromTo(el,
+            { opacity: 0, scale: 0.8 },
+            { opacity: 1, scale: 1, duration: 0.3 },
+            1.9 + idx * 0.1
+          );
+        }
+      });
+
+      // Play again button
+      if (playAgainBtnRef.current) {
+        tl.fromTo(playAgainBtnRef.current,
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.4 },
+          2.2
+        );
+      }
+    });
+
+    return () => ctx.revert();
+  }, []);
+
+  // Hover/tap for play again button
+  useEffect(() => {
+    const btn = playAgainBtnRef.current;
+    if (!btn) return;
+    const onEnter = () => gsap.to(btn, { scale: 1.05, duration: 0.2 });
+    const onLeave = () => gsap.to(btn, { scale: 1, duration: 0.2 });
+    const onDown = () => gsap.to(btn, { scale: 0.95, duration: 0.1 });
+    const onUp = () => gsap.to(btn, { scale: 1.05, duration: 0.1 });
+    btn.addEventListener('mouseenter', onEnter);
+    btn.addEventListener('mouseleave', onLeave);
+    btn.addEventListener('pointerdown', onDown);
+    btn.addEventListener('pointerup', onUp);
+    return () => {
+      btn.removeEventListener('mouseenter', onEnter);
+      btn.removeEventListener('mouseleave', onLeave);
+      btn.removeEventListener('pointerdown', onDown);
+      btn.removeEventListener('pointerup', onUp);
+    };
+  }, [onPlayAgain]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <div
+      ref={containerRef}
       className="relative flex flex-col items-center justify-center gap-6 text-center w-full"
     >
       {/* Spotlight beam */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.15 }}
-        transition={{ delay: 0.3, duration: 1 }}
+      <div
+        ref={spotlightRef}
         className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
         style={{
           width: 0,
@@ -60,28 +207,18 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
       />
 
       {/* Trophy */}
-      <motion.div
-        initial={{ y: -100, scale: 0, rotate: -30 }}
-        animate={{ y: 0, scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      >
+      <div ref={trophyRef}>
         <TrophyIcon size={96} color="#EAB308" />
-      </motion.div>
+      </div>
 
       {/* Winner name with sparkles */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.6, type: 'spring', stiffness: 400, damping: 20 }}
+      <div
+        ref={nameContainerRef}
         className="relative flex items-center gap-3"
       >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: [0, 1.3, 1] }}
-          transition={{ delay: 0.8, duration: 0.4 }}
-        >
+        <div ref={sparkleLeftRef}>
           <SparkleIcon size={24} color="#EAB308" />
-        </motion.div>
+        </div>
         <h1
           className="text-4xl md:text-5xl font-black"
           style={{
@@ -92,21 +229,15 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
         >
           {winner.name} {victoryMsg}
         </h1>
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: [0, 1.3, 1] }}
-          transition={{ delay: 1, duration: 0.4 }}
-        >
+        <div ref={sparkleRightRef}>
           <SparkleIcon size={24} color="#d946ef" />
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Podium — top 3 */}
       {sorted.length > 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
+        <div
+          ref={podiumRef}
           className="flex items-end justify-center gap-3 mt-4"
         >
           {/* Reorder: 2nd, 1st, 3rd for visual podium */}
@@ -115,22 +246,16 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
             const height = PODIUM_HEIGHTS[actualRank];
             const color = PODIUM_COLORS[actualRank];
             return (
-              <motion.div
+              <div
                 key={p!.id}
-                initial={{ scaleY: 0 }}
-                animate={{ scaleY: 1 }}
-                transition={{ delay: 1.4 + actualRank * 0.15, duration: 0.4, ease: 'easeOut' }}
+                ref={(el) => { podiumItemRefs.current[visualIdx] = el; }}
                 className="flex flex-col items-center origin-bottom"
                 style={{ width: 'clamp(80px, 20vw, 110px)' }}
               >
                 {actualRank === 0 && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1, y: [0, -5, 0] }}
-                    transition={{ delay: 1.8, duration: 0.5, y: { repeat: Infinity, duration: 2 } }}
-                  >
+                  <div ref={crownRef}>
                     <CrownIcon size={28} color="#EAB308" />
-                  </motion.div>
+                  </div>
                 )}
                 <span
                   className="text-sm font-black truncate max-w-full mb-1"
@@ -154,34 +279,28 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
                     {actualRank + 1}
                   </span>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
-        </motion.div>
+        </div>
       )}
 
       {/* Stats summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.8 }}
+      <div
+        ref={statsRef}
         className="flex flex-wrap justify-center gap-3 mt-2"
       >
-        <StatCard label="Lines" value={`${winner.completedRows}`} icon="&#x1F3AF;" delay={1.9} />
-        <StatCard label="Score" value={winner.score.toLocaleString()} icon="&#x2B50;" delay={2.0} />
+        <StatCard ref={(el) => { statCardRefs.current[0] = el; }} label="Lines" value={`${winner.completedRows}`} icon="&#x1F3AF;" />
+        <StatCard ref={(el) => { statCardRefs.current[1] = el; }} label="Score" value={winner.score.toLocaleString()} icon="&#x2B50;" />
         {bestStreak > 0 && (
-          <StatCard label="Best Streak" value={`${bestStreak}`} icon="&#x1F525;" delay={2.1} />
+          <StatCard ref={(el) => { statCardRefs.current[2] = el; }} label="Best Streak" value={`${bestStreak}`} icon="&#x1F525;" />
         )}
-      </motion.div>
+      </div>
 
       {/* Play again button */}
       {onPlayAgain && (
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.2 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <button
+          ref={playAgainBtnRef}
           onClick={onPlayAgain}
           className="mt-4 py-3.5 px-10 rounded-full font-black text-white text-lg uppercase tracking-wider cursor-pointer"
           style={{
@@ -191,27 +310,29 @@ export default function WinnerScreen({ winner, players, onPlayAgain }: WinnerScr
           }}
         >
           {playAgainMsg}
-        </motion.button>
+        </button>
       )}
-    </motion.div>
+    </div>
   );
 }
 
-function StatCard({ label, value, icon, delay }: { label: string; value: string; icon: string; delay: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay }}
-      className="flex flex-col items-center gap-1 px-4 py-3 rounded-xl min-w-[80px]"
-      style={{
-        background: 'rgba(255, 255, 255, 0.04)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-      }}
-    >
-      <span className="text-lg" dangerouslySetInnerHTML={{ __html: icon }} />
-      <span className="text-lg font-black text-white">{value}</span>
-      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{label}</span>
-    </motion.div>
-  );
-}
+import { forwardRef } from 'react';
+
+const StatCard = forwardRef<HTMLDivElement, { label: string; value: string; icon: string }>(
+  function StatCard({ label, value, icon }, ref) {
+    return (
+      <div
+        ref={ref}
+        className="flex flex-col items-center gap-1 px-4 py-3 rounded-xl min-w-[80px]"
+        style={{
+          background: 'rgba(255, 255, 255, 0.04)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        <span className="text-lg" dangerouslySetInnerHTML={{ __html: icon }} />
+        <span className="text-lg font-black text-white">{value}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{label}</span>
+      </div>
+    );
+  }
+);

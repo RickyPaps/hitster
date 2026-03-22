@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useRef } from 'react';
+import gsap from 'gsap';
 import { useGameStore } from '@/stores/gameStore';
 import BingoCard from './BingoCard';
 
@@ -28,11 +28,48 @@ function getInitials(name: string): string {
 export default function PlayerLobby() {
   const { roomCode, playerName, players, bingoCard } = useGameStore();
   const [waitIdx, setWaitIdx] = useState(0);
+  const playerRefsMap = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const waitingRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const id = setInterval(() => setWaitIdx((i) => (i + 1) % WAITING_MSGS.length), 3000);
     return () => clearInterval(id);
   }, []);
+
+  // Animate player cards on mount/change
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      players.forEach((p, i) => {
+        const el = playerRefsMap.current.get(p.id);
+        if (el) {
+          gsap.fromTo(el,
+            { opacity: 0, x: -15 },
+            { opacity: 1, x: 0, duration: 0.4, delay: i * 0.06, ease: 'power2.out' }
+          );
+        }
+      });
+    });
+
+    return () => ctx.revert();
+  }, [players]);
+
+  // Animate waiting message pulse
+  useEffect(() => {
+    const el = waitingRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(el,
+        { opacity: 0.4 },
+        { opacity: 0.9, yoyo: true, repeat: -1, duration: 1.25, ease: 'sine.inOut' }
+      );
+    });
+
+    return () => ctx.revert();
+  }, [waitIdx]);
 
   return (
     <div className="min-h-dvh text-white relative overflow-hidden">
@@ -102,11 +139,9 @@ export default function PlayerLobby() {
           </div>
           <div className="space-y-2">
             {players.map((p, i) => (
-              <motion.div
+              <div
                 key={p.id}
-                initial={{ opacity: 0, x: -15 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
+                ref={(el) => { playerRefsMap.current.set(p.id, el); }}
                 className="rounded-xl py-2.5 px-3.5 flex items-center gap-3"
                 style={{
                   background: p.name === playerName
@@ -129,22 +164,20 @@ export default function PlayerLobby() {
                 {p.connected && (
                   <span className="ml-auto text-green-400 text-sm">{'\u2713'}</span>
                 )}
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
 
         {/* Waiting message */}
-        <motion.p
+        <p
           key={waitIdx}
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: [0.4, 0.9, 0.4] }}
-          transition={{ repeat: Infinity, duration: 2.5 }}
+          ref={waitingRef}
           className="text-sm font-medium"
           style={{ color: 'rgba(217, 70, 239, 0.6)' }}
         >
           {WAITING_MSGS[waitIdx]}
-        </motion.p>
+        </p>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useRef, useEffect } from 'react';
+import gsap from 'gsap';
 import type { GamePhase, Track } from '@/types/game';
 import { getMediaTitle, getMediaSubtitle } from '@/types/game';
 
@@ -28,6 +29,24 @@ export default function HostBottomBar({
 
   // Format timer as m:ss
   const timerDisplay = `${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60).toString().padStart(2, '0')}`;
+
+  const muteBtnRef = useRef<HTMLButtonElement>(null);
+
+  // whileTap scale animation for mute button
+  useEffect(() => {
+    const btn = muteBtnRef.current;
+    if (!btn) return;
+    const onDown = () => gsap.to(btn, { scale: 0.85, duration: 0.1 });
+    const onUp = () => gsap.to(btn, { scale: 1, duration: 0.15 });
+    btn.addEventListener('pointerdown', onDown);
+    btn.addEventListener('pointerup', onUp);
+    btn.addEventListener('pointerleave', onUp);
+    return () => {
+      btn.removeEventListener('pointerdown', onDown);
+      btn.removeEventListener('pointerup', onUp);
+      btn.removeEventListener('pointerleave', onUp);
+    };
+  }, []);
 
   return (
     <div className="host-bottom-bar now-playing-bar px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-6">
@@ -70,8 +89,8 @@ export default function HostBottomBar({
         )}
 
         {/* Volume */}
-        <motion.button
-          whileTap={{ scale: 0.85 }}
+        <button
+          ref={muteBtnRef}
           onClick={onMuteToggle}
           className="w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer"
           style={{
@@ -86,7 +105,7 @@ export default function HostBottomBar({
           ) : (
             <span style={{ color: 'var(--game-cyan)' }}>&#128266;</span>
           )}
-        </motion.button>
+        </button>
         <input
           type="range"
           min="0"

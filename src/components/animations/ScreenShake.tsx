@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, memo } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { useEffect, useRef, memo } from 'react';
+import gsap from 'gsap';
 
 interface ScreenShakeProps {
   trigger: boolean;
@@ -9,10 +9,10 @@ interface ScreenShakeProps {
   children: React.ReactNode;
 }
 
-const shakeKeyframes = {
-  light: [0, -4, 4, -3, 3, -1, 1, 0],
-  medium: [0, -8, 8, -6, 6, -3, 3, 0],
-  heavy: [0, -12, 12, -10, 10, -6, 6, -2, 2, 0],
+const shakeAmounts = {
+  light: 4,
+  medium: 8,
+  heavy: 12,
 };
 
 const shakeDurations = {
@@ -22,20 +22,33 @@ const shakeDurations = {
 };
 
 export default memo(function ScreenShake({ trigger, intensity = 'medium', children }: ScreenShakeProps) {
-  const controls = useAnimation();
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (trigger) {
-      controls.start({
-        x: shakeKeyframes[intensity],
-        transition: { duration: shakeDurations[intensity], ease: 'easeInOut' },
-      });
-    }
-  }, [trigger, intensity, controls]);
+    if (!trigger) return;
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  return (
-    <motion.div animate={controls}>
-      {children}
-    </motion.div>
-  );
+    const amt = shakeAmounts[intensity];
+    const dur = shakeDurations[intensity];
+    const steps = intensity === 'heavy' ? 9 : 7;
+
+    const ctx = gsap.context(() => {
+      gsap.to(el, {
+        keyframes: Array.from({ length: steps }, (_, i) => {
+          if (i === steps - 1) return { x: 0, duration: dur / steps };
+          const factor = 1 - i / steps;
+          return {
+            x: (i % 2 === 0 ? -1 : 1) * amt * factor,
+            duration: dur / steps,
+          };
+        }),
+        ease: 'power1.inOut',
+      });
+    });
+    return () => ctx.revert();
+  }, [trigger, intensity]);
+
+  return <div ref={ref}>{children}</div>;
 });

@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useRef, useEffect, useCallback } from 'react';
+import gsap from 'gsap';
 import type { GamePhase, TrackHistoryEntry } from '@/types/game';
 import { ALL_WHEEL_SEGMENTS } from '@/types/game';
 
@@ -22,9 +23,38 @@ const PHASE_DISPLAY: Partial<Record<GamePhase, string>> = {
   GAME_OVER: 'Game Over',
 };
 
+function useTapScale(ref: React.RefObject<HTMLElement | null>, scale = 0.95) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onDown = () => gsap.to(el, { scale, duration: 0.1 });
+    const onUp = () => gsap.to(el, { scale: 1, duration: 0.15 });
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointerleave', onUp);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointerleave', onUp);
+    };
+  }, [ref, scale]);
+}
+
 export default function HostLeftSidebar({
   phase, currentSpinnerName, wheelSpinning, trackHistory, playerCount, onSpin, onNextRound,
 }: HostLeftSidebarProps) {
+  const spinBtnRef = useRef<HTMLButtonElement>(null);
+  const revealBtnRef = useRef<HTMLButtonElement>(null);
+  const nextBtnRef = useRef<HTMLButtonElement>(null);
+  const continueBtnRef = useRef<HTMLButtonElement>(null);
+  const skipBtnRef = useRef<HTMLButtonElement>(null);
+
+  useTapScale(spinBtnRef);
+  useTapScale(revealBtnRef);
+  useTapScale(nextBtnRef);
+  useTapScale(continueBtnRef);
+  useTapScale(skipBtnRef);
+
   return (
     <aside className="sidebar-panel sidebar-scroll p-4 flex flex-col gap-4">
       {/* Main controls panel */}
@@ -51,9 +81,8 @@ export default function HostLeftSidebar({
         {/* Action buttons */}
         <div className="space-y-2">
           {/* Spin Wheel — always visible, disabled when not SPINNING */}
-          <motion.button
-            whileHover={phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning ? { scale: 1.02 } : {}}
-            whileTap={phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning ? { scale: 0.95 } : {}}
+          <button
+            ref={spinBtnRef}
             onClick={phase === 'SPINNING' && !currentSpinnerName && !wheelSpinning ? onSpin : undefined}
             className={`w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all gradient-spin-btn ${
               phase !== 'SPINNING' || currentSpinnerName || wheelSpinning ? 'opacity-30 pointer-events-none' : 'cursor-pointer'
@@ -61,43 +90,40 @@ export default function HostLeftSidebar({
           >
             <span className="text-lg">&#8635;</span>
             <span className="text-sm">Spin Wheel</span>
-          </motion.button>
+          </button>
 
           {/* Phase-specific primary action */}
           {phase === 'PLAYING' && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              ref={revealBtnRef}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all cursor-pointer gradient-spin-btn"
             >
               <span className="text-sm">&#9989;</span>
               <span className="text-sm">Reveal Answer</span>
-            </motion.button>
+            </button>
           )}
 
           {phase === 'ROUND_RESULTS' && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              ref={nextBtnRef}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all cursor-pointer gradient-spin-btn"
             >
               <span className="text-sm">&#9654;</span>
               <span className="text-sm">Next Round</span>
-            </motion.button>
+            </button>
           )}
 
           {phase === 'DRINKING_SEGMENT' && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              ref={continueBtnRef}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl text-white font-black uppercase italic transition-all cursor-pointer gradient-spin-btn"
             >
               <span className="text-sm">&#9654;</span>
               <span className="text-sm">Continue</span>
-            </motion.button>
+            </button>
           )}
 
           {phase === 'SPINNING' && currentSpinnerName && !wheelSpinning && (
@@ -110,16 +136,15 @@ export default function HostLeftSidebar({
 
           {/* Skip / secondary action */}
           {(phase === 'SPINNING' || phase === 'PLAYING') && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              ref={skipBtnRef}
               onClick={onNextRound}
               className="w-full flex items-center gap-3 p-3 rounded-xl font-bold transition-all cursor-pointer"
               style={{ background: 'rgba(0, 242, 255, 0.06)', border: '1px solid rgba(0, 242, 255, 0.15)', color: 'rgba(0, 242, 255, 0.7)' }}
             >
               <span className="text-sm">&#9197;</span>
               <span className="text-sm">{phase === 'PLAYING' ? 'Skip Track' : 'Skip Turn'}</span>
-            </motion.button>
+            </button>
           )}
         </div>
 

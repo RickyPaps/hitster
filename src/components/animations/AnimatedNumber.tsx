@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { animate } from 'framer-motion';
+import gsap from 'gsap';
 
 interface AnimatedNumberProps {
   value: number;
@@ -22,25 +22,28 @@ export default function AnimatedNumber({
   const formatRef = useRef(format);
   formatRef.current = format;
   const [display, setDisplay] = useState(format(value));
+  const tweenRef = useRef<gsap.core.Tween | null>(null);
 
   useEffect(() => {
     const from = prevRef.current;
     const to = value;
-    const fmt = formatRef.current;
     prevRef.current = value;
 
     if (from === to) {
-      setDisplay(fmt(to));
+      setDisplay(formatRef.current(to));
       return;
     }
 
-    const controls = animate(from, to, {
+    const obj = { val: from };
+    if (tweenRef.current) tweenRef.current.kill();
+    tweenRef.current = gsap.to(obj, {
+      val: to,
       duration,
-      ease: 'easeOut',
-      onUpdate: (latest) => setDisplay(formatRef.current(latest)),
+      ease: 'power2.out',
+      onUpdate: () => setDisplay(formatRef.current(obj.val)),
     });
 
-    return () => controls.stop();
+    return () => { if (tweenRef.current) tweenRef.current.kill(); };
   }, [value, duration]);
 
   return (

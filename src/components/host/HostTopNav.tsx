@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useRef, useEffect, useCallback } from 'react';
+import gsap from 'gsap';
 import type { GamePhase } from '@/types/game';
 
 interface HostTopNavProps {
@@ -31,6 +32,23 @@ export default function HostTopNav({
 }: HostTopNavProps) {
   const showTimer = phase === 'PLAYING';
   const timerDisplay = `${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60).toString().padStart(2, '0')}`;
+  const muteBtnRef = useRef<HTMLButtonElement>(null);
+
+  // whileTap scale animation for mute button
+  useEffect(() => {
+    const btn = muteBtnRef.current;
+    if (!btn) return;
+    const onDown = () => gsap.to(btn, { scale: 0.85, duration: 0.1 });
+    const onUp = () => gsap.to(btn, { scale: 1, duration: 0.15 });
+    btn.addEventListener('pointerdown', onDown);
+    btn.addEventListener('pointerup', onUp);
+    btn.addEventListener('pointerleave', onUp);
+    return () => {
+      btn.removeEventListener('pointerdown', onDown);
+      btn.removeEventListener('pointerup', onUp);
+      btn.removeEventListener('pointerleave', onUp);
+    };
+  }, []);
 
   return (
     <header className="host-top-nav px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
@@ -88,8 +106,8 @@ export default function HostTopNav({
         )}
 
         {/* Volume */}
-        <motion.button
-          whileTap={{ scale: 0.85 }}
+        <button
+          ref={muteBtnRef}
           onClick={onMuteToggle}
           className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer"
           style={{
@@ -103,7 +121,7 @@ export default function HostTopNav({
           ) : (
             <span style={{ color: 'var(--game-cyan)', fontSize: '0.85rem' }}>&#128266;</span>
           )}
-        </motion.button>
+        </button>
         <input
           type="range"
           min="0"
