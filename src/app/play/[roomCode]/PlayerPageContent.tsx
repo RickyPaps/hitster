@@ -50,7 +50,7 @@ export default function PlayerPageContent() {
   const resetStreak = useGameStore((s) => s.resetStreak);
   const setPrevCompletedRows = useGameStore((s) => s.setPrevCompletedRows);
   const reset = useGameStore((s) => s.reset);
-  const { playSound } = useAudio();
+  const { playSound, toggleMute, muted: audioMuted } = useAudio();
 
   const [lastResult, setLastResult] = useState<{ correct: boolean; shouldDrink?: boolean; noGuess?: boolean; pointsAwarded?: number; bonusCategories?: string[] } | null>(null);
 
@@ -73,6 +73,7 @@ export default function PlayerPageContent() {
   const [joinName, setJoinName] = useState(storedNameForRoom.current ?? '');
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
+  const [isSpectator, setIsSpectator] = useState(false);
 
   // Player wheel state
   const [playerWheelSpinning, setPlayerWheelSpinning] = useState(false);
@@ -442,6 +443,26 @@ export default function PlayerPageContent() {
     }
   };
 
+  const handleSpectatorJoin = async () => {
+    setJoinError('');
+    try {
+      const socket = await connectSocket();
+      socket.emit(
+        SOCKET_EVENTS.SPECTATOR_JOIN,
+        { roomCode: roomCode.toUpperCase() },
+        (result: { success: boolean; error?: string }) => {
+          if (result.success) {
+            setIsSpectator(true);
+          } else {
+            setJoinError(result.error || 'Failed to join as spectator');
+          }
+        }
+      );
+    } catch {
+      setJoinError('Could not connect to server');
+    }
+  };
+
   // Timer display
   const timerPct = settings.timerDuration > 0 ? (timerSeconds / settings.timerDuration) * 100 : 0;
   const timerIsLow = timerSeconds <= 5;
@@ -467,8 +488,12 @@ export default function PlayerPageContent() {
     );
   }
 
-  // Guard: if store has no connection data, show inline join form or auto-rejoin loading
+  // Guard: if store has no connection data, show inline join form, auto-rejoin loading, or spectator view
   if (!playerId) {
+    // Spectator mode — read-only view of the game
+    if (isSpectator) {
+      return <SpectatorView roomCode={roomCode} phase={phase} roundNumber={useGameStore.getState().roundNumber} timerSeconds={timerSeconds} timerPct={timerPct} players={players} winner={winner} settings={settings} onJoinGame={() => setIsSpectator(false)} />;
+    }
     // Show loading while auto-rejoining from sessionStorage
     if (autoRejoining) {
       return (
@@ -532,6 +557,17 @@ export default function PlayerPageContent() {
               }}
             >
               {joining ? 'Joining...' : 'Join Game'}
+            </button>
+            <button
+              onClick={handleSpectatorJoin}
+              className="w-full py-3 px-6 rounded-xl font-medium text-white cursor-pointer uppercase tracking-wider text-sm"
+              style={{
+                background: 'transparent',
+                border: '1.5px solid rgba(148, 163, 184, 0.4)',
+                color: 'rgba(148, 163, 184, 0.8)',
+              }}
+            >
+              Watch as Spectator
             </button>
           </div>
         </div>
@@ -628,9 +664,22 @@ export default function PlayerPageContent() {
             </span>
             <StreakCounter streak={streak} broken={streakBroken} />
           </div>
-          {currentCategory && phase !== 'SPINNING' && (
-            <CategoryBadge category={currentCategory} />
-          )}
+          <div className="flex items-center gap-2">
+            {currentCategory && phase !== 'SPINNING' && (
+              <CategoryBadge category={currentCategory} />
+            )}
+            <button
+              onClick={toggleMute}
+              className="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer transition-colors"
+              style={{
+                background: audioMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(217, 70, 239, 0.15)',
+                border: `1px solid ${audioMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(217, 70, 239, 0.25)'}`,
+              }}
+              title={audioMuted ? 'Unmute sounds' : 'Mute sounds'}
+            >
+              <span style={{ fontSize: '14px' }}>{audioMuted ? '\u{1F507}' : '\u{1F50A}'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Progress bar */}
@@ -1063,10 +1112,12 @@ function PlayerPhaseContent(props: PlayerPhaseContentProps) {
                 <p className="text-2xl font-black" style={{ color: '#14B8A6', textShadow: '0 0 15px rgba(20, 184, 166, 0.5)' }}>ROCK OFF!</p>
                 <span className="text-3xl">&#x1F3B8;</span>
                 {!myGuess ? (
-                  <>
-                    <p style={{ color: 'rgba(148, 163, 184, 0.8)' }}>Listen and buzz in to name the {settings.contentMode === 'movie' ? 'movie' : 'artist'}!</p>
+                  <div className="w-full rock-off-urgency rounded-2xl p-4" style={{ background: 'rgba(20, 184, 166, 0.05)', border: '2px solid rgba(20, 184, 166, 0.3)' }}>
+                    <p className="text-center mb-3 font-bold animate-pulse" style={{ color: 'rgba(20, 184, 166, 0.9)' }}>
+                      &#x26A1; Buzz in fast! Name the {settings.contentMode === 'movie' ? 'movie' : 'artist'}!
+                    </p>
                     <GuessInput category={settings.contentMode === 'movie' ? 'movie-title' : 'artist'} disabled={false} onGuessSubmitted={() => {}} />
-                  </>
+                  </div>
                 ) : (
                   <RockOffResult
                     myGuess={myGuess}

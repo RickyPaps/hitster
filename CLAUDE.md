@@ -272,3 +272,35 @@ Integrated in `HostPageContent.tsx` via `useBackgroundMusic(phase, timerSeconds,
 - `trackHistory` (host local state) resets when phase returns to LOBBY
 - Bingo cards are re-sent via individual `CARD_UPDATE` events (to each player's socket) on `HOST_START_GAME` and `HOST_PLAY_AGAIN` — this bypasses `GAME_STATE_SYNC` playerId lookup timing issues
 - TrailerPlayer uses `max-w-5xl` (1024px) to fill large host screens; parent containers in HostGameShell use `max-w-4xl` (896px) for both PLAYING and DRINKING_SEGMENT phases
+
+### QR Code Join
+
+`HostLobby` displays a QR code next to the room code badge. Uses `qrcode.react` (QRCodeSVG) with teal neon styling. Click to expand. URL constructed via `window.location.origin + /play/ + roomCode`.
+
+### Skip Reveal Button
+
+`RoundResults` shows a "Skip" button during the cinematic reveal sequence (after spotlight stage). `skipReveal()` clears cascade interval, sets all players revealed, jumps to `done` stage.
+
+### Player Sound Mute
+
+`useAudio` hook now exposes `muted`, `setMuted`, `toggleMute` via a global `globalMuted` boolean + listener pattern. Player header shows a mute toggle button.
+
+### Rock-Off Urgency
+
+When players haven't buzzed in during rock-off, the GuessInput is wrapped in a `.rock-off-urgency` container with a pulsing teal neon border CSS animation.
+
+### Game State Persistence
+
+`src/lib/game/persistence.ts` — snapshots all in-progress rooms to `.game-snapshots/rooms.json` every 30s (from `server.ts` interval). On module load, `room.ts` calls `restoreRooms()` to recover. Only rooms with `phase !== 'LOBBY'` are snapshot. All players marked `connected: false` on restore (they reconnect via socket). Stale snapshots (>1hr) are discarded.
+
+### Preview URL Cache
+
+`src/lib/preview-cache.ts` — caches Spotify preview URLs and album art to `.game-snapshots/preview-cache.json`. Entries expire after 7 days. The `/api/spotify/preview` route checks cache first, only fetches uncached track IDs, then saves results back.
+
+### Canvas-Based Particles
+
+`DrinkSplash`, `FlameParticles`, `CellDisintegrate` all use `<canvas>` elements with `requestAnimationFrame` loops instead of individual DOM elements. DPI-aware rendering, additive glow via `globalCompositeOperation: 'lighter'`. Much better mobile performance.
+
+### Spectator Mode
+
+Players can join a room as spectator via `SPECTATOR_JOIN` socket event. Spectators join the Socket.io room to receive `GAME_STATE_SYNC` broadcasts but are NOT added to `room.players`. The player page shows a "Watch as Spectator" option on the join screen, displaying a read-only view with phase, timer, and leaderboard.

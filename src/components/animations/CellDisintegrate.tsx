@@ -1,12 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import gsap from 'gsap';
+import { useEffect, useRef, useCallback } from 'react';
+
+interface CellDisintegrateProps {
+  active: boolean;
+  cellSize?: number;
+  onComplete?: () => void;
+}
 
 interface Shard {
-  id: number;
-  x: number;
-  y: number;
+  // Grid position (fraction 0-1)
+  gridX: number;
+  gridY: number;
+  // Target displacement
+  targetX: number;
+  targetY: number;
   rotation: number;
   width: number;
   height: number;
@@ -15,10 +23,9 @@ interface Shard {
   skewX: number;
 }
 
-interface CellDisintegrateProps {
-  active: boolean;
-  cellSize?: number;
-  onComplete?: () => void;
+interface DustParticle {
+  angle: number;
+  dist: number;
 }
 
 const SHARD_COLORS = [
@@ -29,209 +36,284 @@ const SHARD_COLORS = [
   'rgba(99, 102, 241, 0.6)',
 ];
 
+const TOTAL_DURATION = 1200; // ms
+const GRID_SIZE = 4;
+const DUST_COUNT = 8;
+
+// Crack line angles in radians
+const CRACK_ANGLES = [0, 45, 90, 135].map((deg) => (deg * Math.PI) / 180);
+
 export default function CellDisintegrate({
   active,
   cellSize = 100,
   onComplete,
 }: CellDisintegrateProps) {
-  const [shards, setShards] = useState<Shard[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const flashRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number>(0);
+  const shardsRef = useRef<Shard[]>([]);
+  const dustRef = useRef<DustParticle[]>([]);
+  const startTimeRef = useRef<number>(0);
+  const activeRef = useRef(false);
 
   const generateShards = useCallback(() => {
     const newShards: Shard[] = [];
-    const gridSize = 4;
-    const shardW = cellSize / gridSize;
-    const shardH = cellSize / gridSize;
+    const shardW = cellSize / GRID_SIZE;
+    const shardH = cellSize / GRID_SIZE;
 
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const idx = row * gridSize + col;
-        const cx = (col - gridSize / 2 + 0.5) * shardW;
-        const cy = (row - gridSize / 2 + 0.5) * shardH;
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const cx = (col - GRID_SIZE / 2 + 0.5) * shardW;
+        const cy = (row - GRID_SIZE / 2 + 0.5) * shardH;
         const angle = Math.atan2(cy, cx);
         const dist = 60 + Math.random() * 100;
 
         newShards.push({
-          id: idx,
-          x: Math.cos(angle) * dist + (Math.random() - 0.5) * 40,
-          y: Math.sin(angle) * dist + Math.random() * 30,
-          rotation: (Math.random() - 0.5) * 540,
+          gridX: col / GRID_SIZE,
+          gridY: row / GRID_SIZE,
+          targetX: Math.cos(angle) * dist + (Math.random() - 0.5) * 40,
+          targetY: Math.sin(angle) * dist + Math.random() * 30,
+          rotation: (Math.random() - 0.5) * 540 * (Math.PI / 180),
           width: shardW + (Math.random() - 0.5) * 4,
           height: shardH + (Math.random() - 0.5) * 4,
           color: SHARD_COLORS[Math.floor(Math.random() * SHARD_COLORS.length)],
           delay: Math.random() * 0.1,
-          skewX: (Math.random() - 0.5) * 20,
+          skewX: (Math.random() - 0.5) * 20 * (Math.PI / 180),
         });
       }
     }
-    setShards(newShards);
+    shardsRef.current = newShards;
+
+    // Generate dust particles
+    const dust: DustParticle[] = [];
+    for (let i = 0; i < DUST_COUNT; i++) {
+      dust.push({
+        angle: (i / DUST_COUNT) * Math.PI * 2,
+        dist: 40 + Math.random() * 60,
+      });
+    }
+    dustRef.current = dust;
   }, [cellSize]);
 
   useEffect(() => {
-    if (active) {
-      generateShards();
-      const timer = setTimeout(() => {
-        setShards([]);
-        onComplete?.();
-      }, 1200);
-      return () => clearTimeout(timer);
+    if (!active) {
+      activeRef.current = false;
+      return;
     }
-  }, [active, generateShards, onComplete]);
 
-  // Animate with GSAP
-  useEffect(() => {
-    if (shards.length === 0) return;
-    const container = containerRef.current;
-    const flash = flashRef.current;
-    const svg = svgRef.current;
-    if (!container || !flash || !svg) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onComplete?.();
+      return;
+    }
 
-    const ctx = gsap.context(() => {
-      // Flash
-      gsap.fromTo(flash,
-        { opacity: 0.8 },
-        { opacity: 0, duration: 0.3 }
-      );
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-      // Crack lines (SVG strokeDashoffset)
-      const lines = svg.querySelectorAll('line');
-      lines.forEach((line, i) => {
-        const length = Math.sqrt(
-          Math.pow(parseFloat(line.getAttribute('x2')!) - parseFloat(line.getAttribute('x1')!), 2) +
-          Math.pow(parseFloat(line.getAttribute('y2')!) - parseFloat(line.getAttribute('y1')!), 2)
-        );
-        gsap.set(line, { strokeDasharray: length, strokeDashoffset: length });
-        gsap.to(line, { strokeDashoffset: 0, duration: 0.15, delay: i * 0.01 });
-      });
-      gsap.to(svg, { opacity: 0, duration: 0.5, delay: 0.15 });
+    const parent = canvas.parentElement;
+    if (!parent) return;
 
-      // Shards
-      const shardEls = container.querySelectorAll('.cell-shard');
-      shardEls.forEach((el, i) => {
+    generateShards();
+    startTimeRef.current = performance.now();
+    activeRef.current = true;
+
+    const completionTimer = setTimeout(() => {
+      activeRef.current = false;
+      onComplete?.();
+    }, TOTAL_DURATION);
+
+    const animate = (now: number) => {
+      if (!activeRef.current) return;
+
+      const elapsed = (now - startTimeRef.current) / 1000;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = parent.getBoundingClientRect();
+      // Canvas needs overflow room for flying shards
+      const margin = 200;
+      const canvasW = rect.width + margin * 2;
+      const canvasH = rect.height + margin * 2;
+
+      if (canvas.width !== Math.round(canvasW * dpr) || canvas.height !== Math.round(canvasH * dpr)) {
+        canvas.width = Math.round(canvasW * dpr);
+        canvas.height = Math.round(canvasH * dpr);
+        canvas.style.width = `${canvasW}px`;
+        canvas.style.height = `${canvasH}px`;
+        canvas.style.left = `${-margin}px`;
+        canvas.style.top = `${-margin}px`;
+      }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, canvasW, canvasH);
+
+      const centerX = canvasW / 2;
+      const centerY = canvasH / 2;
+      const half = cellSize / 2;
+
+      // === 1. Flash effect (0-0.3s): starts at opacity 0.8, fades to 0 ===
+      if (elapsed < 0.3) {
+        const flashOpacity = 0.8 * (1 - elapsed / 0.3);
+        const flashR = half + 4;
+        const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, flashR * 1.5);
+        grad.addColorStop(0, `rgba(239, 68, 68, ${0.6 * flashOpacity})`);
+        grad.addColorStop(0.5, `rgba(217, 70, 239, ${0.3 * flashOpacity})`);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(centerX - half - 4, centerY - half - 4, cellSize + 8, cellSize + 8, 16);
+        ctx.fill();
+      }
+
+      // === 2. Crack lines (0-0.15s draw, 0.15-0.65s fade) ===
+      const crackDrawEnd = 0.15;
+      const crackFadeEnd = 0.65;
+      if (elapsed < crackFadeEnd) {
+        const crackOpacity = elapsed > crackDrawEnd
+          ? 0.8 * (1 - (elapsed - crackDrawEnd) / (crackFadeEnd - crackDrawEnd))
+          : 0.8;
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(239, 68, 68, ${crackOpacity})`;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+
+        for (let i = 0; i < CRACK_ANGLES.length; i++) {
+          const angle = CRACK_ANGLES[i];
+          // Staggered draw progress
+          const lineDelay = i * 0.01;
+          const lineProgress = Math.min(1, Math.max(0, (elapsed - lineDelay) / crackDrawEnd));
+          if (lineProgress <= 0) continue;
+
+          const eased = 1 - (1 - lineProgress) * (1 - lineProgress);
+          const lineLen = half * eased;
+
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.lineTo(
+            centerX + Math.cos(angle) * lineLen,
+            centerY + Math.sin(angle) * lineLen
+          );
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // === 3. Shards (delay+0.15s start, 0.7s duration, ease power2.out) ===
+      const shards = shardsRef.current;
+      for (let i = 0; i < shards.length; i++) {
         const s = shards[i];
-        if (!s) return;
-        gsap.to(el, {
-          x: s.x,
-          y: s.y,
-          rotation: s.rotation,
-          skewX: s.skewX,
-          scale: 0,
-          opacity: 0,
-          duration: 0.7,
-          delay: s.delay + 0.15,
-          ease: 'power2.out',
-        });
-      });
+        const shardStart = s.delay + 0.15;
+        const shardDur = 0.7;
+        const t = elapsed - shardStart;
 
-      // Dust particles
-      const dustEls = container.querySelectorAll('.cell-dust');
-      dustEls.forEach((el, i) => {
-        const angle = (i / 8) * Math.PI * 2;
-        const dist = 40 + Math.random() * 60;
-        gsap.fromTo(el,
-          { x: 0, y: 0, scale: 0, opacity: 0.8 },
-          {
-            x: Math.cos(angle) * dist,
-            y: Math.sin(angle) * dist,
-            scale: 0.3,
-            opacity: 0,
-            duration: 0.6,
-            delay: 0.25,
-            ease: 'power2.out',
-          }
-        );
-      });
-    });
-    return () => ctx.revert();
-  }, [shards]);
+        if (t < 0) {
+          // Draw shard at initial position
+          const sx = centerX - half + s.gridX * cellSize;
+          const sy = centerY - half + s.gridY * cellSize;
+          ctx.save();
+          ctx.fillStyle = s.color;
+          ctx.shadowColor = s.color;
+          ctx.shadowBlur = 8;
+          ctx.fillRect(sx, sy, s.width, s.height);
+          ctx.restore();
+          continue;
+        }
+        if (t > shardDur) continue;
 
-  if (shards.length === 0) return null;
+        const progress = t / shardDur;
+        const eased = 1 - (1 - progress) * (1 - progress); // power2.out
 
-  const half = cellSize / 2;
+        const dx = eased * s.targetX;
+        const dy = eased * s.targetY;
+        const rot = eased * s.rotation;
+        const skew = eased * s.skewX;
+        const scale = 1 - eased;
+        const opacity = 1 - eased;
+
+        const sx = centerX - half + s.gridX * cellSize + dx;
+        const sy = centerY - half + s.gridY * cellSize + dy;
+
+        if (opacity < 0.01 || scale < 0.01) continue;
+
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.translate(sx + s.width / 2, sy + s.height / 2);
+        ctx.rotate(rot);
+        // Apply skew via transform matrix
+        ctx.transform(1, 0, Math.tan(skew), 1, 0, 0);
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = s.color;
+        ctx.shadowColor = s.color;
+        ctx.shadowBlur = 8;
+        ctx.fillRect(-s.width / 2, -s.height / 2, s.width, s.height);
+        ctx.restore();
+      }
+
+      // === 4. Dust particles (0.25s delay, 0.6s duration) ===
+      const dustStart = 0.25;
+      const dustDur = 0.6;
+      const dustT = elapsed - dustStart;
+      if (dustT >= 0 && dustT <= dustDur) {
+        const dust = dustRef.current;
+        const dp = dustT / dustDur;
+        const eased = 1 - (1 - dp) * (1 - dp);
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        for (let i = 0; i < dust.length; i++) {
+          const d = dust[i];
+          const dx = Math.cos(d.angle) * d.dist * eased;
+          const dy = Math.sin(d.angle) * d.dist * eased;
+          // Scale: 0 -> peak -> 0.3 at end
+          const dustScale = dp < 0.3 ? (dp / 0.3) : 1 - (dp - 0.3) / 0.7 * 0.7;
+          const dustOpacity = 0.8 * (1 - eased);
+          const r = 2 * dustScale;
+
+          if (r < 0.2 || dustOpacity < 0.01) continue;
+
+          ctx.globalAlpha = dustOpacity;
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+          ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(centerX + dx, centerY + dy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      if (elapsed < TOTAL_DURATION / 1000) {
+        rafRef.current = requestAnimationFrame(animate);
+      } else {
+        ctx.clearRect(0, 0, canvasW, canvasH);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      activeRef.current = false;
+      cancelAnimationFrame(rafRef.current);
+      clearTimeout(completionTimer);
+      const ctx = canvasRef.current?.getContext('2d');
+      if (ctx && canvasRef.current) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    };
+  }, [active, cellSize, generateShards, onComplete]);
+
+  if (!active) return null;
 
   return (
-    <div
-      ref={containerRef}
+    <canvas
+      ref={canvasRef}
       style={{
         position: 'absolute',
-        inset: 0,
         pointerEvents: 'none',
         zIndex: 40,
-        overflow: 'visible',
       }}
-    >
-      {/* Initial flash */}
-      <div
-        ref={flashRef}
-        style={{
-          position: 'absolute',
-          inset: -4,
-          borderRadius: 16,
-          background: 'radial-gradient(circle, rgba(239, 68, 68, 0.6), rgba(217, 70, 239, 0.3), transparent)',
-          boxShadow: '0 0 30px rgba(239, 68, 68, 0.5)',
-          opacity: 0,
-        }}
-      />
-
-      {/* Crack lines */}
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${cellSize} ${cellSize}`}
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-      >
-        {[0, 45, 90, 135].map((deg) => {
-          const rad = (deg * Math.PI) / 180;
-          return (
-            <line
-              key={deg}
-              x1={half}
-              y1={half}
-              x2={half + Math.cos(rad) * half}
-              y2={half + Math.sin(rad) * half}
-              stroke="rgba(239, 68, 68, 0.8)"
-              strokeWidth="2"
-            />
-          );
-        })}
-      </svg>
-
-      {/* Shattering shards */}
-      {shards.map((s) => (
-        <div
-          key={s.id}
-          className="cell-shard"
-          style={{
-            position: 'absolute',
-            left: `${(s.id % 4) * 25}%`,
-            top: `${Math.floor(s.id / 4) * 25}%`,
-            width: s.width,
-            height: s.height,
-            background: s.color,
-            borderRadius: 3,
-            boxShadow: `0 0 8px ${s.color}`,
-          }}
-        />
-      ))}
-
-      {/* Dust particles */}
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={`dust-${i}`}
-          className="cell-dust"
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            width: 4,
-            height: 4,
-            borderRadius: '50%',
-            background: 'rgba(239, 68, 68, 0.7)',
-            boxShadow: '0 0 6px rgba(239, 68, 68, 0.5)',
-          }}
-        />
-      ))}
-    </div>
+    />
   );
 }

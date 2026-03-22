@@ -726,6 +726,30 @@ export function registerSocketHandlers(io: Server) {
       syncRoom(io, room);
     });
 
+    // SPECTATOR: Join as spectator (watch-only, not added to players)
+    socket.on(SOCKET_EVENTS.SPECTATOR_JOIN, (data: { roomCode: string }, callback?: (result: { success: boolean; error?: string }) => void) => {
+      const roomCode = data.roomCode?.trim().toUpperCase();
+
+      if (!roomCode || !ROOM_CODE_RE.test(roomCode)) {
+        callback?.({ success: false, error: 'Invalid room code' });
+        return;
+      }
+
+      const room = getRoom(roomCode);
+      if (!room) {
+        callback?.({ success: false, error: 'Room not found' });
+        return;
+      }
+
+      currentRoom = roomCode;
+      socket.join(roomCode);
+      touchRoom(roomCode);
+      callback?.({ success: true });
+
+      // Send current game state to the spectator
+      socket.emit(SOCKET_EVENTS.GAME_STATE_SYNC, serializeRoom(room));
+    });
+
     // REQUEST: Sync (client requests full state after mounting listeners)
     socket.on(SOCKET_EVENTS.REQUEST_SYNC, () => {
       if (!currentRoom) return;

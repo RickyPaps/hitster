@@ -3,6 +3,7 @@ import { getCategoryMediaType } from '@/types/game';
 import { spinWheel, isGuessCategory, isPartyCategory } from './wheel';
 import { checkAnswer } from './matching';
 import { checkWin, countCompletedLines } from './bingo';
+// Persistence is triggered by server-handlers on phase changes
 import { getNextTrack, getNextTrackByMediaType, shuffleTracks } from './room';
 
 export interface GameEngine {

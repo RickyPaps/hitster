@@ -181,17 +181,20 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
             {localSettings.contentMode === 'movie' ? 'Movie' : localSettings.contentMode === 'mixed' ? 'Mixed' : 'Music'} Bingo Party Game
           </h2>
 
-          {/* Lobby code badge */}
-          <div className="inline-block bg-teal-950/60 backdrop-blur-md rounded-lg py-3 px-8 neon-box-teal">
-            <p className="text-xs text-teal-200 mb-1 font-semibold uppercase tracking-wider">
-              Lobby Code
-            </p>
-            <p
-              className="text-2xl neon-text-teal tracking-widest font-bold"
-              style={{ fontFamily: 'var(--font-display)', color: 'white' }}
-            >
-              {formattedCode}
-            </p>
+          {/* Lobby code badge + QR code */}
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="inline-block bg-teal-950/60 backdrop-blur-md rounded-lg py-3 px-8 neon-box-teal">
+              <p className="text-xs text-teal-200 mb-1 font-semibold uppercase tracking-wider">
+                Lobby Code
+              </p>
+              <p
+                className="text-2xl neon-text-teal tracking-widest font-bold"
+                style={{ fontFamily: 'var(--font-display)', color: 'white' }}
+              >
+                {formattedCode}
+              </p>
+            </div>
+            {roomCode && <LobbyQRCode roomCode={roomCode} />}
           </div>
         </header>
 
@@ -463,6 +466,43 @@ export default function HostLobby({ onStartGame, loading }: HostLobbyProps) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── QR Code for easy phone join ── */
+function LobbyQRCode({ roomCode }: { roomCode: string }) {
+  const [joinUrl, setJoinUrl] = useState('');
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    setJoinUrl(`${window.location.origin}/play/${roomCode}`);
+  }, [roomCode]);
+
+  if (!joinUrl) return null;
+
+  // Lazy import QRCodeSVG to avoid SSR issues
+  const QRCodeSVG = require('qrcode.react').QRCodeSVG;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="bg-teal-950/60 backdrop-blur-md rounded-lg p-3 neon-box-teal cursor-pointer transition-transform hover:scale-105"
+        title="Scan to join"
+      >
+        <QRCodeSVG
+          value={joinUrl}
+          size={expanded ? 160 : 80}
+          bgColor="transparent"
+          fgColor="#5eead4"
+          level="M"
+          style={{ transition: 'width 0.3s, height 0.3s' }}
+        />
+      </button>
+      <p className="text-[10px] text-teal-300/60 font-semibold uppercase tracking-wider">
+        {expanded ? 'Tap to shrink' : 'Scan to join'}
+      </p>
     </div>
   );
 }

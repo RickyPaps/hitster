@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type SoundName = 'ding' | 'buzzer' | 'tick' | 'win' | 'whoosh' | 'streak' | 'bingo' | 'wheelLand' | 'surprise' | 'rankUp' | 'cellBreak' | 'reveal' | 'splash' | 'playerJoin';
 
@@ -469,10 +469,31 @@ const players: Record<SoundName, () => void> = {
   playerJoin: playPlayerJoin,
 };
 
+// Global mute state (shared across all useAudio instances)
+let globalMuted = false;
+const muteListeners = new Set<(muted: boolean) => void>();
+
 export function useAudio() {
   const lastPlayedRef = useRef<Record<string, number>>({});
+  const [muted, setMutedState] = useState(globalMuted);
+
+  useEffect(() => {
+    const listener = (m: boolean) => setMutedState(m);
+    muteListeners.add(listener);
+    return () => { muteListeners.delete(listener); };
+  }, []);
+
+  const setMuted = useCallback((m: boolean) => {
+    globalMuted = m;
+    muteListeners.forEach((l) => l(m));
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setMuted(!globalMuted);
+  }, [setMuted]);
 
   const playSound = useCallback((name: SoundName) => {
+    if (globalMuted) return;
     try {
       // Debounce: ignore if same sound played within 100ms
       const now = Date.now();
@@ -485,5 +506,5 @@ export function useAudio() {
     }
   }, []);
 
-  return { playSound };
+  return { playSound, muted, setMuted, toggleMute };
 }

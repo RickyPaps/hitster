@@ -413,6 +413,15 @@ body {
   animation: hot-seat-glow 1s ease-in-out infinite;
 }
 
+/* Rock-off urgency pulsing border */
+@keyframes rock-off-pulse {
+  0%, 100% { border-color: rgba(20, 184, 166, 0.3); box-shadow: 0 0 10px rgba(20, 184, 166, 0.1); }
+  50% { border-color: rgba(20, 184, 166, 0.8); box-shadow: 0 0 25px rgba(20, 184, 166, 0.4), 0 0 50px rgba(20, 184, 166, 0.15); }
+}
+.rock-off-urgency {
+  animation: rock-off-pulse 0.8s ease-in-out infinite;
+}
+
 @keyframes shield-shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -592,7 +601,8 @@ body {
   .bingo-alert,
   .marquee-text,
   .leader-fire-glow,
-  .leader-row-shimmer {
+  .leader-row-shimmer,
+  .rock-off-urgency {
     animation: none !important;
   }
 }

@@ -2,6 +2,7 @@ export const SOCKET_EVENTS = {
   // Client → Server
   HOST_CREATE_ROOM: 'host:create-room',
   PLAYER_JOIN_ROOM: 'player:join-room',
+  SPECTATOR_JOIN: 'spectator:join',
   HOST_START_GAME: 'host:start-game',
   HOST_SPIN_WHEEL: 'host:spin-wheel',
   PLAYER_SUBMIT_GUESS: 'player:submit-guess',

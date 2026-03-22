@@ -87,6 +87,18 @@ export default function RoundResults({
     else playerIconRefs.current.delete(id);
   }, []);
 
+  // Skip the cinematic — jump straight to done
+  const skipReveal = useCallback(() => {
+    if (stage === 'done') return;
+    // Clear the player card cascade interval
+    if (revealIntervalRef.current) {
+      clearInterval(revealIntervalRef.current);
+      revealIntervalRef.current = null;
+    }
+    setRevealedPlayerIndex(playerResults.length);
+    setStage('done');
+  }, [stage, playerResults.length]);
+
   // Cinematic stage progression
   useEffect(() => {
     playSound('reveal');
@@ -518,6 +530,20 @@ export default function RoundResults({
             )
           ))}
         </div>
+      )}
+
+      {/* Skip reveal button — shown during cinematic, hidden when done */}
+      {stage !== 'done' && stageAtLeast(stage, 'spotlight') && (
+        <button
+          onClick={skipReveal}
+          className="py-2 px-6 rounded-full text-sm font-bold text-white/60 uppercase tracking-wider cursor-pointer transition-colors hover:text-white/90"
+          style={{
+            background: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          Skip &#x226B;
+        </button>
       )}
 
       {/* Next Round Button */}

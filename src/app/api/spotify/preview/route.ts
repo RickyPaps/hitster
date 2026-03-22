@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSpotifyToken } from '@/lib/spotify/client';
 import { scrapePreviewUrl } from '@/lib/spotify/preview';
+import { getCachedPreview, batchCacheAndSave } from '@/lib/preview-cache';
 
 // POST /api/spotify/preview — fetch preview URLs + album art for Spotify track IDs
-// Strategy: Spotify API first (reliable), scrape embed pages as fallback
+// Strategy: Cache first, then Spotify API (reliable), scrape embed pages as fallback
 export async function POST(request: NextRequest) {
   try {
     const { trackIds } = await request.json();
@@ -15,6 +16,23 @@ export async function POST(request: NextRequest) {
     const previews: Record<string, string | null> = {};
     const albumArts: Record<string, string> = {};
 
+    // Step 0: Check cache first
+    const uncachedIds: string[] = [];
+    for (const id of trackIds) {
+      const cached = getCachedPreview(id);
+      if (cached) {
+        if (cached.previewUrl) previews[id] = cached.previewUrl;
+        if (cached.albumArt) albumArts[id] = cached.albumArt;
+      } else {
+        uncachedIds.push(id);
+      }
+    }
+
+    // If all cached, return early
+    if (uncachedIds.length === 0) {
+      return NextResponse.json({ previews, albumArts });
+    }
+
     // Step 1: Try Spotify API in batches of 50 (API limit)
     let token: string | null = null;
     try {
@@ -24,8 +42,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (token) {
-      for (let i = 0; i < trackIds.length; i += 50) {
-        const batch = trackIds.slice(i, i + 50);
+      for (let i = 0; i < uncachedIds.length; i += 50) {
+        const batch = uncachedIds.slice(i, i + 50);
         try {
           const res = await fetch(
             `https://api.spotify.com/v1/tracks?ids=${batch.join(',')}`,
@@ -49,8 +67,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 2: Scrape embed pages for tracks still missing preview URLs
-    const needScraping = trackIds.filter((id: string) => !previews[id]);
+    // Step 2: Scrape embed pages for uncached tracks still missing preview URLs
+    const needScraping = uncachedIds.filter((id: string) => !previews[id]);
     if (needScraping.length > 0) {
       // Scrape in batches of 5 to avoid rate limiting
       for (let i = 0; i < needScraping.length; i += 5) {
@@ -66,6 +84,9 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Save newly fetched results to cache
+    batchCacheAndSave(previews, albumArts);
 
     return NextResponse.json({ previews, albumArts });
   } catch (error: any) {

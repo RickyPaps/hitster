@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import next from 'next';
 import { Server } from 'socket.io';
 import { registerSocketHandlers, startRoomCleanupInterval } from './src/lib/socket/server-handlers';
+import { saveSnapshot } from './src/lib/game/room';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
@@ -25,6 +26,11 @@ app.prepare().then(() => {
 
   registerSocketHandlers(io);
   startRoomCleanupInterval();
+
+  // Snapshot game state every 30 seconds for crash recovery
+  setInterval(() => {
+    try { saveSnapshot(); } catch { /* non-critical */ }
+  }, 30_000);
 
   httpServer.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);

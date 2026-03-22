@@ -1,7 +1,17 @@
 import type { RoomState, Player, LobbySettings, Track, MediaType } from '@/types/game';
 import { generateBingoCard } from './bingo';
+import { restoreRooms, snapshotRooms, clearSnapshot } from './persistence';
 
-const rooms = new Map<string, RoomState>();
+// Restore rooms from snapshot on module load (server restart recovery)
+const rooms = restoreRooms();
+if (rooms.size > 0) {
+  clearSnapshot();
+}
+
+/** Snapshot all in-progress rooms to disk. Called on phase changes and periodically. */
+export function saveSnapshot(): void {
+  snapshotRooms(rooms);
+}
 
 export function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
