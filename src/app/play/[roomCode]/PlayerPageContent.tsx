@@ -263,6 +263,16 @@ export default function PlayerPageContent() {
     };
   }, [playerName]);
 
+  // Warn before leaving the game (back button, tab close)
+  useEffect(() => {
+    if (!playerId) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [playerId]);
+
   // Handle being kicked by host
   useEffect(() => {
     const socket = getSocket();

@@ -14,7 +14,7 @@ interface ShopProps {
   bingoCard: BingoCell[];
 }
 
-type ShopStep = 'browse' | 'selectTarget' | 'selectCell' | 'confirming' | 'result';
+type ShopStep = 'browse' | 'selectTarget' | 'selectTargetCell' | 'selectCell' | 'confirming' | 'result';
 
 export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
   const [open, setOpen] = useState(false);
@@ -105,6 +105,8 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
     if (item.needsTarget) {
       setStep('selectTarget');
     } else if (item.needsOwnCell) {
+      // Check if there are unmarked cells to pick
+      if (!bingoCard.some(c => !c.marked)) return;
       setStep('selectCell');
     } else {
       // Direct purchase
@@ -118,14 +120,29 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
     if (!selectedItem) return;
     setSelectedTarget(targetId);
 
-    // stealCell needs a cell index from target — but server picks randomly
+    if (selectedItem.id === 'stealCell') {
+      // stealCell needs to pick which cell to unmark on the target's card
+      setStep('selectTargetCell');
+    } else {
+      const socket = getSocket();
+      socket.emit(SOCKET_EVENTS.SHOP_PURCHASE, {
+        itemId: selectedItem.id,
+        targetPlayerId: targetId,
+      });
+      setStep('confirming');
+    }
+  }, [selectedItem]);
+
+  const handleTargetCellSelect = useCallback((cellIndex: number) => {
+    if (!selectedItem || !selectedTarget) return;
     const socket = getSocket();
     socket.emit(SOCKET_EVENTS.SHOP_PURCHASE, {
       itemId: selectedItem.id,
-      targetPlayerId: targetId,
+      targetPlayerId: selectedTarget,
+      cellIndex,
     });
     setStep('confirming');
-  }, [selectedItem]);
+  }, [selectedItem, selectedTarget]);
 
   const handleCellSelect = useCallback((cellIndex: number) => {
     if (!selectedItem) return;
@@ -309,6 +326,40 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
                   </button>
                 </div>
               )}
+
+              {/* Select target's cell (stealCell) */}
+              {step === 'selectTargetCell' && selectedItem && selectedTarget && (() => {
+                const target = players.find(p => p.id === selectedTarget);
+                if (!target) return null;
+                return (
+                  <div>
+                    <p className="text-sm font-bold mb-3" style={{ color: '#EAB308' }}>
+                      {selectedItem.icon} Pick a cell to steal from {target.name}:
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
+                      {target.bingoCard.map((cell, i) => (
+                        <button
+                          key={i}
+                          onClick={() => cell.marked && handleTargetCellSelect(i)}
+                          disabled={!cell.marked}
+                          className="aspect-square rounded-lg flex items-center justify-center text-xs font-bold cursor-pointer"
+                          style={{
+                            background: cell.marked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.03)',
+                            border: `1.5px solid ${cell.marked ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255,255,255,0.1)'}`,
+                            color: cell.marked ? '#ef4444' : 'rgba(148,163,184,0.3)',
+                            opacity: cell.marked ? 1 : 0.4,
+                          }}
+                        >
+                          {cell.marked ? '✓' : cell.category.slice(0, 4)}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => { setStep('selectTarget'); setSelectedTarget(null); }} className="w-full mt-3 py-2 text-sm cursor-pointer" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
+                      Back
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Select own cell */}
               {step === 'selectCell' && selectedItem && (

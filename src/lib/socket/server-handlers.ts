@@ -987,6 +987,12 @@ export function registerSocketHandlers(io: Server) {
       const room = getRoom(currentRoom);
       if (!room) return;
 
+      // Reject guesses after timer has ended
+      if (room.phase !== 'PLAYING' && room.phase !== 'DRINKING_SEGMENT') {
+        callback?.({ success: false, error: 'Round has ended' });
+        return;
+      }
+
       const guess = data.guess?.trim().slice(0, 200);
       if (!guess) {
         callback?.({ success: false, error: 'Guess is required' });
