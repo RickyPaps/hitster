@@ -33,7 +33,7 @@ export default function PlayerPageContent() {
   useGameState();
 
   const {
-    phase, currentCategory, timerSeconds, settings,
+    phase, currentCategory, timerSeconds, settings, roundNumber,
     bingoCard, hasGuessedThisRound, winner, roundGuesses,
     playerId, playerName, players,
     currentSpinnerId, currentSpinnerName,
@@ -492,7 +492,7 @@ export default function PlayerPageContent() {
   if (!playerId) {
     // Spectator mode — read-only view of the game
     if (isSpectator) {
-      return <SpectatorView roomCode={roomCode} phase={phase} roundNumber={useGameStore.getState().roundNumber} timerSeconds={timerSeconds} timerPct={timerPct} players={players} winner={winner} settings={settings} onJoinGame={() => setIsSpectator(false)} />;
+      return <SpectatorView roomCode={roomCode} phase={phase} roundNumber={roundNumber} timerSeconds={timerSeconds} timerPct={timerPct} players={players} winner={winner} settings={settings} onJoinGame={() => setIsSpectator(false)} />;
     }
     // Show loading while auto-rejoining from sessionStorage
     if (autoRejoining) {
