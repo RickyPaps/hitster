@@ -1219,3 +1219,177 @@ function RockOffFeed({ guesses }: { guesses: any[] }) {
     </div>
   );
 }
+
+// --- Spectator View ---
+function SpectatorView({ roomCode, phase, roundNumber, timerSeconds, timerPct, players, winner, settings, onJoinGame }: {
+  roomCode: string;
+  phase: string | null;
+  roundNumber: number;
+  timerSeconds: number;
+  timerPct: number;
+  players: any[];
+  winner: any;
+  settings: any;
+  onJoinGame: () => void;
+}) {
+  const timerIsLow = timerSeconds <= 5;
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
+  const phaseLabel = (p: string | null) => {
+    switch (p) {
+      case 'LOBBY': return 'In Lobby';
+      case 'SPINNING': return 'Spinning Wheel';
+      case 'PLAYING': return 'Guessing';
+      case 'JUDGING': return 'Judging';
+      case 'ROUND_RESULTS': return 'Round Results';
+      case 'DRINKING_SEGMENT': return 'Party Time';
+      case 'GAME_OVER': return 'Game Over';
+      default: return 'Waiting';
+    }
+  };
+
+  return (
+    <div className="min-h-dvh flex flex-col relative overflow-hidden">
+      {/* Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-15">
+        <div className="absolute bottom-0 w-full h-[40%] dance-floor-grid" style={{ transform: 'perspective(600px) rotateX(55deg) scale(1.6)', transformOrigin: 'bottom' }} />
+        <div className="absolute top-0 left-[20%] w-20 h-full bg-gradient-to-b from-fuchsia-500/30 to-transparent -rotate-45 origin-top blur-xl mix-blend-screen" />
+      </div>
+
+      <div className="relative z-10 flex flex-col flex-1 px-4 py-4">
+        {/* Spectating badge */}
+        <div className="flex items-center justify-center mb-4">
+          <span
+            className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
+            style={{
+              background: 'rgba(100, 116, 139, 0.25)',
+              border: '1.5px solid rgba(148, 163, 184, 0.5)',
+              color: 'rgba(148, 163, 184, 0.9)',
+            }}
+          >
+            Spectating
+          </span>
+        </div>
+
+        {/* Room & phase info */}
+        <div className="text-center mb-4">
+          <h1
+            className="text-2xl neon-text-fuchsia uppercase tracking-widest mb-1"
+            style={{ fontFamily: 'var(--font-display)', color: 'white' }}
+          >
+            Hitster
+          </h1>
+          <p className="text-sm" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>
+            Room <span className="font-bold tracking-widest" style={{ color: 'var(--game-fuchsia)' }}>{roomCode}</span>
+          </p>
+        </div>
+
+        {/* Phase indicator */}
+        <div className="text-center mb-3">
+          <span
+            className="inline-block px-3 py-1 rounded-lg text-sm font-semibold"
+            style={{
+              background: 'rgba(217, 70, 239, 0.15)',
+              border: '1px solid rgba(217, 70, 239, 0.3)',
+              color: '#e2e8f0',
+            }}
+          >
+            {phaseLabel(phase)} {roundNumber > 0 && `\u00B7 Round ${roundNumber}`}
+          </span>
+        </div>
+
+        {/* Timer (during PLAYING phase) */}
+        {phase === 'PLAYING' && timerSeconds > 0 && (
+          <div className="w-full max-w-xs mx-auto mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium" style={{ color: 'rgba(148, 163, 184, 0.7)' }}>Time remaining</span>
+              <span
+                className="text-sm font-bold tabular-nums"
+                style={{ color: timerIsLow ? '#ef4444' : '#e2e8f0' }}
+              >
+                {timerSeconds}s
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(20, 12, 50, 0.6)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${timerPct}%`,
+                  background: timerIsLow ? 'linear-gradient(90deg, #ef4444, #f97316)' : 'linear-gradient(90deg, #d946ef, #8b5cf6)',
+                  boxShadow: timerIsLow ? '0 0 8px rgba(239, 68, 68, 0.5)' : '0 0 8px rgba(217, 70, 239, 0.4)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Winner display */}
+        {phase === 'GAME_OVER' && winner && (
+          <div className="text-center mb-4 py-3 rounded-xl" style={{ background: 'rgba(217, 70, 239, 0.15)', border: '1px solid rgba(217, 70, 239, 0.3)' }}>
+            <p className="text-lg font-bold" style={{ color: '#fbbf24' }}>
+              {winner.name} wins!
+            </p>
+            <p className="text-sm" style={{ color: 'rgba(148, 163, 184, 0.8)' }}>{winner.score} points</p>
+          </div>
+        )}
+
+        {/* Leaderboard */}
+        <div className="flex-1 w-full max-w-sm mx-auto">
+          <h2 className="text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
+            Leaderboard
+          </h2>
+          <div className="space-y-1.5">
+            {sortedPlayers.map((p, i) => (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                style={{
+                  background: i === 0 ? 'rgba(217, 70, 239, 0.12)' : 'rgba(20, 12, 50, 0.5)',
+                  border: i === 0 ? '1px solid rgba(217, 70, 239, 0.3)' : '1px solid rgba(100, 80, 140, 0.15)',
+                }}
+              >
+                <span
+                  className="text-xs font-bold shrink-0 w-6 h-6 flex items-center justify-center rounded-full"
+                  style={{
+                    background: i === 0 ? 'rgba(217, 70, 239, 0.3)' : 'rgba(255, 255, 255, 0.08)',
+                    color: i === 0 ? '#d946ef' : 'rgba(148, 163, 184, 0.7)',
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span className="flex-1 font-medium truncate" style={{ color: '#e2e8f0' }}>
+                  {p.name}
+                </span>
+                {!p.connected && (
+                  <span className="text-xs" style={{ color: 'rgba(148, 163, 184, 0.4)' }}>offline</span>
+                )}
+                <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--game-fuchsia)' }}>
+                  {p.score}
+                </span>
+              </div>
+            ))}
+            {sortedPlayers.length === 0 && (
+              <p className="text-center text-sm py-4" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>No players yet</p>
+            )}
+          </div>
+        </div>
+
+        {/* Join game button (only in lobby) */}
+        {phase === 'LOBBY' && (
+          <div className="mt-4 w-full max-w-xs mx-auto">
+            <button
+              onClick={onJoinGame}
+              className="w-full py-3 px-6 rounded-xl font-bold text-white cursor-pointer uppercase tracking-wider"
+              style={{
+                background: 'linear-gradient(135deg, #d946ef, #8b5cf6)',
+                boxShadow: '0 0 15px rgba(217, 70, 239, 0.4)',
+              }}
+            >
+              Join Game
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
