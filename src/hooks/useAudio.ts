@@ -239,6 +239,7 @@ function playWheelLand() {
 
 /** Short click for wheel segment ticks — bypasses debounce for rapid playback */
 export function playSpinTick() {
+  if (globalMuted) return;
   try {
     const ctx = getCtx();
     const now = ctx.currentTime;

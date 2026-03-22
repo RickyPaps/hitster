@@ -196,6 +196,9 @@ export default function MilestoneReward({ milestone, players, myPlayerId, myBing
       setStep('selectPlayer');
     } else if (config.needsOwnCell) {
       setStep('selectOwnCell');
+    } else {
+      // Milestones like hint1000 that just notify — dismiss on acknowledge
+      onDismiss();
     }
   }, [milestone?.type, onDismiss]);
 

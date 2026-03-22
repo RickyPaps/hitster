@@ -817,11 +817,16 @@ function NotificationOverlay({ notification, onDismiss }: { notification: { mess
 
 function PlayerTimerBar({ pct, isLow }: { pct: number; isLow: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const tweenRef = useRef<gsap.core.Tween | null>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    gsap.to(el, { width: `${pct}%`, duration: 0.3, ease: 'none' });
+    if (tweenRef.current) tweenRef.current.kill();
+    tweenRef.current = gsap.to(el, { width: `${pct}%`, duration: 0.3, ease: 'none' });
   }, [pct]);
+  useEffect(() => {
+    return () => { if (tweenRef.current) tweenRef.current.kill(); };
+  }, []);
   return (
     <div
       ref={ref}
@@ -1024,7 +1029,7 @@ function PlayerPhaseContent(props: PlayerPhaseContentProps) {
       gsap.fromTo(el, { opacity: 0.4 }, { opacity: 0.8, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' });
     });
     return () => ctx.revert();
-  });
+  }, [phase]); // re-create when phase changes (new content mounts)
 
   const positionSuffix = (n: number) => (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
 

@@ -32,13 +32,14 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
   // Animate panel open/close
   useEffect(() => {
     const el = panelRef.current;
-    if (!el) return;
-    if (open) {
+    if (!el || !open) return;
+    const ctx = gsap.context(() => {
       gsap.fromTo(el,
         { y: '100%', opacity: 0 },
         { y: '0%', opacity: 1, duration: 0.35, ease: 'power3.out' }
       );
-    }
+    });
+    return () => ctx.revert();
   }, [open]);
 
   // Badge pulse when shop is available
@@ -54,6 +55,7 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
   // Listen for shop results
   useEffect(() => {
     const socket = getSocket();
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
     const resultHandler = (data: { success: boolean; error?: string; item?: string; newScore?: number }) => {
       if (data.success) {
@@ -62,26 +64,25 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
         setResultMsg(data.error ?? 'Purchase failed');
       }
       setStep('result');
-      setTimeout(() => {
+      timers.push(setTimeout(() => {
         setResultMsg(null);
         setStep('browse');
         setSelectedItem(null);
         setSelectedTarget(null);
         setSelectedCell(null);
-      }, 1500);
+      }, 1500));
     };
 
     const peekHandler = (data: { players: { name: string; nearLines: number }[] }) => {
       setPeekData(data.players);
       setResultMsg('Card Peek activated!');
       setStep('result');
-      // Auto-dismiss after 5s
-      setTimeout(() => {
+      timers.push(setTimeout(() => {
         setPeekData(null);
         setResultMsg(null);
         setStep('browse');
         setSelectedItem(null);
-      }, 5000);
+      }, 5000));
     };
 
     socket.on(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, resultHandler);
@@ -90,6 +91,7 @@ export default function Shop({ player, players, phase, bingoCard }: ShopProps) {
     return () => {
       socket.off(SOCKET_EVENTS.SHOP_PURCHASE_RESULT, resultHandler);
       socket.off(SOCKET_EVENTS.SHOP_PEEK_RESULT, peekHandler);
+      timers.forEach(clearTimeout);
     };
   }, []);
 
